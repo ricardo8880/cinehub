@@ -103,7 +103,7 @@
                 <button class="sidebar-link sidebar-link--button" type="button"><i class="bi bi-tags"></i><span>{{ __('Content Suggestions') }}</span></button>
             </nav>
 
-            <section class="support-card mt-auto" aria-label="{{ __('Support the Site') }}">
+            <section class="support-card" aria-label="{{ __('Support the Site') }}">
                 <div class="support-card__title"><span class="support-card__icon"><i class="bi bi-play-btn-fill"></i></span>{{ __('Support the Site') }}</div>
                 <p>{{ __('Help keep the project online with a small donation.') }}</p>
                 <button class="btn support-card__button" type="button"><i class="bi bi-heart-fill"></i> {{ __('Make a Donation') }}</button>
