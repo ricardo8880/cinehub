@@ -34,7 +34,6 @@
                         @if ($medium->provider) · {{ ucfirst($medium->provider) }} @endif
                     </div>
                     @if ($medium->alt_text)<div class="small">{{ $medium->alt_text }}</div>@endif
-                    @if ($medium->embed_url)<div class="small text-truncate mt-2"><code>{{ $medium->embed_url }}</code></div>@endif
                 </div>
                 <div class="card-footer d-flex justify-content-end gap-2">
                     <a class="btn btn-outline-light btn-sm" href="{{ route('admin.posts.media.edit', [$post, $medium]) }}"><i class="bi bi-pencil me-1"></i>{{ __('Edit') }}</a>

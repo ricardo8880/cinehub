@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Post;
+use App\Support\RichTextHtml;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -24,6 +25,12 @@ class PostRequest extends FormRequest
                 $data['slug'] = str($data['slug'])->slug()->value();
             }
 
+            foreach (['excerpt', 'synopsis', 'review'] as $richTextField) {
+                if (array_key_exists($richTextField, $data)) {
+                    $data[$richTextField] = RichTextHtml::normalize($data[$richTextField]);
+                }
+            }
+
             $title = trim((string) ($data['title'] ?? ''));
             $seoTitle = trim((string) ($data['seo_title'] ?? ''));
             $seoDescription = trim((string) ($data['seo_description'] ?? ''));
@@ -33,8 +40,8 @@ class PostRequest extends FormRequest
             }
 
             if ($seoDescription === '' && $title !== '') {
-                $excerpt = trim((string) ($data['excerpt'] ?? ''));
-                $synopsis = trim(strip_tags((string) ($data['synopsis'] ?? '')));
+                $excerpt = RichTextHtml::plainText($data['excerpt'] ?? null);
+                $synopsis = RichTextHtml::plainText($data['synopsis'] ?? null);
                 $fallback = $excerpt !== ''
                     ? $excerpt
                     : ($synopsis !== '' ? $synopsis : 'Read '.$title.' on '.config('site.name').'.');
@@ -78,9 +85,18 @@ class PostRequest extends FormRequest
                     ->where(fn ($query) => $query->where('locale', $locale))
                     ->ignore($existingLocalization?->id),
             ];
-            $rules["localizations.$locale.excerpt"] = ['nullable', 'string', 'max:500'];
+            $rules["localizations.$locale.excerpt"] = [
+                'nullable',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (mb_strlen(RichTextHtml::plainText((string) $value)) > 500) {
+                        $fail(__('The excerpt may not be greater than 500 characters.'));
+                    }
+                },
+            ];
             $rules["localizations.$locale.synopsis"] = ['nullable', 'string'];
             $rules["localizations.$locale.review"] = ['nullable', 'string'];
+            $rules["localizations.$locale.spoilers"] = ['nullable', 'string'];
             $rules["localizations.$locale.seo_title"] = ['nullable', 'string', 'max:70'];
             $rules["localizations.$locale.seo_description"] = ['nullable', 'string', 'max:170'];
             $rules["media.$locale.type"] = ['nullable', Rule::in(['image', 'youtube'])];

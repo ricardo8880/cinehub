@@ -15,10 +15,13 @@
     @endif
 </div>
 
-<form class="input-group input-group-lg mb-4" method="get" action="{{ route('search') }}">
-    <span class="input-group-text bg-body-tertiary border-secondary-subtle"><i class="bi bi-search"></i></span>
-    <input class="form-control bg-body-tertiary border-secondary-subtle" name="q" value="{{ $query }}" type="search" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search') }}">
-    <button class="btn btn-danger" type="submit">{{ __('Search') }}</button>
+<form class="public-search-form mb-4" method="get" action="{{ route('search', ['locale' => request()->route('locale')]) }}" data-search-form data-search-mode="global" data-search-suggestions-url="{{ route('search.suggestions', ['locale' => request()->route('locale')]) }}">
+    <div class="input-group input-group-lg">
+        <span class="input-group-text bg-body-tertiary border-secondary-subtle"><i class="bi bi-search"></i></span>
+        <input class="form-control bg-body-tertiary border-secondary-subtle" name="q" value="{{ $query }}" type="search" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search') }}" autocomplete="off" data-site-search>
+        <button class="btn btn-danger" type="submit">{{ __('Search') }}</button>
+    </div>
+    <div class="site-search-results public-search-results" data-search-results hidden></div>
 </form>
 
 @if ($query !== '' && $posts->count())

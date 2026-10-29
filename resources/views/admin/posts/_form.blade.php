@@ -79,25 +79,44 @@
                 <label class="form-check-label" for="featured-{{ $locale }}">{{ __('Featured in this country') }}</label>
             </div>
             <div class="row g-3">
-                <div class="col-md-8">
+                <div class="col-12">
                     <label class="form-label" for="title-{{ $locale }}">{{ __('Title') }}</label>
                     <input class="form-control" id="title-{{ $locale }}" data-post-title="{{ $locale }}" name="localizations[{{ $locale }}][title]" value="{{ old("localizations.$locale.title", $localization?->title) }}" maxlength="180" {{ $locale === $defaultLocale ? 'required' : '' }}>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="slug-{{ $locale }}">{{ __('Slug') }}</label>
-                    <input class="form-control" id="slug-{{ $locale }}" name="localizations[{{ $locale }}][slug]" value="{{ old("localizations.$locale.slug", $localization?->slug) }}" maxlength="200" placeholder="post-title">
-                </div>
                 <div class="col-12">
                     <label class="form-label" for="excerpt-{{ $locale }}">{{ __('Excerpt') }}</label>
-                    <textarea class="form-control" id="excerpt-{{ $locale }}" data-post-excerpt="{{ $locale }}" name="localizations[{{ $locale }}][excerpt]" rows="2" maxlength="500">{{ old("localizations.$locale.excerpt", $localization?->excerpt) }}</textarea>
+                    <div data-rich-text-wrapper>
+                        <textarea class="form-control" id="excerpt-{{ $locale }}" data-rich-text-input data-rich-maxlength="500" data-post-excerpt="{{ $locale }}" name="localizations[{{ $locale }}][excerpt]" rows="3">{{ old("localizations.$locale.excerpt", $localization?->excerpt) }}</textarea>
+                        <div data-rich-text-editor></div>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mt-2">
+                            <button class="btn btn-outline-secondary btn-sm d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
+                            <small class="text-body-secondary" data-rich-text-count></small>
+                        </div>
+                        <textarea class="form-control font-monospace mt-2 d-none" rows="6" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
+                    </div>
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="synopsis-{{ $locale }}">{{ __('Synopsis') }}</label>
-                    <textarea class="form-control" id="synopsis-{{ $locale }}" data-post-synopsis="{{ $locale }}" name="localizations[{{ $locale }}][synopsis]" rows="5">{{ old("localizations.$locale.synopsis", $localization?->synopsis) }}</textarea>
+                    <div data-rich-text-wrapper>
+                        <textarea class="form-control" id="synopsis-{{ $locale }}" data-rich-text-input data-post-synopsis="{{ $locale }}" name="localizations[{{ $locale }}][synopsis]" rows="5">{{ old("localizations.$locale.synopsis", $localization?->synopsis) }}</textarea>
+                        <div data-rich-text-editor></div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
+                        <textarea class="form-control font-monospace mt-2 d-none" rows="8" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
+                    </div>
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="review-{{ $locale }}">{{ __('Review') }}</label>
-                    <textarea class="form-control" id="review-{{ $locale }}" name="localizations[{{ $locale }}][review]" rows="8">{{ old("localizations.$locale.review", $localization?->review) }}</textarea>
+                    <div data-rich-text-wrapper>
+                        <textarea class="form-control" id="review-{{ $locale }}" data-rich-text-input name="localizations[{{ $locale }}][review]" rows="8">{{ old("localizations.$locale.review", $localization?->review) }}</textarea>
+                        <div data-rich-text-editor></div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
+                        <textarea class="form-control font-monospace mt-2 d-none" rows="12" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="spoilers-{{ $locale }}">{{ __('Spoilers') }}</label>
+                    <textarea class="form-control" id="spoilers-{{ $locale }}" name="localizations[{{ $locale }}][spoilers]" rows="7">{{ old("localizations.$locale.spoilers", $localization?->spoilers) }}</textarea>
+                    <div class="form-text">{{ __('Hidden by default on the public post. Visitors choose whether to reveal it.') }}</div>
                 </div>
             </div>
 
@@ -167,8 +186,155 @@
     @endforeach
 </div>
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const normalizeRichHtml = (html) => {
+        const documentNode = document.implementation.createHTMLDocument('');
+        const root = documentNode.createElement('div');
+        root.innerHTML = html || '';
+
+        const walker = documentNode.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let textNode;
+        while ((textNode = walker.nextNode())) {
+            textNode.nodeValue = (textNode.nodeValue || '').replace(/[\u00a0\u202f\u2007]/g, ' ');
+        }
+
+        root.querySelectorAll('strong, em, u, s, a').forEach((element) => {
+            if ((element.textContent || '').replace(/[\u00a0\u202f\u2007]/g, ' ').trim() === '') {
+                element.remove();
+            }
+        });
+
+        root.querySelectorAll('p, blockquote, h2, h3, li').forEach((element) => {
+            const text = (element.textContent || '').replace(/[\u00a0\u202f\u2007]/g, ' ').trim();
+            const hasMeaningfulElement = [...element.children].some((child) => child.tagName !== 'BR');
+
+            if (text === '' && !hasMeaningfulElement) {
+                element.remove();
+            }
+        });
+
+        root.querySelectorAll('ol, ul').forEach((element) => {
+            if (!element.querySelector('li')) {
+                element.remove();
+            }
+        });
+
+        return root.innerHTML.trim();
+    };
+
+    const plainTextFromHtml = (html) => {
+        const documentNode = document.implementation.createHTMLDocument('');
+        const container = documentNode.createElement('div');
+        container.innerHTML = html || '';
+        return (container.textContent || '').replace(/\s+/g, ' ').trim();
+    };
+
+    document.querySelectorAll('[data-rich-text-wrapper]').forEach((wrapper) => {
+        const input = wrapper.querySelector('[data-rich-text-input]');
+        const editor = wrapper.querySelector('[data-rich-text-editor]');
+        const source = wrapper.querySelector('[data-rich-text-source]');
+        const toggle = wrapper.querySelector('[data-rich-text-source-toggle]');
+        const count = wrapper.querySelector('[data-rich-text-count]');
+        const maxLength = Number(input?.dataset.richMaxlength || 0);
+
+        if (!input || !editor || !source || !toggle || typeof Quill === 'undefined') {
+            return;
+        }
+
+        const quill = new Quill(editor, {
+            theme: 'snow',
+            formats: ['header', 'bold', 'italic', 'underline', 'strike', 'blockquote', 'list', 'link'],
+            modules: {
+                toolbar: [
+                    [{ header: [2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    ['blockquote', 'link'],
+                    ['clean'],
+                ],
+            },
+        });
+
+        input.classList.add('d-none');
+        toggle.classList.remove('d-none');
+
+        const updateCount = () => {
+            if (!count || !maxLength) {
+                return;
+            }
+
+            const length = plainTextFromHtml(input.value).length;
+            count.textContent = `${length}/${maxLength}`;
+            count.classList.toggle('text-danger', length > maxLength);
+            count.classList.toggle('text-body-secondary', length <= maxLength);
+        };
+
+        const notifyInput = () => {
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            updateCount();
+        };
+
+        const syncFromEditor = () => {
+            input.value = normalizeRichHtml(quill.getSemanticHTML());
+            notifyInput();
+        };
+
+        const syncFromSource = () => {
+            input.value = normalizeRichHtml(source.value);
+            notifyInput();
+        };
+
+        if (input.value.trim() !== '') {
+            quill.clipboard.dangerouslyPasteHTML(input.value);
+        }
+        syncFromEditor();
+
+        quill.on('text-change', syncFromEditor);
+        source.addEventListener('input', syncFromSource);
+
+        toggle.addEventListener('click', () => {
+            const sourceMode = !source.classList.contains('d-none');
+            const toolbar = wrapper.querySelector('.ql-toolbar');
+
+            if (sourceMode) {
+                const cleanHtml = normalizeRichHtml(source.value);
+                source.value = cleanHtml;
+                quill.setText('');
+                if (cleanHtml !== '') {
+                    quill.clipboard.dangerouslyPasteHTML(cleanHtml);
+                }
+                syncFromEditor();
+                source.classList.add('d-none');
+                editor.classList.remove('d-none');
+                toolbar?.classList.remove('d-none');
+                toggle.innerHTML = '<i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}';
+                return;
+            }
+
+            source.value = normalizeRichHtml(quill.getSemanticHTML());
+            syncFromSource();
+            source.classList.remove('d-none');
+            editor.classList.add('d-none');
+            toolbar?.classList.add('d-none');
+            toggle.innerHTML = '<i class="bi bi-pencil me-1"></i>{{ __('Editor') }}';
+        });
+
+        wrapper.closest('form')?.addEventListener('submit', () => {
+            if (!source.classList.contains('d-none')) {
+                syncFromSource();
+            } else {
+                syncFromEditor();
+            }
+        });
+    });
+
     document.querySelectorAll('[data-country-media-type]').forEach((typeSelect) => {
         const locale = typeSelect.dataset.countryMediaType;
         const imageFields = document.querySelector(`[data-country-image-fields="${locale}"]`);
@@ -208,8 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const excerpt = excerptInput?.value.trim() || '';
-            const synopsis = synopsisInput?.value.trim() || '';
+            const excerpt = plainTextFromHtml(excerptInput?.value || '');
+            const synopsis = plainTextFromHtml(synopsisInput?.value || '');
             const title = titleInput.value.trim();
             const fallback = title ? `Read ${title} on {{ config('site.name') }}.` : '';
             seoDescriptionInput.value = (excerpt || synopsis || fallback).slice(0, 170);
@@ -235,4 +401,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
-
+@endpush

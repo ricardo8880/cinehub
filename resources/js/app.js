@@ -8,6 +8,7 @@ const themeIcon = document.querySelector('[data-theme-icon]');
 const searchInputs = [...document.querySelectorAll('[data-site-search]')];
 const searchForms = [...document.querySelectorAll('[data-search-form]')];
 const searchClearButtons = [...document.querySelectorAll('[data-search-clear]')];
+const searchResultPanels = [...document.querySelectorAll('[data-search-results]')];
 const filterButtons = [...document.querySelectorAll('[data-content-filter]')];
 const watchlistFilter = document.querySelector('[data-watchlist-filter]');
 const videoModal = document.getElementById('videoModal');
@@ -18,6 +19,8 @@ const mobileSearchPanel = document.getElementById('mobileSearchPanel');
 const themeStorageKey = 'site-theme-v2';
 const watchlistStorageKey = 'site-watchlist';
 let searchQuery = searchInputs.find((input) => input.value.trim() !== '')?.value.trim() ?? '';
+let searchSuggestionTimer = null;
+let searchSuggestionController = null;
 
 const setTheme = (theme) => {
     root.setAttribute('data-bs-theme', theme);
@@ -46,6 +49,115 @@ const syncSearchControls = (source = null) => {
     });
 };
 
+const escapeHtml = (value) => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+const hideSearchResults = (except = null) => {
+    searchResultPanels.forEach((panel) => {
+        if (panel !== except) {
+            panel.hidden = true;
+            panel.innerHTML = '';
+        }
+    });
+};
+
+const setActiveSearchResult = (panel, index) => {
+    const items = [...panel.querySelectorAll('[data-search-result-item]')];
+    if (!items.length) return;
+
+    const safeIndex = ((index % items.length) + items.length) % items.length;
+    items.forEach((item, itemIndex) => item.classList.toggle('is-active', itemIndex === safeIndex));
+    panel.dataset.activeIndex = String(safeIndex);
+    items[safeIndex].scrollIntoView({ block: 'nearest' });
+};
+
+const renderSearchResults = (form, panel, query, results) => {
+    if (!results.length) {
+        panel.innerHTML = `<div class="site-search-results__empty"><i class="bi bi-search"></i><span>No results for “${escapeHtml(query)}”</span></div>`;
+        panel.dataset.activeIndex = '-1';
+        panel.hidden = false;
+        hideSearchResults(panel);
+        return;
+    }
+
+    const groups = new Map();
+    results.forEach((result) => {
+        const group = result.type || 'Content';
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group).push(result);
+    });
+
+    const groupHtml = [...groups.entries()].map(([group, items]) => `
+        <div class="site-search-results__group">
+            <div class="site-search-results__heading">${escapeHtml(group)}</div>
+            ${items.map((result) => `
+                <a class="site-search-result" href="${escapeHtml(result.url)}" data-search-result-item>
+                    <img class="site-search-result__image" src="${escapeHtml(result.image_url)}" alt="" loading="lazy">
+                    <span class="site-search-result__copy">
+                        <strong>${escapeHtml(result.title)}</strong>
+                        ${result.excerpt ? `<small>${escapeHtml(result.excerpt)}</small>` : ''}
+                    </span>
+                    <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+                </a>
+            `).join('')}
+        </div>
+    `).join('');
+
+    const allResultsUrl = new URL(form.action, window.location.origin);
+    allResultsUrl.searchParams.set('q', query);
+
+    panel.innerHTML = `${groupHtml}<a class="site-search-results__all" href="${escapeHtml(allResultsUrl.toString())}"><i class="bi bi-search me-2"></i>See all results for “${escapeHtml(query)}”</a>`;
+    panel.dataset.activeIndex = '-1';
+    panel.hidden = false;
+    hideSearchResults(panel);
+};
+
+const loadSearchSuggestions = async (input) => {
+    const form = input.closest('[data-search-form]');
+    const panel = form?.querySelector('[data-search-results]');
+    const endpoint = form?.dataset.searchSuggestionsUrl;
+    const query = input.value.trim();
+
+    if (!form || !panel || !endpoint) {
+        return;
+    }
+
+    searchSuggestionController?.abort();
+    searchSuggestionController = new AbortController();
+
+    panel.innerHTML = `<div class="site-search-results__loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${query === '' ? 'Loading recent content…' : 'Searching…'}</span></div>`;
+    panel.hidden = false;
+    hideSearchResults(panel);
+
+    try {
+        const url = new URL(endpoint, window.location.origin);
+        url.searchParams.set('q', query);
+        const response = await fetch(url, {
+            headers: { Accept: 'application/json' },
+            signal: searchSuggestionController.signal,
+        });
+
+        if (!response.ok) throw new Error('Search request failed');
+        const payload = await response.json();
+
+        if (input.value.trim() !== query) return;
+        renderSearchResults(form, panel, query, Array.isArray(payload.results) ? payload.results : []);
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        panel.hidden = true;
+        panel.innerHTML = '';
+    }
+};
+
+const scheduleSearchSuggestions = (input) => {
+    window.clearTimeout(searchSuggestionTimer);
+    searchSuggestionTimer = window.setTimeout(() => loadSearchSuggestions(input), 220);
+};
+
 const applyContentFilters = () => {
     const query = searchQuery.toLocaleLowerCase();
     const filter = currentFilter();
@@ -69,6 +181,38 @@ searchInputs.forEach((input) => {
         searchQuery = input.value.trim();
         syncSearchControls(input);
         applyContentFilters();
+
+        if (input.closest('[data-search-form]')?.dataset.searchMode === 'global') {
+            scheduleSearchSuggestions(input);
+        }
+    });
+
+    input.addEventListener('focus', () => {
+        if (input.closest('[data-search-form]')?.dataset.searchMode === 'global') {
+            scheduleSearchSuggestions(input);
+        }
+    });
+
+    input.addEventListener('keydown', (event) => {
+        const panel = input.closest('[data-search-form]')?.querySelector('[data-search-results]');
+        if (!panel || panel.hidden) return;
+
+        const items = [...panel.querySelectorAll('[data-search-result-item]')];
+        const activeIndex = Number(panel.dataset.activeIndex ?? -1);
+
+        if (event.key === 'ArrowDown' && items.length) {
+            event.preventDefault();
+            setActiveSearchResult(panel, activeIndex + 1);
+        } else if (event.key === 'ArrowUp' && items.length) {
+            event.preventDefault();
+            setActiveSearchResult(panel, activeIndex <= 0 ? items.length - 1 : activeIndex - 1);
+        } else if (event.key === 'Enter' && activeIndex >= 0 && items[activeIndex]) {
+            event.preventDefault();
+            window.location.href = items[activeIndex].href;
+        } else if (event.key === 'Escape') {
+            panel.hidden = true;
+            panel.innerHTML = '';
+        }
     });
 });
 
@@ -92,7 +236,10 @@ searchClearButtons.forEach((button) => {
         searchQuery = '';
         syncSearchControls();
         applyContentFilters();
-        button.closest('form')?.querySelector('[data-site-search]')?.focus();
+        hideSearchResults();
+        const input = button.closest('form')?.querySelector('[data-site-search]');
+        input?.focus();
+        if (input) scheduleSearchSuggestions(input);
     });
 });
 
@@ -133,6 +280,8 @@ const syncWatchlist = () => {
 };
 
 document.addEventListener('click', (event) => {
+    if (!event.target.closest('[data-search-form]')) hideSearchResults();
+
     const sidebarLink = event.target.closest('#siteSidebar a, #siteSidebar button');
     if (sidebarLink && window.innerWidth < 1200 && siteSidebar?.classList.contains('show')) {
         Offcanvas.getOrCreateInstance(siteSidebar).hide();
@@ -192,6 +341,22 @@ videoModal?.addEventListener('hidden.bs.modal', () => {
 
 mobileSearchPanel?.addEventListener('shown.bs.offcanvas', () => {
     mobileSearchPanel.querySelector('[data-site-search]')?.focus();
+});
+
+document.querySelectorAll('[data-spoiler-content]').forEach((content) => {
+    const button = document.querySelector(`[data-bs-target="#${content.id}"][data-spoiler-toggle]`);
+    const label = button?.querySelector('[data-spoiler-label]');
+    const icon = button?.querySelector('i');
+
+    content.addEventListener('shown.bs.collapse', () => {
+        if (label) label.textContent = button.dataset.hideLabel || 'Hide spoilers';
+        if (icon) icon.className = 'bi bi-eye-slash me-1';
+    });
+
+    content.addEventListener('hidden.bs.collapse', () => {
+        if (label) label.textContent = button.dataset.showLabel || 'Show spoilers';
+        if (icon) icon.className = 'bi bi-eye me-1';
+    });
 });
 
 syncWatchlist();

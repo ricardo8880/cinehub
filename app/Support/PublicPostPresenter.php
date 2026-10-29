@@ -42,7 +42,7 @@ class PublicPostPresenter
         return [
             'id' => $post->id,
             'title' => $localization->title,
-            'excerpt' => $localization->excerpt,
+            'excerpt' => RichTextHtml::plainText($localization->excerpt),
             'type' => $categoryLocalization->slug,
             'type_label' => $categoryLocalization->name,
             'content_kind' => $this->contentKind($category->slug),
@@ -98,7 +98,6 @@ class PublicPostPresenter
     public function embedUrl(?Media $media): ?string
     {
         if (! $media) return null;
-        if ($media->embed_url) return $media->embed_url;
         if ($media->provider === 'youtube' && $media->provider_id) return 'https://www.youtube-nocookie.com/embed/'.rawurlencode($media->provider_id).'?rel=0';
         if ($media->provider === 'vimeo' && $media->provider_id) return 'https://player.vimeo.com/video/'.rawurlencode($media->provider_id);
         return null;

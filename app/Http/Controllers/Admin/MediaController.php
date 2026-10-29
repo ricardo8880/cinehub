@@ -48,7 +48,6 @@ class MediaController extends Controller
                 'type' => $data['type'],
                 'provider' => $data['provider'] ?? null,
                 'provider_id' => $data['provider_id'] ?? null,
-                'embed_url' => $data['embed_url'] ?? null,
                 'thumbnail_path' => $path,
                 'alt_text' => $data['alt_text'] ?? null,
                 'caption' => $data['caption'] ?? null,
@@ -106,7 +105,6 @@ class MediaController extends Controller
                 'type' => $data['type'],
                 'provider' => $data['provider'] ?? null,
                 'provider_id' => $data['provider_id'] ?? null,
-                'embed_url' => $data['embed_url'] ?? null,
                 'thumbnail_path' => $path,
                 'alt_text' => $data['alt_text'] ?? null,
                 'caption' => $data['caption'] ?? null,
@@ -145,9 +143,9 @@ class MediaController extends Controller
             ]);
         }
 
-        if ($data['type'] === 'trailer' && empty($data['embed_url']) && (empty($data['provider']) || empty($data['provider_id']))) {
+        if ($data['type'] === 'trailer' && (empty($data['provider']) || empty($data['provider_id']))) {
             throw ValidationException::withMessages([
-                'embed_url' => __('Provide an embed URL or both provider and provider ID for the trailer.'),
+                'provider' => __('Choose YouTube or Vimeo and provide the video ID.'),
             ]);
         }
     }

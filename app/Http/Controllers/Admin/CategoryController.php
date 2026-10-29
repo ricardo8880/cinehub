@@ -48,7 +48,7 @@ class CategoryController extends Controller
 
         $category = DB::transaction(function () use ($data, $defaultLocale, $default): Category {
             $category = Category::create([
-                'slug' => $this->uniqueBaseSlug($default['slug'] ?: $default['name']),
+                'slug' => $this->uniqueBaseSlug($default['name']),
                 'name' => $default['name'],
                 'icon' => $data['icon'] ?? null,
                 'description' => $default['description'] ?? null,
@@ -84,7 +84,7 @@ class CategoryController extends Controller
 
         DB::transaction(function () use ($category, $data, $default): void {
             $category->update([
-                'slug' => $this->uniqueBaseSlug($default['slug'] ?: $default['name'], $category->id),
+                'slug' => $this->uniqueBaseSlug($default['name'], $category->id),
                 'name' => $default['name'],
                 'icon' => $data['icon'] ?? null,
                 'description' => $default['description'] ?? null,
@@ -118,10 +118,7 @@ class CategoryController extends Controller
                 continue;
             }
 
-            $slug = trim((string) ($data['slug'] ?? ''));
-            if ($slug === '') {
-                $slug = $existing?->slug ?: $this->uniqueLocalizedSlug($name, $locale, $existing?->id);
-            }
+            $slug = $this->uniqueLocalizedSlug($name, $locale, $existing?->id);
 
             $category->localizations()->updateOrCreate(
                 ['locale' => $locale],

@@ -34,12 +34,13 @@
             </nav>
 
             <div class="topbar__actions ms-auto">
-                <form class="site-search d-none d-md-flex" role="search" method="get" action="{{ route('search', ['locale' => $currentLocale]) }}" data-search-form data-search-mode="global">
+                <form class="site-search d-none d-md-flex" role="search" method="get" action="{{ route('search', ['locale' => $currentLocale]) }}" data-search-form data-search-mode="global" data-search-suggestions-url="{{ route('search.suggestions', ['locale' => $currentLocale]) }}">
                     <i class="bi bi-search" aria-hidden="true"></i>
-                    <input name="q" value="{{ $searchValue }}" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
+                    <input name="q" value="{{ $searchValue }}" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" autocomplete="off" data-site-search>
                     <button class="btn site-search__clear" type="button" aria-label="{{ __('Clear search') }}" data-search-clear @if ($searchValue === '') hidden @endif>
                         <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
+                    <div class="site-search-results" data-search-results hidden></div>
                 </form>
 
                 <button class="btn icon-button d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSearchPanel" aria-controls="mobileSearchPanel" aria-label="{{ __('Search') }}">
@@ -105,12 +106,13 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
     </div>
     <div class="offcanvas-body">
-        <form class="site-search site-search--mobile d-flex" role="search" method="get" action="{{ route('search', ['locale' => $currentLocale]) }}" data-search-form data-search-mode="global">
+        <form class="site-search site-search--mobile d-flex" role="search" method="get" action="{{ route('search', ['locale' => $currentLocale]) }}" data-search-form data-search-mode="global" data-search-suggestions-url="{{ route('search.suggestions', ['locale' => $currentLocale]) }}">
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input name="q" value="{{ $searchValue }}" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
+            <input name="q" value="{{ $searchValue }}" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" autocomplete="off" data-site-search>
             <button class="btn site-search__clear" type="button" aria-label="{{ __('Clear search') }}" data-search-clear @if ($searchValue === '') hidden @endif>
                 <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
+            <div class="site-search-results" data-search-results hidden></div>
         </form>
     </div>
 </div>

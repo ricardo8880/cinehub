@@ -134,11 +134,7 @@ class PostController extends Controller
                 $existing?->update(['is_active' => false, 'is_featured' => false]);
                 continue;
             }
-            $slug = trim((string) ($localizationData['slug'] ?? ''));
-
-            if ($slug === '') {
-                $slug = $existing?->slug ?: $this->uniqueSlug($title, $locale, $existing?->id);
-            }
+            $slug = $this->uniqueSlug($title, $locale, $existing?->id);
 
             $isFeatured = filter_var($localizationData['is_featured'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
@@ -160,6 +156,7 @@ class PostController extends Controller
                     'excerpt' => $localizationData['excerpt'] ?? null,
                     'synopsis' => $localizationData['synopsis'] ?? null,
                     'review' => $localizationData['review'] ?? null,
+                    'spoilers' => $localizationData['spoilers'] ?? null,
                     'seo_title' => $localizationData['seo_title'] ?: null,
                     'seo_description' => $localizationData['seo_description'] ?: null,
                 ],
@@ -206,7 +203,6 @@ class PostController extends Controller
                     'type' => 'trailer',
                     'provider' => 'youtube',
                     'provider_id' => $youtubeId,
-                    'embed_url' => null,
                     'thumbnail_path' => null,
                     'alt_text' => null,
                     'caption' => null,
@@ -244,7 +240,6 @@ class PostController extends Controller
                 'type' => 'image',
                 'provider' => null,
                 'provider_id' => null,
-                'embed_url' => null,
                 'thumbnail_path' => $path,
                 'alt_text' => trim((string) ($settings['alt_text'] ?? '')) ?: $title,
                 'caption' => null,

@@ -18,7 +18,6 @@ class Media extends Model
         'type',
         'provider',
         'provider_id',
-        'embed_url',
         'thumbnail_path',
         'alt_text',
         'caption',

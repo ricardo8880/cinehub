@@ -47,14 +47,9 @@
         @endphp
         <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" id="category-panel-{{ $locale }}" role="tabpanel" aria-labelledby="category-tab-{{ $locale }}">
             <div class="row g-3">
-                <div class="col-md-8">
+                <div class="col-12">
                     <label class="form-label" for="name-{{ $locale }}">{{ __('Name') }}</label>
                     <input class="form-control" id="name-{{ $locale }}" data-category-name="{{ $locale }}" name="localizations[{{ $locale }}][name]" value="{{ old("localizations.$locale.name", $localized?->name) }}" maxlength="120" {{ $locale === $defaultLocale ? 'required' : '' }}>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="slug-{{ $locale }}">{{ __('Slug') }}</label>
-                    <input class="form-control" id="slug-{{ $locale }}" name="localizations[{{ $locale }}][slug]" value="{{ old("localizations.$locale.slug", $localized?->slug) }}" maxlength="140" placeholder="movies">
-                    <div class="form-text">{{ __('Leave blank to generate it from the name.') }}</div>
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="description-{{ $locale }}">{{ __('Description') }}</label>

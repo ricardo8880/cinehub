@@ -2,7 +2,7 @@
 
 @php
     $pageTitle = $localization->seo_title ?: $localization->title;
-    $pageDescription = $localization->seo_description ?: ($localization->excerpt ?: config('site.description'));
+    $pageDescription = $localization->seo_description ?: (\App\Support\RichTextHtml::plainText($localization->excerpt) ?: config('site.description'));
     $canonicalUrl = route('posts.show', [
         'locale' => $localization->locale,
         'category' => $primaryCategoryLocalization->slug,
@@ -73,7 +73,7 @@
         </div>
         <h1 class="display-5 fw-bold mb-3">{{ $localization->title }}</h1>
         @if ($localization->excerpt)
-            <p class="lead text-body-secondary mb-3">{{ $localization->excerpt }}</p>
+            <div class="lead text-body-secondary mb-3 public-article__text">{!! \App\Support\RichTextHtml::normalize($localization->excerpt) !!}</div>
         @endif
         <div class="d-flex flex-wrap gap-3 small text-body-secondary">
             @if ($post->published_at)
@@ -87,7 +87,7 @@
     </header>
 
     @if ($trailerUrl)
-        <section class="mb-4" aria-label="{{ __('Trailer') }}">
+        <section class="mb-4 public-article__media-wrap" aria-label="{{ __('Trailer') }}">
             <div class="ratio ratio-16x9 rounded overflow-hidden bg-black public-article__media">
                 <iframe src="{{ $trailerUrl }}" title="{{ $localization->title }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
             </div>
@@ -96,8 +96,10 @@
             @endif
         </section>
     @elseif ($imageUrl)
-        <figure class="mb-4">
-            <img class="img-fluid w-100 rounded public-article__cover" src="{{ $imageUrl }}" alt="{{ $image?->alt_text ?: $localization->title }}">
+        <figure class="mb-4 public-article__media-wrap">
+            <div class="public-article__image-frame rounded">
+                <img class="img-fluid rounded public-article__cover" src="{{ $imageUrl }}" alt="{{ $image?->alt_text ?: $localization->title }}">
+            </div>
             @if ($image?->caption)
                 <figcaption class="small text-body-secondary mt-2">{{ $image->caption }}</figcaption>
             @endif
@@ -108,7 +110,7 @@
         <section class="card public-article__section border-0 mb-4">
             <div class="card-body p-4">
                 <h2 class="h4 fw-bold mb-3">{{ __('Synopsis') }}</h2>
-                <div class="public-article__text">{!! nl2br(e($localization->synopsis)) !!}</div>
+                <div class="public-article__text">{!! \App\Support\RichTextHtml::normalize($localization->synopsis) !!}</div>
             </div>
         </section>
     @endif
@@ -117,7 +119,38 @@
         <section class="card public-article__section border-0 mb-4">
             <div class="card-body p-4">
                 <h2 class="h4 fw-bold mb-3">{{ __('Review') }}</h2>
-                <div class="public-article__text">{!! nl2br(e($localization->review)) !!}</div>
+                <div class="public-article__text">{!! \App\Support\RichTextHtml::normalize($localization->review) !!}</div>
+            </div>
+        </section>
+    @endif
+
+    @if ($localization->spoilers)
+        @php($spoilerId = 'post-spoilers-'.$post->id)
+        <section class="card public-article__section public-article__spoilers border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>{{ __('Spoilers') }}</h2>
+                        <p class="text-body-secondary mb-0">{{ __('This section reveals important plot details.') }}</p>
+                    </div>
+                    <button
+                        class="btn btn-outline-danger flex-shrink-0"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#{{ $spoilerId }}"
+                        aria-expanded="false"
+                        aria-controls="{{ $spoilerId }}"
+                        data-spoiler-toggle
+                        data-show-label="{{ __('Show spoilers') }}"
+                        data-hide-label="{{ __('Hide spoilers') }}"
+                    >
+                        <i class="bi bi-eye me-1" aria-hidden="true"></i>
+                        <span data-spoiler-label>{{ __('Show spoilers') }}</span>
+                    </button>
+                </div>
+                <div class="collapse" id="{{ $spoilerId }}" data-spoiler-content>
+                    <div class="public-article__spoiler-content public-article__text mt-4 pt-4">{!! nl2br(e($localization->spoilers)) !!}</div>
+                </div>
             </div>
         </section>
     @endif

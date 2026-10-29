@@ -52,7 +52,11 @@
 
     <div class="col-md-4">
         <label class="form-label" for="provider">{{ __('Video provider') }}</label>
-        <input class="form-control" id="provider" name="provider" maxlength="60" value="{{ old('provider', $currentMedia?->provider) }}" placeholder="youtube">
+        <select class="form-select" id="provider" name="provider">
+            <option value="">{{ __('Select provider') }}</option>
+            <option value="youtube" @selected(old('provider', $currentMedia?->provider) === 'youtube')>YouTube</option>
+            <option value="vimeo" @selected(old('provider', $currentMedia?->provider) === 'vimeo')>Vimeo</option>
+        </select>
     </div>
     <div class="col-md-4">
         <label class="form-label" for="provider_id">{{ __('Provider ID') }}</label>
@@ -61,10 +65,6 @@
     <div class="col-md-4">
         <label class="form-label" for="duration_seconds">{{ __('Duration (seconds)') }}</label>
         <input class="form-control" id="duration_seconds" type="number" name="duration_seconds" min="1" max="86400" value="{{ old('duration_seconds', $currentMedia?->duration_seconds) }}">
-    </div>
-    <div class="col-12">
-        <label class="form-label" for="embed_url">{{ __('Embed URL') }}</label>
-        <input class="form-control" id="embed_url" type="url" name="embed_url" value="{{ old('embed_url', $currentMedia?->embed_url) }}" placeholder="https://www.youtube-nocookie.com/embed/...">
     </div>
     <div class="col-12">
         <label class="form-label" for="source_url">{{ __('Source / rights URL') }}</label>

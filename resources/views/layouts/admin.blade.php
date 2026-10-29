@@ -7,6 +7,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>@yield('title', 'Admin') · {{ config('site.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('styles')
 </head>
 <body>
 <nav class="navbar navbar-expand-xl border-bottom border-secondary-subtle bg-dark sticky-top">
@@ -44,5 +45,6 @@
     @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     @yield('content')
 </main>
+@stack('scripts')
 </body>
 </html>

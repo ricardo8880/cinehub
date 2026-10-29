@@ -68,6 +68,7 @@ Route::prefix('{locale}')
     ->group(function (): void {
         Route::get('/', HomeController::class)->name('home');
         Route::get('/search', SearchController::class)->name('search');
+        Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->middleware('throttle:120,1')->name('search.suggestions');
         Route::get('/contact', [ContactController::class, 'create'])->name('contact');
         Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:3,10')->name('contact.store');
         Route::get('/suggest', [SuggestionController::class, 'create'])->name('suggestions.create');

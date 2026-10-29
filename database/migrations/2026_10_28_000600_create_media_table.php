@@ -15,7 +15,6 @@ return new class extends Migration
             $table->string('type')->default('trailer')->index();
             $table->string('provider')->nullable();
             $table->string('provider_id')->nullable();
-            $table->text('embed_url')->nullable();
             $table->string('thumbnail_path')->nullable();
             $table->text('source_url')->nullable();
             $table->unsignedInteger('duration_seconds')->nullable();

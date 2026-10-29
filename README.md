@@ -113,6 +113,7 @@ Pode conter:
 - resumo;
 - sinopse;
 - review;
+- spoilers, ocultos por padrão na página pública;
 - SEO title;
 - SEO description.
 
@@ -211,6 +212,8 @@ Toda implementação deve considerar:
 - Registrar fonte quando necessário.
 - Imagens e thumbnails devem possuir uso permitido.
 - No futuro, vídeos devem usar carregamento sob demanda para preservar performance.
+- Na postagem individual, imagem e vídeo ficam centralizados e limitados a 900 px de largura; imagens têm limite visual de 520 px de altura.
+- O fluxo público de vídeo usa provedores controlados; URL genérica de embed não deve ser aceita.
 
 ## 12. Publicidade
 
@@ -223,6 +226,7 @@ Regras:
 - anúncios não podem destruir Core Web Vitals;
 - conteúdo editorial deve continuar sendo o foco principal;
 - consentimento e políticas aplicáveis devem ser respeitados.
+- anúncios devem permanecer separados do player e dos controles de interação.
 
 ## 13. Organização do código
 
@@ -253,6 +257,9 @@ Evitar lógica complexa diretamente nas views.
 - imagens, trailers, fontes, alt text e ordenação;
 - Home usando posts reais sem alteração visual;
 - páginas públicas de categorias, busca, post e relacionados;
+- busca pública global com sugestões em tempo real, resultados agrupados e navegação por teclado;
+- tema escuro como padrão e tema claro com contraste próprio para todos os componentes principais;
+- seção de spoilers por localização, recolhida por padrão e aberta somente por escolha do visitante;
 - comentários com moderação;
 - curtidas persistentes e visualizações deduplicadas;
 - **Most Liked** e **Trending** por métricas reais;
