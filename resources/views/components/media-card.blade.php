@@ -3,7 +3,9 @@
 @php
     $title = data_get($item, 'title');
     $imageUrl = data_get($item, 'image_url');
+    $imageAlt = data_get($item, 'image_alt', $title);
     $videoUrl = data_get($item, 'video_embed_url');
+    $url = data_get($item, 'url');
     $type = data_get($item, 'type');
     $typeLabel = data_get($item, 'type_label');
     $duration = data_get($item, 'duration');
@@ -24,27 +26,39 @@
     data-card-id="{{ $cardId }}"
 >
     <div class="media-card__visual">
-        <img src="{{ $imageUrl }}" alt="{{ $title }}" class="media-card__image" loading="lazy">
+        <img src="{{ $imageUrl }}" alt="{{ $imageAlt }}" class="media-card__image" loading="lazy">
 
         <span class="badge media-card__badge">{{ $typeLabel }}</span>
 
-        <button
-            class="media-play btn"
-            type="button"
-            data-bs-toggle="modal"
-            data-bs-target="#videoModal"
-            data-video-url="{{ $videoUrl }}"
-            data-video-title="{{ $title }}"
-            aria-label="{{ __('Play :title', ['title' => $title]) }}"
-        >
-            <i class="bi bi-play-fill" aria-hidden="true"></i>
-        </button>
+        @if ($videoUrl)
+            <button
+                class="media-play btn"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#videoModal"
+                data-video-url="{{ $videoUrl }}"
+                data-video-title="{{ $title }}"
+                aria-label="{{ __('Play :title', ['title' => $title]) }}"
+            >
+                <i class="bi bi-play-fill" aria-hidden="true"></i>
+            </button>
+        @elseif ($url)
+            <a class="media-play btn" href="{{ $url }}" aria-label="{{ __('Open :title', ['title' => $title]) }}">
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
+        @endif
 
         <span class="media-card__duration">{{ $duration }}</span>
     </div>
 
     <div class="media-card__body">
-        <h3 class="media-card__title">{{ $title }}</h3>
+        <h3 class="media-card__title">
+            @if ($url)
+                <a href="{{ $url }}">{{ $title }}</a>
+            @else
+                {{ $title }}
+            @endif
+        </h3>
 
         @if ($excerpt)
             <p class="media-card__excerpt">{{ $excerpt }}</p>

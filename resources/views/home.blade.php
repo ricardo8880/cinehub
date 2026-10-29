@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
-@section('title', config('site.name'))
+@section('title', __('CineHub | Movies, TV Shows, Games & Reviews'))
+@section('meta_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'))
+@section('og_title', __('CineHub | Movies, TV Shows, Games & Reviews'))
+@section('og_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'))
 
 @section('body')
 @php
@@ -26,7 +29,7 @@
                     <span>{{ __('Home') }}</span>
                 </a>
                 @foreach ($categories as $category)
-                    <a class="topbar-link {{ $activeCategory === $category['key'] ? 'is-active' : '' }}" href="{{ route('home', ['category' => $category['key']]) }}">
+                    <a class="topbar-link {{ $activeCategory === $category['key'] ? 'is-active' : '' }}" href="{{ $category['url'] }}">
                         <i class="bi {{ $category['icon'] }}" aria-hidden="true"></i>
                         <span>{{ $category['label'] }}</span>
                     </a>
@@ -34,9 +37,9 @@
             </nav>
 
             <div class="topbar__actions ms-auto">
-                <form class="site-search d-none d-md-flex" role="search" data-search-form>
+                <form class="site-search d-none d-md-flex" role="search" method="get" action="{{ route('search') }}" data-search-form data-search-mode="global">
                     <i class="bi bi-search" aria-hidden="true"></i>
-                    <input type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
+                    <input name="q" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
                     <button class="btn site-search__clear" type="button" aria-label="{{ __('Clear search') }}" data-search-clear hidden>
                         <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
@@ -90,7 +93,7 @@
 
             <nav class="sidebar-nav sidebar-nav--compact" aria-label="{{ __('Categories') }}">
                 @foreach ($categories as $category)
-                    <a class="sidebar-link {{ $activeCategory === $category['key'] ? 'is-current' : '' }}" href="{{ route('home', ['category' => $category['key']]) }}">
+                    <a class="sidebar-link {{ $activeCategory === $category['key'] ? 'is-current' : '' }}" href="{{ $category['url'] }}">
                         <i class="bi {{ $category['icon'] }}"></i><span>{{ $category['label'] }}</span>
                     </a>
                 @endforeach
@@ -114,16 +117,21 @@
     <main class="main-content">
         <div class="content-grid">
             <div class="content-column">
+                @if ($featuredItem)
                 <section class="featured-section" aria-label="{{ __('Featured') }}">
                     <article class="featured-card">
                         <div class="featured-card__media">
-                            <iframe
-                                src="{{ $featuredItem['video_embed_url'] }}"
-                                title="{{ $featuredItem['title'] }}"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                referrerpolicy="strict-origin-when-cross-origin"
-                                allowfullscreen
-                            ></iframe>
+                            @if (! empty($featuredItem['video_embed_url']))
+                                <iframe
+                                    src="{{ $featuredItem['video_embed_url'] }}"
+                                    title="{{ $featuredItem['title'] }}"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    referrerpolicy="strict-origin-when-cross-origin"
+                                    allowfullscreen
+                                ></iframe>
+                            @else
+                                <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" class="w-100 h-100 object-fit-cover">
+                            @endif
                         </div>
                         <div class="featured-card__content">
                             <div class="featured-card__badges">
@@ -141,10 +149,15 @@
                                 <button class="media-action ms-auto" type="button" data-watch-button aria-pressed="false"><i class="bi bi-bookmark"></i><span>{{ __('Watch Later') }}</span></button>
                             </div>
 
-                            <button class="btn btn-accent w-100" type="button">{{ __('Read the Review') }} <i class="bi bi-arrow-right"></i></button>
+                            @if (! empty($featuredItem['url']))
+                                <a class="btn btn-accent w-100" href="{{ $featuredItem['url'] }}">{{ __('Read the Review') }} <i class="bi bi-arrow-right"></i></a>
+                            @else
+                                <button class="btn btn-accent w-100" type="button">{{ __('Read the Review') }} <i class="bi bi-arrow-right"></i></button>
+                            @endif
                         </div>
                     </article>
                 </section>
+                @endif
 
                 <section class="content-section" id="latest">
                     <div class="section-heading section-heading--filters">
@@ -193,10 +206,17 @@
                         @foreach ($trendingItems as $item)
                             <li class="trending-item">
                                 <span class="trending-item__rank">{{ $loop->iteration }}</span>
-                                <button class="trending-item__thumb btn" type="button" data-bs-toggle="modal" data-bs-target="#videoModal" data-video-url="{{ $featuredItem['video_embed_url'] }}" data-video-title="{{ $item['title'] }}">
-                                    <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}">
-                                    <span><i class="bi bi-play-fill"></i></span>
-                                </button>
+                                @if (! empty($item['video_embed_url']))
+                                    <button class="trending-item__thumb btn" type="button" data-bs-toggle="modal" data-bs-target="#videoModal" data-video-url="{{ $item['video_embed_url'] }}" data-video-title="{{ $item['title'] }}">
+                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}">
+                                        <span><i class="bi bi-play-fill"></i></span>
+                                    </button>
+                                @elseif (! empty($item['url']))
+                                    <a class="trending-item__thumb btn" href="{{ $item['url'] }}">
+                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}">
+                                        <span><i class="bi bi-arrow-right"></i></span>
+                                    </a>
+                                @endif
                                 <div class="trending-item__copy">
                                     <strong>{{ $item['title'] }}</strong>
                                     <small>{{ $item['subtitle'] }}</small>
@@ -235,7 +255,7 @@
             <div class="section-heading"><h2>{{ __('Explore by Category') }}</h2></div>
             <div class="category-grid">
                 @foreach ($categories as $category)
-                    <a class="category-card category-card--{{ $category['tone'] }}" href="{{ route('home', ['category' => $category['key']]) }}">
+                    <a class="category-card category-card--{{ $category['tone'] }}" href="{{ $category['url'] }}">
                         <span class="category-card__icon"><i class="bi {{ $category['icon'] }}"></i></span>
                         <span class="category-card__copy"><strong>{{ $category['label'] }}</strong><small>{{ $category['description'] }}</small></span>
                         <i class="bi bi-arrow-right category-card__arrow"></i>
@@ -252,9 +272,9 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
     </div>
     <div class="offcanvas-body">
-        <form class="site-search site-search--mobile d-flex" role="search" data-search-form>
+        <form class="site-search site-search--mobile d-flex" role="search" method="get" action="{{ route('search') }}" data-search-form data-search-mode="global">
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
+            <input name="q" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
             <button class="btn site-search__clear" type="button" aria-label="{{ __('Clear search') }}" data-search-clear hidden>
                 <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>

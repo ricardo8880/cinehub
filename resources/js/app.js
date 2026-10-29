@@ -17,7 +17,7 @@ const siteSidebar = document.getElementById('siteSidebar');
 const mobileSearchPanel = document.getElementById('mobileSearchPanel');
 const themeStorageKey = 'site-theme-v2';
 const watchlistStorageKey = 'site-watchlist';
-let searchQuery = '';
+let searchQuery = searchInputs.find((input) => input.value.trim() !== '')?.value.trim() ?? '';
 
 const setTheme = (theme) => {
     root.setAttribute('data-bs-theme', theme);
@@ -74,6 +74,10 @@ searchInputs.forEach((input) => {
 
 searchForms.forEach((form) => {
     form.addEventListener('submit', (event) => {
+        if (form.dataset.searchMode === 'global') {
+            return;
+        }
+
         event.preventDefault();
         const input = form.querySelector('[data-site-search]');
         searchQuery = input?.value.trim() ?? searchQuery;

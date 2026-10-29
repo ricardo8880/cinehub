@@ -18,8 +18,9 @@ return [
     | Supported Locales
     |--------------------------------------------------------------------------
     |
-    | Add future languages and regions here. The array key is the value used
-    | in the URL; "locale" is the locale used by Laravel's translator.
+    | The array key is used in the URL. "locale" is Laravel's translator
+    | locale. Country and currency metadata stay centralized here so future
+    | regional behavior does not need to be hardcoded throughout the project.
     |
     */
 
@@ -28,11 +29,41 @@ return [
             'locale' => 'en_US',
             'language' => 'en',
             'region' => 'US',
+            'country' => 'United States',
+            'currency' => 'USD',
+            'currency_symbol' => '$',
         ],
         'en-gb' => [
             'locale' => 'en_GB',
             'language' => 'en',
             'region' => 'GB',
+            'country' => 'United Kingdom',
+            'currency' => 'GBP',
+            'currency_symbol' => '£',
+        ],
+        'en-au' => [
+            'locale' => 'en_AU',
+            'language' => 'en',
+            'region' => 'AU',
+            'country' => 'Australia',
+            'currency' => 'AUD',
+            'currency_symbol' => 'A$',
+        ],
+        'en-ca' => [
+            'locale' => 'en_CA',
+            'language' => 'en',
+            'region' => 'CA',
+            'country' => 'Canada',
+            'currency' => 'CAD',
+            'currency_symbol' => 'C$',
+        ],
+        'ja-jp' => [
+            'locale' => 'ja_JP',
+            'language' => 'ja',
+            'region' => 'JP',
+            'country' => 'Japan',
+            'currency' => 'JPY',
+            'currency_symbol' => '¥',
         ],
     ],
 ];

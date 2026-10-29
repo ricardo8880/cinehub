@@ -2,23 +2,19 @@
 
 namespace App\Providers;
 
+use App\Models\SiteSetting;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         $routeLocale = config('localization.default');
@@ -30,5 +26,11 @@ class AppServiceProvider extends ServiceProvider
 
         app()->setLocale($locale);
         URL::defaults(['locale' => $routeLocale]);
+
+        View::composer('layouts.public', function ($view): void {
+            $view->with('publicSiteLinks', SiteSetting::query()
+                ->whereIn('key', ['saas_url', 'donation_url'])
+                ->pluck('value', 'key'));
+        });
     }
 }

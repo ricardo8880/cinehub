@@ -439,15 +439,22 @@ input {
     position: relative;
     min-width: 0;
     min-height: 294px;
+    overflow: hidden;
     background: #02060b;
 }
 
+.featured-card__media img,
 .featured-card__media iframe {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
-    min-height: 294px;
     border: 0;
+}
+
+.featured-card__media img {
+    object-fit: cover;
 }
 
 .featured-card__content {
@@ -1325,9 +1332,9 @@ input {
         grid-template-columns: 1fr;
     }
 
-    .featured-card__media,
-    .featured-card__media iframe {
-        min-height: 240px;
+    .featured-card__media {
+        min-height: 0;
+        aspect-ratio: 16 / 9;
     }
 
     .featured-card__content {
@@ -1395,10 +1402,6 @@ input {
         flex-basis: 180px;
     }
 
-    .featured-card__media,
-    .featured-card__media iframe {
-        min-height: 210px;
-    }
 }
 
 .brand__name strong {
@@ -1540,10 +1543,6 @@ input {
         aspect-ratio: 16 / 9;
     }
 
-    .featured-card__media iframe {
-        min-height: 0;
-        aspect-ratio: 16 / 9;
-    }
 
     .featured-card__content {
         padding: 14px;
@@ -1813,5 +1812,72 @@ input {
     .popular-grid .media-card {
         width: 88vw;
         min-width: 88vw;
+    }
+}
+
+/* Public content pages */
+.public-main {
+    min-height: 100vh;
+    padding-top: var(--site-topbar-height);
+}
+
+.public-content-card,
+.public-empty-state,
+.public-article__section {
+    background: var(--site-surface);
+    color: var(--site-text);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .12);
+}
+
+.public-content-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .2s ease;
+}
+
+.public-content-card:hover .public-content-card__image {
+    transform: scale(1.025);
+}
+
+.public-content-card .card-title a:hover {
+    color: var(--site-accent);
+}
+
+.public-article {
+    max-width: 980px;
+}
+
+.public-article__media,
+.public-article__cover {
+    border: 1px solid var(--site-border);
+    box-shadow: var(--site-shadow);
+}
+
+.public-article__cover {
+    max-height: 620px;
+    object-fit: cover;
+}
+
+.public-article__text {
+    color: var(--site-text);
+    font-size: 1.05rem;
+    line-height: 1.8;
+}
+
+#interactions,
+#comments {
+    scroll-margin-top: calc(var(--site-topbar-height) + 16px);
+}
+
+.breadcrumb {
+    --bs-breadcrumb-divider-color: var(--site-muted);
+    --bs-breadcrumb-item-active-color: var(--site-muted);
+}
+
+@media (max-width: 767.98px) {
+    .public-main .display-5,
+    .public-main .display-6 {
+        font-size: 2rem;
     }
 }
