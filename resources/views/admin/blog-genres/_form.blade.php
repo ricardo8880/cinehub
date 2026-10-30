@@ -29,7 +29,18 @@
         <div class="col-12 col-sm-6 col-lg-4">
             <div class="form-check border border-secondary-subtle rounded p-3 ps-5 h-100">
                 <input class="form-check-input" id="blog-genre-category-{{ $category->id }}" type="checkbox" name="blog_categories[]" value="{{ $category->id }}" @checked(in_array($category->id, $selectedCategories, true))>
-                <label class="form-check-label" for="blog-genre-category-{{ $category->id }}">{{ $category->name }}</label>
+                <label class="form-check-label" for="blog-genre-category-{{ $category->id }}">
+                    @php
+                        $categoryNames = collect($locales)->map(function ($settings, $locale) use ($category) {
+                            $localized = $category->localization($locale);
+
+                            return $localized
+                                ? (($settings['country'] ?? strtoupper($settings['region'])).': '.$localized->name)
+                                : null;
+                        })->filter()->values();
+                    @endphp
+                    {{ $categoryNames->isNotEmpty() ? $categoryNames->implode(' | ') : $category->name }}
+                </label>
             </div>
         </div>
     @empty

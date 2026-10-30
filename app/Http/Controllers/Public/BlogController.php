@@ -38,10 +38,13 @@ class BlogController extends Controller
             ->published()
             ->where('publication_type', 'blog')
             ->whereHas('localizations', fn (Builder $query) => $query->where('locale', $locale)->where('is_active', true))
-            ->whereHas('categories.localizations', fn (Builder $query) => $query->where('locale', $locale)->where('is_active', true))
+            ->whereHas('blogCategory', fn (Builder $query) => $query->where('is_active', true))
+            ->whereHas('blogCategory.localizations', fn (Builder $query) => $query->where('locale', $locale)->where('is_active', true))
             ->when($selectedGenre, fn (Builder $query) => $query->whereHas('blogGenres', fn (Builder $genreQuery) => $genreQuery->whereKey($selectedGenre->id)))
             ->with([
-                'blogCategory',
+                'blogCategory' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->with(['localizations' => fn ($localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true)]),
                 'blogGenres' => fn ($query) => $query
                     ->where('is_active', true)
                     ->with(['localizations' => fn ($localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true)])
@@ -69,7 +72,9 @@ class BlogController extends Controller
             ->whereHas('posts', function (Builder $query) use ($locale): void {
                 $query->published()
                     ->where('publication_type', 'blog')
-                    ->whereHas('localizations', fn (Builder $localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true));
+                    ->whereHas('localizations', fn (Builder $localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true))
+                    ->whereHas('blogCategory', fn (Builder $categoryQuery) => $categoryQuery->where('is_active', true))
+                    ->whereHas('blogCategory.localizations', fn (Builder $categoryLocalizationQuery) => $categoryLocalizationQuery->where('locale', $locale)->where('is_active', true));
             })
             ->with(['localizations' => fn ($query) => $query->where('locale', $locale)->where('is_active', true)])
             ->orderBy('sort_order')
@@ -101,7 +106,9 @@ class BlogController extends Controller
         $post = $localization->post()
             ->with([
                 'author',
-                'blogCategory',
+                'blogCategory' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->with(['localizations' => fn ($localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true)]),
                 'blogGenres' => fn ($query) => $query
                     ->where('is_active', true)
                     ->with(['localizations' => fn ($localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true)])
@@ -120,10 +127,13 @@ class BlogController extends Controller
             ->firstOrFail();
 
 
-        $primaryCategory = $post->categories->first(fn ($category) => $category->localization($locale));
-        abort_unless($primaryCategory, 404);
-        $primaryCategoryLocalization = $primaryCategory->localization($locale);
-        abort_unless($primaryCategoryLocalization, 404);
+        $blogCategory = $post->blogCategory;
+        abort_unless($blogCategory && $blogCategory->is_active, 404);
+        $blogCategoryLocalization = $blogCategory->localization($locale);
+        abort_unless($blogCategoryLocalization, 404);
+
+        $primaryCategory = null;
+        $primaryCategoryLocalization = null;
 
         $visitorKey = $visitorIdentity->key($request);
 
@@ -159,11 +169,18 @@ class BlogController extends Controller
         if ($blogGenreIds->isNotEmpty()) {
             $relatedPostsQuery->whereHas('blogGenres', fn (Builder $query) => $query->whereIn('blog_genres.id', $blogGenreIds));
         } else {
-            $relatedPostsQuery->whereHas('categories', fn (Builder $query) => $query->whereIn('categories.id', $post->categories->pluck('id')));
+            $relatedPostsQuery->where('blog_category_id', $post->blog_category_id);
         }
+
+        $relatedPostsQuery
+            ->whereHas('blogCategory', fn (Builder $query) => $query->where('is_active', true))
+            ->whereHas('blogCategory.localizations', fn (Builder $query) => $query->where('locale', $locale)->where('is_active', true));
 
         $relatedPosts = $relatedPostsQuery
             ->with([
+                'blogCategory' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->with(['localizations' => fn ($localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true)]),
                 'blogGenres' => fn ($query) => $query
                     ->where('is_active', true)
                     ->with(['localizations' => fn ($localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true)])
@@ -205,6 +222,8 @@ class BlogController extends Controller
             'localization',
             'primaryCategory',
             'primaryCategoryLocalization',
+            'blogCategory',
+            'blogCategoryLocalization',
             'image',
             'imageUrl',
             'trailer',

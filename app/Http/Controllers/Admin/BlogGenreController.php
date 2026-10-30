@@ -108,7 +108,12 @@ class BlogGenreController extends Controller
 
     private function categories()
     {
-        return BlogCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
+        return BlogCategory::query()
+            ->with('localizations')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
     }
 
     private function syncLocalizations(BlogGenre $genre, array $localizations): void

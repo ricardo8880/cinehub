@@ -36,6 +36,7 @@
     </div>
 </div>
 
+@if ($publicationType !== 'blog')
 <hr class="my-4">
 <h2 class="h5">{{ __('Categories') }}</h2>
 <div class="row g-2">
@@ -73,6 +74,8 @@
     @endforelse
 </div>
 
+@endif
+
 <div class="{{ $publicationType === 'blog' ? '' : 'd-none' }}" data-blog-taxonomy>
     <hr class="my-4">
     <h2 class="h5 mb-1">{{ __('Blog organization') }}</h2>
@@ -89,7 +92,16 @@
             <select class="form-select" id="blog_category_id" name="blog_category_id" data-blog-category>
                 <option value="">{{ __('Select a Blog category') }}</option>
                 @foreach ($blogCategories as $blogCategory)
-                    <option value="{{ $blogCategory->id }}" @selected($selectedBlogCategory === $blogCategory->id)>{{ $blogCategory->name }}</option>
+                    @php
+                        $blogCategoryNames = collect($locales)->map(function ($settings, $locale) use ($blogCategory) {
+                            $localized = $blogCategory->localization($locale);
+
+                            return $localized
+                                ? (($settings['country'] ?? strtoupper($settings['region'])).': '.$localized->name)
+                                : null;
+                        })->filter()->values();
+                    @endphp
+                    <option value="{{ $blogCategory->id }}" @selected($selectedBlogCategory === $blogCategory->id)>{{ $blogCategoryNames->isNotEmpty() ? $blogCategoryNames->implode(' | ') : $blogCategory->name }}</option>
                 @endforeach
             </select>
             @if ($blogCategories->isEmpty())

@@ -193,7 +193,9 @@
                     <h2 class="h4 fw-bold mb-1">{{ __('Did you like this content?') }}</h2>
                     <p class="text-body-secondary mb-0">{{ __('Your reaction helps highlight popular content.') }}</p>
                 </div>
-                <form method="POST" action="{{ route('reactions.like', ['category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
+                <form method="POST" action="{{ $isBlog
+                    ? route('blog.reactions.like', ['locale' => $localization->locale, 'slug' => $localization->slug])
+                    : route('reactions.like', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
                     @csrf
                     <button class="btn {{ $viewerHasLiked ? 'btn-danger' : 'btn-outline-danger' }}" type="submit">
                         <i class="bi {{ $viewerHasLiked ? 'bi-heart-fill' : 'bi-heart' }} me-1"></i>
@@ -204,7 +206,7 @@
         </div>
     </section>
 
-    @if ($post->categories->count() > 1)
+    @if (! $isBlog && $post->categories->count() > 1)
         <div class="d-flex gap-2 flex-wrap mb-5">
             @foreach ($post->categories as $postCategory)
                 @php($postCategoryLocalization = $postCategory->localization($localization->locale))
@@ -239,7 +241,9 @@
     <div class="card public-article__section border-0 mb-4">
         <div class="card-body p-4">
             <h3 class="h5 fw-bold mb-3">{{ __('Leave a comment') }}</h3>
-            <form method="POST" action="{{ route('comments.store', ['category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
+            <form method="POST" action="{{ $isBlog
+                ? route('blog.comments.store', ['locale' => $localization->locale, 'slug' => $localization->slug])
+                : route('comments.store', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
                 @csrf
                 <div class="row g-3">
                     <div class="col-12 col-md-6">

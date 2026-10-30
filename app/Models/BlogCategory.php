@@ -21,6 +21,11 @@ class BlogCategory extends Model
         ];
     }
 
+    public function localizations(): HasMany
+    {
+        return $this->hasMany(BlogCategoryLocalization::class);
+    }
+
     public function genres(): BelongsToMany
     {
         return $this->belongsToMany(BlogGenre::class)->withTimestamps();
@@ -29,5 +34,11 @@ class BlogCategory extends Model
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    public function localization(string $locale): ?BlogCategoryLocalization
+    {
+        return $this->localizations
+            ->first(fn (BlogCategoryLocalization $localization) => $localization->locale === $locale && $localization->is_active);
     }
 }

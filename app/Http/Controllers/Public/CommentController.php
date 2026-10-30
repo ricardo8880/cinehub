@@ -11,6 +11,30 @@ use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
+
+    public function storeBlog(Request $request, string $locale, string $slug): RedirectResponse
+    {
+        $localization = PostLocalization::query()
+            ->where('locale', $locale)
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->whereHas('post', fn ($query) => $query
+                ->published()
+                ->where('publication_type', 'blog')
+                ->whereHas('blogCategory', fn ($categoryQuery) => $categoryQuery->where('is_active', true))
+                ->whereHas('blogCategory.localizations', fn ($localizationQuery) => $localizationQuery
+                    ->where('locale', $locale)
+                    ->where('is_active', true)))
+            ->with('post')
+            ->firstOrFail();
+
+        return $this->storeComment(
+            $request,
+            $localization,
+            route('blog.show', ['locale' => $locale, 'slug' => $slug])
+        );
+    }
+
     public function store(Request $request, string $locale, string $category, string $slug): RedirectResponse
     {
         $categoryLocalization = CategoryLocalization::query()
@@ -27,10 +51,13 @@ class CommentController extends Controller
             ->with('post')
             ->firstOrFail();
 
-        $postUrl = $localization->post->publication_type === 'blog'
-            ? route('blog.show', ['locale' => $locale, 'slug' => $slug])
-            : route('posts.show', ['locale' => $locale, 'category' => $category, 'slug' => $slug]);
+        $postUrl = route('posts.show', ['locale' => $locale, 'category' => $category, 'slug' => $slug]);
 
+        return $this->storeComment($request, $localization, $postUrl);
+    }
+
+    private function storeComment(Request $request, PostLocalization $localization, string $postUrl): RedirectResponse
+    {
         $validator = Validator::make($request->all(), [
             'author_name' => ['required', 'string', 'max:80'],
             'author_email' => ['nullable', 'email:rfc', 'max:255'],
@@ -47,7 +74,7 @@ class CommentController extends Controller
         $validated = $validator->validated();
 
         $localization->post->comments()->create([
-            'locale' => $locale,
+            'locale' => $localization->locale,
             'author_name' => trim($validated['author_name']),
             'author_email' => filled($validated['author_email'] ?? null) ? strtolower(trim($validated['author_email'])) : null,
             'body' => trim($validated['body']),

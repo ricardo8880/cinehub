@@ -70,7 +70,7 @@ class PostRequest extends FormRequest
             'status' => ['required', Rule::in(['draft', 'published'])],
             'publication_type' => ['required', Rule::in(['standard', 'blog'])],
             'published_at' => ['nullable', 'date', 'before_or_equal:now'],
-            'categories' => ['required', 'array', 'size:1'],
+            'categories' => [Rule::requiredIf(fn (): bool => $this->input('publication_type') !== 'blog'), 'nullable', 'array', 'size:1'],
             'categories.*' => ['integer', 'distinct', 'exists:categories,id'],
             'genres' => ['nullable', 'array'],
             'genres.*' => ['integer', 'distinct', 'exists:genres,id'],
@@ -127,21 +127,21 @@ class PostRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {
-            $categoryIds = collect((array) $this->input('categories', []))->map(fn ($id) => (int) $id)->filter()->unique();
-            $genreIds = collect((array) $this->input('genres', []))->map(fn ($id) => (int) $id)->filter()->unique();
+            if ($this->input('publication_type') !== 'blog') {
+                $categoryIds = collect((array) $this->input('categories', []))->map(fn ($id) => (int) $id)->filter()->unique();
+                $genreIds = collect((array) $this->input('genres', []))->map(fn ($id) => (int) $id)->filter()->unique();
 
-            if ($genreIds->isNotEmpty() && $categoryIds->isNotEmpty()) {
-                $genres = Genre::query()->with(['categories:id', 'localizations'])->whereIn('id', $genreIds)->get();
+                if ($genreIds->isNotEmpty() && $categoryIds->isNotEmpty()) {
+                    $genres = Genre::query()->with(['categories:id', 'localizations'])->whereIn('id', $genreIds)->get();
 
-                foreach ($genres as $genre) {
-                    if ($genre->categories->pluck('id')->intersect($categoryIds)->isEmpty()) {
-                        $genreName = $genre->localization(config('localization.default'))?->name ?? $genre->name;
-                        $validator->errors()->add('genres', __('The genre :genre is not available for the selected category.', ['genre' => $genreName]));
+                    foreach ($genres as $genre) {
+                        if ($genre->categories->pluck('id')->intersect($categoryIds)->isEmpty()) {
+                            $genreName = $genre->localization(config('localization.default'))?->name ?? $genre->name;
+                            $validator->errors()->add('genres', __('The genre :genre is not available for the selected category.', ['genre' => $genreName]));
+                        }
                     }
                 }
-            }
 
-            if ($this->input('publication_type') !== 'blog') {
                 return;
             }
 

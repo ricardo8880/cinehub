@@ -17,7 +17,7 @@
     <div class="card border-secondary-subtle"><div class="card-body">@include('admin.posts._form')</div></div>
     <div class="d-flex justify-content-end gap-2 mt-3">
         <a class="btn btn-outline-secondary" href="{{ route('admin.posts.index', ['publication_type' => $isBlog ? 'blog' : 'standard']) }}">{{ __('Cancel') }}</a>
-        <button class="btn btn-danger" type="submit" @disabled($categories->isEmpty())><i class="bi bi-check-lg me-1"></i>{{ $isBlog ? __('Save Blog article') : __('Save post') }}</button>
+        <button class="btn btn-danger" type="submit" @disabled($isBlog ? $blogCategories->isEmpty() : $categories->isEmpty())><i class="bi bi-check-lg me-1"></i>{{ $isBlog ? __('Save Blog article') : __('Save post') }}</button>
     </div>
 </form>
 @endsection

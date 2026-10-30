@@ -50,11 +50,13 @@ class PostController extends Controller
 
     public function create(): View
     {
+        $isBlog = request('publication_type') === 'blog';
+
         return view('admin.posts.create', [
-            'categories' => $this->categories(),
-            'genres' => $this->genres(),
-            'blogCategories' => $this->blogCategories(),
-            'blogGenres' => $this->blogGenres(),
+            'categories' => $isBlog ? collect() : $this->categories(),
+            'genres' => $isBlog ? collect() : $this->genres(),
+            'blogCategories' => $isBlog ? $this->blogCategories() : collect(),
+            'blogGenres' => $isBlog ? $this->blogGenres() : collect(),
             'locales' => config('localization.locales'),
             'defaultLocale' => config('localization.default'),
         ]);
@@ -75,9 +77,10 @@ class PostController extends Controller
                 'published_at' => $publishedAt,
             ]);
 
-            $post->categories()->sync($data['categories']);
-            $post->genres()->sync($data['genres'] ?? []);
-            $post->blogGenres()->sync($data['publication_type'] === 'blog' ? ($data['blog_genres'] ?? []) : []);
+            $isBlog = $data['publication_type'] === 'blog';
+            $post->categories()->sync($isBlog ? [] : ($data['categories'] ?? []));
+            $post->genres()->sync($isBlog ? [] : ($data['genres'] ?? []));
+            $post->blogGenres()->sync($isBlog ? ($data['blog_genres'] ?? []) : []);
             $this->syncLocalizations($post, $data['localizations']);
             $this->syncCountryMedia($post, $data['localizations'], $data['media'] ?? [], $request);
 
@@ -96,12 +99,14 @@ class PostController extends Controller
     {
         $post->load(['localizations', 'categories', 'genres', 'blogCategory', 'blogGenres', 'media']);
 
+        $isBlog = $post->publication_type === 'blog';
+
         return view('admin.posts.edit', [
             'post' => $post,
-            'categories' => $this->categories(),
-            'genres' => $this->genres(),
-            'blogCategories' => $this->blogCategories(),
-            'blogGenres' => $this->blogGenres(),
+            'categories' => $isBlog ? collect() : $this->categories(),
+            'genres' => $isBlog ? collect() : $this->genres(),
+            'blogCategories' => $isBlog ? $this->blogCategories() : collect(),
+            'blogGenres' => $isBlog ? $this->blogGenres() : collect(),
             'locales' => config('localization.locales'),
             'defaultLocale' => config('localization.default'),
         ]);
@@ -122,9 +127,10 @@ class PostController extends Controller
                 'published_at' => $publishedAt,
             ]);
 
-            $post->categories()->sync($data['categories']);
-            $post->genres()->sync($data['genres'] ?? []);
-            $post->blogGenres()->sync($data['publication_type'] === 'blog' ? ($data['blog_genres'] ?? []) : []);
+            $isBlog = $data['publication_type'] === 'blog';
+            $post->categories()->sync($isBlog ? [] : ($data['categories'] ?? []));
+            $post->genres()->sync($isBlog ? [] : ($data['genres'] ?? []));
+            $post->blogGenres()->sync($isBlog ? ($data['blog_genres'] ?? []) : []);
             $this->syncLocalizations($post, $data['localizations']);
             $this->syncCountryMedia($post, $data['localizations'], $data['media'] ?? [], $request);
         });
@@ -175,6 +181,7 @@ class PostController extends Controller
     private function blogCategories()
     {
         return BlogCategory::query()
+            ->with('localizations')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')

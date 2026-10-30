@@ -20,8 +20,19 @@
     <thead><tr><th>{{ __('Category') }}</th><th class="text-center">{{ __('Genres') }}</th><th class="text-center">{{ __('Articles') }}</th><th>{{ __('Status') }}</th><th class="text-end">{{ __('Actions') }}</th></tr></thead>
     <tbody>
     @forelse ($categories as $category)
+        @php($defaultName = $category->localization($defaultLocale)?->name ?? $category->name)
         <tr>
-            <td><strong>{{ $category->name }}</strong></td>
+            <td>
+                <strong>{{ $defaultName }}</strong>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    @foreach ($locales as $locale => $settings)
+                        @php($localized = $category->localization($locale))
+                        @if ($localized)
+                            <span class="badge text-bg-secondary">{{ $settings['country'] ?? strtoupper($settings['region']) }}: {{ $localized->name }}</span>
+                        @endif
+                    @endforeach
+                </div>
+            </td>
             <td class="text-center">{{ $category->genres_count }}</td>
             <td class="text-center">{{ $category->posts_count }}</td>
             <td><span class="badge {{ $category->is_active ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $category->is_active ? __('Active') : __('Inactive') }}</span></td>

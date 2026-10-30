@@ -25,12 +25,21 @@ class PublicPostPresenter
             return null;
         }
 
-        $category = $post->categories
-            ->first(fn ($category) => $category->is_active && $category->localization($requestedLocale));
-        $categoryLocalization = $category?->localization($requestedLocale);
+        if ($post->publication_type === 'blog') {
+            $category = $post->blogCategory;
+            $categoryLocalization = $category?->localization($requestedLocale);
 
-        if (! $category || ! $categoryLocalization) {
-            return null;
+            if (! $category || ! $category->is_active || ! $categoryLocalization) {
+                return null;
+            }
+        } else {
+            $category = $post->categories
+                ->first(fn ($category) => $category->is_active && $category->localization($requestedLocale));
+            $categoryLocalization = $category?->localization($requestedLocale);
+
+            if (! $category || ! $categoryLocalization) {
+                return null;
+            }
         }
 
         $image = $this->image($post, $requestedLocale);
@@ -44,9 +53,9 @@ class PublicPostPresenter
             'id' => $post->id,
             'title' => $localization->title,
             'excerpt' => Str::limit(RichTextHtml::plainText($localization->excerpt ?: $localization->article_body), 220),
-            'type' => $categoryLocalization->slug,
+            'type' => $post->publication_type === 'blog' ? 'blog' : $categoryLocalization->slug,
             'type_label' => $categoryLocalization->name,
-            'content_kind' => $this->contentKind($category->slug),
+            'content_kind' => $post->publication_type === 'blog' ? 'blog' : $this->contentKind($category->slug),
             'image_url' => $this->imageUrl($image, $post->id, $trailer),
             'image_alt' => $image?->alt_text ?: $localization->title,
             'video_embed_url' => $this->embedUrl($trailer),

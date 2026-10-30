@@ -87,6 +87,14 @@ Route::prefix('{locale}')
         Route::post('/privacy/consent', [CookieConsentController::class, 'update'])->middleware('throttle:10,1')->name('privacy.consent');
         Route::get('/book', BookController::class)->name('book');
         Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+        Route::post('/blog/{slug}/comments', [PublicCommentController::class, 'storeBlog'])
+            ->middleware('throttle:5,1')
+            ->where('slug', '[a-z0-9-]+')
+            ->name('blog.comments.store');
+        Route::post('/blog/{slug}/like', [ReactionController::class, 'toggleBlog'])
+            ->middleware('throttle:30,1')
+            ->where('slug', '[a-z0-9-]+')
+            ->name('blog.reactions.like');
         Route::get('/blog/{slug}', [BlogController::class, 'show'])
             ->where('slug', '[a-z0-9-]+')
             ->name('blog.show');
