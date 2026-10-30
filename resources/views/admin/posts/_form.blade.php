@@ -1,7 +1,11 @@
 @php
     $currentPost = $post ?? null;
     $selectedCategories = collect(old('categories', $currentPost?->categories?->pluck('id')->all() ?? []))->map(fn ($id) => (int) $id)->all();
+    $selectedGenres = collect(old('genres', $currentPost?->genres?->pluck('id')->all() ?? []))->map(fn ($id) => (int) $id)->all();
+    $selectedBlogCategory = (int) old('blog_category_id', $currentPost?->blog_category_id ?? 0);
+    $selectedBlogGenres = collect(old('blog_genres', $currentPost?->blogGenres?->pluck('id')->all() ?? []))->map(fn ($id) => (int) $id)->all();
     $publishedValue = old('published_at', $currentPost?->published_at?->format('Y-m-d\TH:i') ?? now()->format('Y-m-d\TH:i'));
+    $publicationType = old('publication_type', $currentPost?->publication_type ?? (request('publication_type') === 'blog' ? 'blog' : 'standard'));
 @endphp
 
 @if ($errors->any())
@@ -13,6 +17,8 @@
         </ul>
     </div>
 @endif
+
+<input type="hidden" id="publication_type" name="publication_type" value="{{ $publicationType }}" data-publication-type>
 
 <div class="row g-3">
     <div class="col-md-6">
@@ -36,7 +42,7 @@
     @forelse ($categories as $category)
         <div class="col-12 col-sm-6 col-lg-4">
             <div class="form-check border border-secondary-subtle rounded p-3 ps-5 h-100">
-                <input class="form-check-input" id="category-{{ $category->id }}" type="checkbox" name="categories[]" value="{{ $category->id }}" @checked(in_array($category->id, $selectedCategories, true))>
+                <input class="form-check-input" id="category-{{ $category->id }}" type="radio" name="categories[]" value="{{ $category->id }}" data-post-category @checked(in_array($category->id, $selectedCategories, true))>
                 <label class="form-check-label" for="category-{{ $category->id }}">
                     <i class="bi {{ $category->icon ?: 'bi-folder' }} me-1"></i>{{ $category->localization($defaultLocale)?->name ?? $category->name }}
                     @unless ($category->is_active)<span class="badge text-bg-secondary ms-1">{{ __('Inactive') }}</span>@endunless
@@ -46,6 +52,73 @@
     @empty
         <div class="col-12"><div class="alert alert-warning mb-0">{{ __('Create at least one category before saving a post.') }}</div></div>
     @endforelse
+</div>
+
+<hr class="my-4">
+<h2 class="h5 mb-1">{{ __('Genres') }}</h2>
+<p class="small text-body-secondary">{{ __('Only genres compatible with the selected category are shown.') }}</p>
+<div class="row g-2" data-post-genres>
+    @forelse ($genres as $genre)
+        @php
+            $genreCategoryIds = $genre->categories->pluck('id')->map(fn ($id) => (int) $id)->implode(',');
+        @endphp
+        <div class="col-12 col-sm-6 col-lg-4" data-genre-option data-category-ids="{{ $genreCategoryIds }}">
+            <div class="form-check border border-secondary-subtle rounded p-3 ps-5 h-100">
+                <input class="form-check-input" id="genre-{{ $genre->id }}" type="checkbox" name="genres[]" value="{{ $genre->id }}" @checked(in_array($genre->id, $selectedGenres, true))>
+                <label class="form-check-label" for="genre-{{ $genre->id }}">{{ $genre->localization($defaultLocale)?->name ?? $genre->name }}</label>
+            </div>
+        </div>
+    @empty
+        <div class="col-12"><div class="alert alert-secondary mb-0">{{ __('No genres created yet.') }}</div></div>
+    @endforelse
+</div>
+
+<div class="{{ $publicationType === 'blog' ? '' : 'd-none' }}" data-blog-taxonomy>
+    <hr class="my-4">
+    <h2 class="h5 mb-1">{{ __('Blog organization') }}</h2>
+    <p class="small text-body-secondary">{{ __('The Blog category is internal. Visitors only see the Blog genres.') }}</p>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ route('admin.blog-categories.index') }}" target="_blank" rel="noopener"><i class="bi bi-journal-bookmark me-1"></i>{{ __('Manage Blog categories') }}</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ route('admin.blog-genres.index') }}" target="_blank" rel="noopener"><i class="bi bi-bookmarks me-1"></i>{{ __('Manage Blog genres') }}</a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-5">
+            <label class="form-label" for="blog_category_id">{{ __('Blog category') }}</label>
+            <select class="form-select" id="blog_category_id" name="blog_category_id" data-blog-category>
+                <option value="">{{ __('Select a Blog category') }}</option>
+                @foreach ($blogCategories as $blogCategory)
+                    <option value="{{ $blogCategory->id }}" @selected($selectedBlogCategory === $blogCategory->id)>{{ $blogCategory->name }}</option>
+                @endforeach
+            </select>
+            @if ($blogCategories->isEmpty())
+                <div class="form-text text-warning">
+                    {{ __('Create a Blog category before publishing Blog articles.') }}
+                    <a href="{{ route('admin.blog-categories.create') }}" target="_blank" rel="noopener">{{ __('Create now') }}</a>
+                </div>
+            @endif
+        </div>
+        <div class="col-12 col-lg-7">
+            <label class="form-label">{{ __('Blog genres') }}</label>
+            <div class="row g-2" data-blog-genres>
+                @forelse ($blogGenres as $blogGenre)
+                    @php
+                        $blogGenreCategoryIds = $blogGenre->categories->pluck('id')->map(fn ($id) => (int) $id)->implode(',');
+                        $blogGenreName = $blogGenre->localization($defaultLocale)?->name ?? $blogGenre->localizations->first()?->name ?? '#'.$blogGenre->id;
+                    @endphp
+                    <div class="col-12 col-md-6" data-blog-genre-option data-blog-category-ids="{{ $blogGenreCategoryIds }}">
+                        <div class="form-check border border-secondary-subtle rounded p-3 ps-5 h-100">
+                            <input class="form-check-input" id="blog-genre-{{ $blogGenre->id }}" type="checkbox" name="blog_genres[]" value="{{ $blogGenre->id }}" @checked(in_array($blogGenre->id, $selectedBlogGenres, true))>
+                            <label class="form-check-label" for="blog-genre-{{ $blogGenre->id }}">{{ $blogGenreName }}</label>
+                        </div>
+                    </div>
+                @empty
+                    <div class="col-12"><div class="alert alert-secondary mb-0">{{ __('No Blog genres created yet.') }}</div></div>
+                @endforelse
+            </div>
+        </div>
+    </div>
 </div>
 
 <hr class="my-4">
@@ -73,7 +146,7 @@
             $localization = $currentPost?->localizations?->firstWhere('locale', $locale);
         @endphp
         <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" id="panel-{{ $locale }}" role="tabpanel" aria-labelledby="tab-{{ $locale }}">
-            <div class="form-check form-switch mb-3">
+            <div class="form-check form-switch mb-3" data-standard-post-fields>
                 <input type="hidden" name="localizations[{{ $locale }}][is_featured]" value="0">
                 <input class="form-check-input" id="featured-{{ $locale }}" type="checkbox" name="localizations[{{ $locale }}][is_featured]" value="1" @checked(old("localizations.$locale.is_featured", $localization?->is_featured ?? false))>
                 <label class="form-check-label" for="featured-{{ $locale }}">{{ __('Featured in this country') }}</label>
@@ -83,7 +156,7 @@
                     <label class="form-label" for="title-{{ $locale }}">{{ __('Title') }}</label>
                     <input class="form-control" id="title-{{ $locale }}" data-post-title="{{ $locale }}" name="localizations[{{ $locale }}][title]" value="{{ old("localizations.$locale.title", $localization?->title) }}" maxlength="180" {{ $locale === $defaultLocale ? 'required' : '' }}>
                 </div>
-                <div class="col-12">
+                <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="excerpt-{{ $locale }}">{{ __('Excerpt') }}</label>
                     <div data-rich-text-wrapper>
                         <textarea class="form-control" id="excerpt-{{ $locale }}" data-rich-text-input data-rich-maxlength="500" data-post-excerpt="{{ $locale }}" name="localizations[{{ $locale }}][excerpt]" rows="3">{{ old("localizations.$locale.excerpt", $localization?->excerpt) }}</textarea>
@@ -95,7 +168,17 @@
                         <textarea class="form-control font-monospace mt-2 d-none" rows="6" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
                     </div>
                 </div>
-                <div class="col-12">
+                <div class="col-12" data-blog-post-fields>
+                    <label class="form-label" for="article-body-{{ $locale }}">{{ __('Article content') }}</label>
+                    <div data-rich-text-wrapper data-rich-images data-rich-locale="{{ $locale }}" data-rich-image-upload-url="{{ route('admin.posts.article-images.store') }}">
+                        <textarea class="form-control" id="article-body-{{ $locale }}" data-rich-text-input data-post-article-body="{{ $locale }}" name="localizations[{{ $locale }}][article_body]" rows="14">{{ old("localizations.$locale.article_body", $localization?->article_body) }}</textarea>
+                        <div data-rich-text-editor></div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
+                        <textarea class="form-control font-monospace mt-2 d-none" rows="16" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
+                    </div>
+                    <div class="form-text">{{ __('Write the article and insert images exactly where they should appear.') }}</div>
+                </div>
+                <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="synopsis-{{ $locale }}">{{ __('Synopsis') }}</label>
                     <div data-rich-text-wrapper>
                         <textarea class="form-control" id="synopsis-{{ $locale }}" data-rich-text-input data-post-synopsis="{{ $locale }}" name="localizations[{{ $locale }}][synopsis]" rows="5">{{ old("localizations.$locale.synopsis", $localization?->synopsis) }}</textarea>
@@ -104,7 +187,7 @@
                         <textarea class="form-control font-monospace mt-2 d-none" rows="8" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
                     </div>
                 </div>
-                <div class="col-12">
+                <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="review-{{ $locale }}">{{ __('Review') }}</label>
                     <div data-rich-text-wrapper>
                         <textarea class="form-control" id="review-{{ $locale }}" data-rich-text-input name="localizations[{{ $locale }}][review]" rows="8">{{ old("localizations.$locale.review", $localization?->review) }}</textarea>
@@ -113,7 +196,7 @@
                         <textarea class="form-control font-monospace mt-2 d-none" rows="12" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
                     </div>
                 </div>
-                <div class="col-12">
+                <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="spoilers-{{ $locale }}">{{ __('Spoilers') }}</label>
                     <textarea class="form-control" id="spoilers-{{ $locale }}" name="localizations[{{ $locale }}][spoilers]" rows="7">{{ old("localizations.$locale.spoilers", $localization?->spoilers) }}</textarea>
                     <div class="form-text">{{ __('Hidden by default on the public post. Visitors choose whether to reveal it.') }}</div>
@@ -194,6 +277,63 @@
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const publicationType = document.querySelector('[data-publication-type]');
+    const standardFields = [...document.querySelectorAll('[data-standard-post-fields]')];
+    const blogFields = [...document.querySelectorAll('[data-blog-post-fields]')];
+    const blogTaxonomyFields = [...document.querySelectorAll('[data-blog-taxonomy]')];
+    const blogCategorySelect = document.querySelector('[data-blog-category]');
+
+    const updatePublicationFields = () => {
+        const isBlog = publicationType?.value === 'blog';
+        standardFields.forEach((field) => field.classList.toggle('d-none', isBlog));
+        blogFields.forEach((field) => field.classList.toggle('d-none', !isBlog));
+        blogTaxonomyFields.forEach((field) => field.classList.toggle('d-none', !isBlog));
+        if (blogCategorySelect) blogCategorySelect.required = isBlog;
+    };
+
+    publicationType?.addEventListener('change', updatePublicationFields);
+    updatePublicationFields();
+
+    const categoryInputs = [...document.querySelectorAll('[data-post-category]')];
+    const genreOptions = [...document.querySelectorAll('[data-genre-option]')];
+
+    const updateGenreOptions = () => {
+        const selectedCategoryIds = new Set(categoryInputs.filter((input) => input.checked).map((input) => input.value));
+
+        genreOptions.forEach((option) => {
+            const allowedCategoryIds = (option.dataset.categoryIds || '').split(',').filter(Boolean);
+            const visible = allowedCategoryIds.some((id) => selectedCategoryIds.has(id));
+            option.classList.toggle('d-none', !visible);
+
+            if (!visible) {
+                const checkbox = option.querySelector('input[type=\"checkbox\"]');
+                if (checkbox) checkbox.checked = false;
+            }
+        });
+    };
+
+    categoryInputs.forEach((input) => input.addEventListener('change', updateGenreOptions));
+    updateGenreOptions();
+
+    const blogGenreOptions = [...document.querySelectorAll('[data-blog-genre-option]')];
+    const updateBlogGenreOptions = () => {
+        const selectedBlogCategoryId = blogCategorySelect?.value || '';
+
+        blogGenreOptions.forEach((option) => {
+            const allowedCategoryIds = (option.dataset.blogCategoryIds || '').split(',').filter(Boolean);
+            const visible = selectedBlogCategoryId !== '' && allowedCategoryIds.includes(selectedBlogCategoryId);
+            option.classList.toggle('d-none', !visible);
+
+            if (!visible) {
+                const checkbox = option.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = false;
+            }
+        });
+    };
+
+    blogCategorySelect?.addEventListener('change', updateBlogGenreOptions);
+    updateBlogGenreOptions();
+
     const normalizeRichHtml = (html) => {
         const documentNode = document.implementation.createHTMLDocument('');
         const root = documentNode.createElement('div');
@@ -243,24 +383,83 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggle = wrapper.querySelector('[data-rich-text-source-toggle]');
         const count = wrapper.querySelector('[data-rich-text-count]');
         const maxLength = Number(input?.dataset.richMaxlength || 0);
+        const allowImages = wrapper.hasAttribute('data-rich-images');
+        const imageUploadUrl = wrapper.dataset.richImageUploadUrl || '';
+        const richLocale = wrapper.dataset.richLocale || '';
 
         if (!input || !editor || !source || !toggle || typeof Quill === 'undefined') {
             return;
         }
 
+        const toolbarOptions = [
+            [{ header: [2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            allowImages ? ['blockquote', 'link', 'image'] : ['blockquote', 'link'],
+            ['clean'],
+        ];
+
+        const formats = ['header', 'bold', 'italic', 'underline', 'strike', 'blockquote', 'list', 'link'];
+        if (allowImages) formats.push('image');
+
         const quill = new Quill(editor, {
             theme: 'snow',
-            formats: ['header', 'bold', 'italic', 'underline', 'strike', 'blockquote', 'list', 'link'],
-            modules: {
-                toolbar: [
-                    [{ header: [2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ list: 'ordered' }, { list: 'bullet' }],
-                    ['blockquote', 'link'],
-                    ['clean'],
-                ],
-            },
+            formats,
+            modules: { toolbar: toolbarOptions },
         });
+
+        if (allowImages && imageUploadUrl) {
+            quill.getModule('toolbar')?.addHandler('image', () => {
+                const picker = document.createElement('input');
+                picker.type = 'file';
+                picker.accept = 'image/jpeg,image/png,image/webp,image/gif';
+                picker.className = 'd-none';
+                document.body.appendChild(picker);
+
+                picker.addEventListener('change', async () => {
+                    const file = picker.files?.[0];
+                    if (!file) {
+                        picker.remove();
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    formData.append('locale', richLocale);
+
+                    try {
+                        const response = await fetch(imageUploadUrl, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                'Accept': 'application/json',
+                            },
+                            body: formData,
+                        });
+                        const payload = await response.json();
+
+                        if (!response.ok || !payload.url) {
+                            throw new Error(payload.message || '{{ __('Could not upload the image.') }}');
+                        }
+
+                        const altText = window.prompt('{{ __('Image description (alt text)') }}', '') ?? '';
+                        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+                        quill.insertEmbed(range.index, 'image', payload.url, 'user');
+                        quill.insertText(range.index + 1, '\n', 'silent');
+                        const insertedImage = [...editor.querySelectorAll('img')].find((image) => image.getAttribute('src') === payload.url);
+                        if (insertedImage) insertedImage.setAttribute('alt', altText.trim());
+                        quill.setSelection(range.index + 2, 0, 'silent');
+                        syncFromEditor();
+                    } catch (error) {
+                        window.alert(error?.message || '{{ __('Could not upload the image.') }}');
+                    } finally {
+                        picker.remove();
+                    }
+                }, { once: true });
+
+                picker.click();
+            });
+        }
 
         input.classList.add('d-none');
         toggle.classList.remove('d-none');
@@ -353,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const locale = titleInput.dataset.postTitle;
         const excerptInput = document.querySelector(`[data-post-excerpt="${locale}"]`);
         const synopsisInput = document.querySelector(`[data-post-synopsis="${locale}"]`);
+        const articleBodyInput = document.querySelector(`[data-post-article-body="${locale}"]`);
         const seoTitleInput = document.querySelector(`[data-post-seo-title="${locale}"]`);
         const seoDescriptionInput = document.querySelector(`[data-post-seo-description="${locale}"]`);
 
@@ -376,9 +576,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const excerpt = plainTextFromHtml(excerptInput?.value || '');
             const synopsis = plainTextFromHtml(synopsisInput?.value || '');
+            const articleBody = plainTextFromHtml(articleBodyInput?.value || '');
             const title = titleInput.value.trim();
             const fallback = title ? `Read ${title} on {{ config('site.name') }}.` : '';
-            seoDescriptionInput.value = (excerpt || synopsis || fallback).slice(0, 170);
+            seoDescriptionInput.value = (excerpt || synopsis || articleBody || fallback).slice(0, 170);
         };
 
         seoTitleInput.addEventListener('input', () => {
@@ -395,6 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         excerptInput?.addEventListener('input', updateSeoDescription);
         synopsisInput?.addEventListener('input', updateSeoDescription);
+        articleBodyInput?.addEventListener('input', updateSeoDescription);
 
         updateSeoTitle();
         updateSeoDescription();

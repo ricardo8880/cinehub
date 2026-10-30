@@ -20,6 +20,7 @@ class PostLocalization extends Model
         'excerpt',
         'synopsis',
         'review',
+        'article_body',
         'spoilers',
         'seo_title',
         'seo_description',

@@ -103,7 +103,8 @@ class SearchController extends Controller
                                 ->where('title', 'like', $like)
                                 ->orWhere('excerpt', 'like', $like)
                                 ->orWhere('synopsis', 'like', $like)
-                                ->orWhere('review', 'like', $like);
+                                ->orWhere('review', 'like', $like)
+                                ->orWhere('article_body', 'like', $like);
                         });
                 })
                 ->orWhereHas('categories.localizations', function (Builder $categoryQuery) use ($locale, $like): void {
@@ -118,7 +119,10 @@ class SearchController extends Controller
     {
         return Post::query()
             ->published()
-            ->whereHas('media', fn ($q) => $q->where('locale', $locale)->whereIn('type', ['image', 'trailer']))
+            ->where(function (Builder $query) use ($locale): void {
+                $query->where('publication_type', 'blog')
+                    ->orWhereHas('media', fn (Builder $mediaQuery) => $mediaQuery->where('locale', $locale)->whereIn('type', ['image', 'trailer']));
+            })
             ->with([
                 'categories' => fn ($q) => $q->where('is_active', true)->with(['localizations' => fn ($lq) => $lq->where('locale', $locale)->where('is_active', true)])->orderBy('sort_order'),
                 'localizations' => fn ($q) => $q->where('locale', $locale)->where('is_active', true),

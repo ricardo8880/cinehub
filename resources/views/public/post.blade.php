@@ -1,16 +1,22 @@
 @extends('layouts.public')
 
 @php
+    $isBlog = $isBlog ?? ($post->publication_type === 'blog');
     $pageTitle = $localization->seo_title ?: $localization->title;
     $pageDescription = $localization->seo_description ?: (\App\Support\RichTextHtml::plainText($localization->excerpt) ?: config('site.description'));
-    $canonicalUrl = route('posts.show', [
-        'locale' => $localization->locale,
-        'category' => $primaryCategoryLocalization->slug,
-        'slug' => $localization->slug,
-    ]);
+    $canonicalUrl = $isBlog
+        ? route('blog.show', [
+            'locale' => $localization->locale,
+            'slug' => $localization->slug,
+        ])
+        : route('posts.show', [
+            'locale' => $localization->locale,
+            'category' => $primaryCategoryLocalization->slug,
+            'slug' => $localization->slug,
+        ]);
     $structuredData = [
         '@context' => 'https://schema.org',
-        '@type' => 'Article',
+        '@type' => $isBlog ? 'BlogPosting' : 'Article',
         'headline' => $localization->title,
         'description' => $pageDescription,
         'image' => [$imageUrl],
@@ -60,8 +66,12 @@
 @section('public-content')
 <nav aria-label="{{ __('Breadcrumb') }}" class="mb-3">
     <ol class="breadcrumb small mb-0">
-        <li class="breadcrumb-item"><a href="{{ route('home') }}">{{ __('Home') }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('categories.show', ['category' => $primaryCategoryLocalization->slug]) }}">{{ $primaryCategoryLocalization->name }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('home', ['locale' => $localization->locale]) }}">{{ __('Home') }}</a></li>
+        @if ($isBlog)
+            <li class="breadcrumb-item"><a href="{{ route('blog.index', ['locale' => $localization->locale]) }}">{{ __('Blog') }}</a></li>
+        @else
+            <li class="breadcrumb-item"><a href="{{ route('categories.show', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug]) }}">{{ $primaryCategoryLocalization->name }}</a></li>
+        @endif
         <li class="breadcrumb-item active text-truncate" aria-current="page">{{ $localization->title }}</li>
     </ol>
 </nav>
@@ -69,7 +79,17 @@
 <article class="public-article">
     <header class="mb-4">
         <div class="d-flex gap-2 flex-wrap mb-3">
-            <a class="badge text-bg-danger" href="{{ route('categories.show', ['category' => $primaryCategoryLocalization->slug]) }}">{{ $primaryCategoryLocalization->name }}</a>
+            @if ($isBlog)
+                <a class="badge text-bg-danger" href="{{ route('blog.index', ['locale' => $localization->locale]) }}">{{ __('Blog') }}</a>
+                @foreach ($post->blogGenres as $blogGenre)
+                    @php($blogGenreLocalization = $blogGenre->localization($localization->locale))
+                    @if ($blogGenreLocalization)
+                        <a class="badge text-bg-dark border text-decoration-none" href="{{ route('blog.index', ['locale' => $localization->locale, 'genre' => $blogGenreLocalization->slug]) }}">{{ $blogGenreLocalization->name }}</a>
+                    @endif
+                @endforeach
+            @else
+                <a class="badge text-bg-danger" href="{{ route('categories.show', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug]) }}">{{ $primaryCategoryLocalization->name }}</a>
+            @endif
         </div>
         <h1 class="display-5 fw-bold mb-3">{{ $localization->title }}</h1>
         @if ($localization->excerpt)
@@ -106,6 +126,15 @@
         </figure>
     @endif
 
+    @if ($isBlog)
+        @if ($localization->article_body)
+            <section class="card public-article__section border-0 mb-4">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="public-article__text">{!! \App\Support\RichTextHtml::normalize($localization->article_body) !!}</div>
+                </div>
+            </section>
+        @endif
+    @else
     @if ($localization->synopsis)
         <section class="card public-article__section border-0 mb-4">
             <div class="card-body p-4">
@@ -155,6 +184,8 @@
         </section>
     @endif
 
+    @endif
+
     <section id="interactions" class="card public-article__section border-0 mb-4">
         <div class="card-body p-4">
             <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
@@ -178,7 +209,7 @@
             @foreach ($post->categories as $postCategory)
                 @php($postCategoryLocalization = $postCategory->localization($localization->locale))
                 @if ($postCategoryLocalization)
-                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('categories.show', ['category' => $postCategoryLocalization->slug]) }}">{{ $postCategoryLocalization->name }}</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ $isBlog ? route('blog.index', ['locale' => $localization->locale, 'category' => $postCategoryLocalization->slug]) : route('categories.show', ['locale' => $localization->locale, 'category' => $postCategoryLocalization->slug]) }}">{{ $postCategoryLocalization->name }}</a>
                 @endif
             @endforeach
         </div>
@@ -262,8 +293,8 @@
 @if ($relatedPosts->isNotEmpty())
     <section class="mt-5">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h3 fw-bold mb-0">{{ __('Related Content') }}</h2>
-            <a href="{{ route('categories.show', ['category' => $primaryCategoryLocalization->slug]) }}" class="section-link">{{ __('View All') }} <i class="bi bi-arrow-right"></i></a>
+            <h2 class="h3 fw-bold mb-0">{{ $isBlog ? __('Related Articles') : __('Related Content') }}</h2>
+            <a href="{{ $isBlog ? route('blog.index', ['locale' => $localization->locale]) : route('categories.show', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug]) }}" class="section-link">{{ __('View All') }} <i class="bi bi-arrow-right"></i></a>
         </div>
         <div class="row g-3">
             @foreach ($relatedPosts as $item)

@@ -24,6 +24,30 @@
     <span class="badge rounded-pill text-bg-dark border">{{ $posts->total() }} {{ __('items') }}</span>
 </div>
 
+@if ($genres->isNotEmpty())
+    <div class="mb-4">
+        <div class="small text-body-secondary mb-2">{{ __('Genres') }}</div>
+        <div class="d-flex flex-wrap gap-2">
+            <a
+                class="btn btn-sm {{ $selectedGenre ? 'btn-outline-light' : 'btn-light' }}"
+                href="{{ route('categories.show', ['locale' => request()->route('locale'), 'category' => $categoryLocalization->slug]) }}"
+            >
+                {{ __('All') }}
+            </a>
+
+            @foreach ($genres as $genre)
+                @php($genreLocalization = $genre->localization(request()->route('locale')))
+                <a
+                    class="btn btn-sm {{ $selectedGenre && $selectedGenre->id === $genre->id ? 'btn-light' : 'btn-outline-light' }}"
+                    href="{{ route('categories.show', ['locale' => request()->route('locale'), 'category' => $categoryLocalization->slug, 'genre' => $genreLocalization->slug]) }}"
+                >
+                    {{ $genreLocalization->name }}
+                </a>
+            @endforeach
+        </div>
+    </div>
+@endif
+
 @if ($posts->count())
     <div class="row g-3">
         @foreach ($posts as $item)

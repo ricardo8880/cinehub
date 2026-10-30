@@ -10,6 +10,10 @@
     @stack('styles')
 </head>
 <body>
+@php
+    $routePost = request()->route('post');
+    $adminBlogContext = request('publication_type') === 'blog' || (is_object($routePost) && ($routePost->publication_type ?? null) === 'blog');
+@endphp
 <nav class="navbar navbar-expand-xl border-bottom border-secondary-subtle bg-dark sticky-top">
     <div class="container-fluid px-3 px-lg-4">
         <a class="navbar-brand fw-bold" href="{{ route('admin.dashboard') }}"><i class="bi bi-play-btn-fill text-danger me-2"></i>{{ config('site.name') }} Admin</a>
@@ -18,8 +22,21 @@
         <div class="collapse navbar-collapse" id="adminNav">
             <ul class="navbar-nav me-auto mb-2 mb-xl-0">
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2 me-1"></i>{{ __('Dashboard') }}</a></li>
-                <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.posts*') ? 'active' : '' }}" href="{{ route('admin.posts.index') }}"><i class="bi bi-file-earmark-text me-1"></i>{{ __('Posts') }}</a></li>
+                <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.posts*') && ! $adminBlogContext ? 'active' : '' }}" href="{{ route('admin.posts.index', ['publication_type' => 'standard']) }}"><i class="bi bi-file-earmark-text me-1"></i>{{ __('Posts') }}</a></li>
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.categories*') ? 'active' : '' }}" href="{{ route('admin.categories.index') }}"><i class="bi bi-grid me-1"></i>{{ __('Categories') }}</a></li>
+                <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.genres*') ? 'active' : '' }}" href="{{ route('admin.genres.index') }}"><i class="bi bi-tags me-1"></i>{{ __('Genres') }}</a></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.blog-categories*','admin.blog-genres*') || (request()->routeIs('admin.posts*') && $adminBlogContext) ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-journal-text me-1"></i>{{ __('Blog') }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark">
+                        <li><a class="dropdown-item" href="{{ route('admin.posts.index', ['publication_type' => 'blog']) }}"><i class="bi bi-file-earmark-richtext me-2"></i>{{ __('Blog articles') }}</a></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.posts.create', ['publication_type' => 'blog']) }}"><i class="bi bi-plus-lg me-2"></i>{{ __('New Blog article') }}</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.blog-categories.index') }}"><i class="bi bi-journal-bookmark me-2"></i>{{ __('Blog categories') }}</a></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.blog-genres.index') }}"><i class="bi bi-bookmarks me-2"></i>{{ __('Blog genres') }}</a></li>
+                    </ul>
+                </li>
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.comments*') ? 'active' : '' }}" href="{{ route('admin.comments.index') }}"><i class="bi bi-chat-left-text me-1"></i>{{ __('Comments') }}</a></li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.suggestions*','admin.contacts*','admin.metrics','admin.logs','admin.settings*','admin.ad-slots*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown">{{ __('More') }}</a>
@@ -27,6 +44,7 @@
                         <li><a class="dropdown-item" href="{{ route('admin.suggestions.index') }}"><i class="bi bi-lightbulb me-2"></i>{{ __('Suggestions') }}</a></li>
                         <li><a class="dropdown-item" href="{{ route('admin.contacts.index') }}"><i class="bi bi-envelope me-2"></i>{{ __('Contact') }}</a></li>
                         <li><a class="dropdown-item" href="{{ route('admin.metrics') }}"><i class="bi bi-graph-up me-2"></i>{{ __('Metrics') }}</a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ route('admin.ad-slots.index') }}"><i class="bi bi-badge-ad me-2"></i>{{ __('Ad slots') }}</a></li>
                         <li><a class="dropdown-item" href="{{ route('admin.settings.edit') }}"><i class="bi bi-gear me-2"></i>{{ __('Settings') }}</a></li>
                         <li><hr class="dropdown-divider"></li>

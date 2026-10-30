@@ -28,6 +28,10 @@
                     <i class="bi bi-house-fill" aria-hidden="true"></i>
                     <span>{{ __('Home') }}</span>
                 </a>
+                <a class="topbar-link" href="{{ route('blog.index', ['locale' => $currentLocale]) }}">
+                    <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                    <span>{{ __('Blog') }}</span>
+                </a>
                 @foreach ($categories as $category)
                     <a class="topbar-link {{ $activeCategory === $category['key'] ? 'is-active' : '' }}" href="{{ $category['url'] }}">
                         <i class="bi {{ $category['icon'] }}" aria-hidden="true"></i>
@@ -84,7 +88,7 @@
                 <a class="sidebar-link" href="#trending"><i class="bi bi-fire"></i><span>{{ __('Trending') }}</span></a>
                 <a class="sidebar-link" href="#latest"><i class="bi bi-clock"></i><span>{{ __('Latest') }}</span></a>
                 <a class="sidebar-link" href="#popular"><i class="bi bi-heart"></i><span>{{ __('Most Liked') }}</span></a>
-                <button class="sidebar-link sidebar-link--button" type="button" data-watchlist-filter><i class="bi bi-bookmark"></i><span>{{ __('My Watchlist') }}</span></button>
+                <a class="sidebar-link" href="{{ route('blog.index', ['locale' => $currentLocale]) }}"><i class="bi bi-journal-richtext"></i><span>{{ __('Blog') }}</span></a>
                 <a class="sidebar-link" href="#categories"><i class="bi bi-grid"></i><span>{{ __('Categories') }}</span></a>
             </nav>
 
@@ -146,7 +150,6 @@
                                     <i class="bi bi-heart-fill"></i><span data-like-count>{{ $featuredItem['likes_count'] }}</span>
                                 </button>
                                 <button class="media-action" type="button"><i class="bi bi-chat"></i><span>{{ $featuredItem['comments_count'] }}</span></button>
-                                <button class="media-action ms-auto" type="button" data-watch-button aria-pressed="false"><i class="bi bi-bookmark"></i><span>{{ __('Watch Later') }}</span></button>
                             </div>
 
                             @if (! empty($featuredItem['url']))

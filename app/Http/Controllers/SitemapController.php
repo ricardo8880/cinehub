@@ -15,6 +15,7 @@ class SitemapController extends Controller
 
         foreach (array_keys(config('localization.locales')) as $locale) {
             $urls->push(['loc' => route('home', ['locale' => $locale]), 'lastmod' => null, 'changefreq' => 'daily', 'priority' => '1.0']);
+            $urls->push(['loc' => route('blog.index', ['locale' => $locale]), 'lastmod' => null, 'changefreq' => 'daily', 'priority' => '0.8']);
         }
 
         if (SiteSetting::valueFor('book_title')) {
@@ -46,15 +47,21 @@ class SitemapController extends Controller
             ->get();
 
         foreach ($localizations as $localization) {
-            $category = $localization->post->categories->first(fn ($item) => $item->is_active && $item->localization($localization->locale));
-            $categoryVersion = $category?->localization($localization->locale);
-            if (! $categoryVersion) continue;
+            if ($localization->post->publication_type === 'blog') {
+                $url = route('blog.show', ['locale' => $localization->locale, 'slug' => $localization->slug]);
+            } else {
+                $category = $localization->post->categories->first(fn ($item) => $item->is_active && $item->localization($localization->locale));
+                $categoryVersion = $category?->localization($localization->locale);
+                if (! $categoryVersion) continue;
+
+                $url = route('posts.show', ['locale' => $localization->locale, 'category' => $categoryVersion->slug, 'slug' => $localization->slug]);
+            }
 
             $urls->push([
-                'loc' => route('posts.show', ['locale' => $localization->locale, 'category' => $categoryVersion->slug, 'slug' => $localization->slug]),
+                'loc' => $url,
                 'lastmod' => optional($localization->post->updated_at)?->toAtomString(),
                 'changefreq' => 'weekly',
-                'priority' => '0.7',
+                'priority' => $localization->post->publication_type === 'blog' ? '0.8' : '0.7',
             ]);
         }
 

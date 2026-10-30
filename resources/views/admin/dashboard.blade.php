@@ -6,6 +6,7 @@
 @foreach([
     ['Posts',$postsCount,'bi-file-earmark-text',route('admin.posts.index')],
     ['Categories',$categoriesCount,'bi-grid',route('admin.categories.index')],
+    ['Genres',$genresCount,'bi-tags',route('admin.genres.index')],
     ['Pending comments',$pendingCommentsCount,'bi-chat-left-text',route('admin.comments.index',['status'=>'pending'])],
     ['Pending suggestions',$pendingSuggestionsCount,'bi-lightbulb',route('admin.suggestions.index',['status'=>'pending'])],
     ['Unread contacts',$unreadContactsCount,'bi-envelope',route('admin.contacts.index',['status'=>'unread'])],

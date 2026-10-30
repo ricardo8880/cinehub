@@ -7,6 +7,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostLocalization;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PublicPostPresenter
 {
@@ -35,14 +36,14 @@ class PublicPostPresenter
         $image = $this->image($post, $requestedLocale);
         $trailer = $this->trailer($post, $requestedLocale);
 
-        if (! $image && ! $trailer) {
+        if (! $image && ! $trailer && $post->publication_type !== 'blog') {
             return null;
         }
 
         return [
             'id' => $post->id,
             'title' => $localization->title,
-            'excerpt' => RichTextHtml::plainText($localization->excerpt),
+            'excerpt' => Str::limit(RichTextHtml::plainText($localization->excerpt ?: $localization->article_body), 220),
             'type' => $categoryLocalization->slug,
             'type_label' => $categoryLocalization->name,
             'content_kind' => $this->contentKind($category->slug),
@@ -54,11 +55,27 @@ class PublicPostPresenter
             'comments_count' => $this->formatCount((int) ($post->approved_comments_count ?? 0)),
             'views_count' => $this->formatCount((int) ($post->views_count ?? $post->recent_views_count ?? 0)),
             'locale' => $requestedLocale,
-            'url' => route('posts.show', [
-                'locale' => $requestedLocale,
-                'category' => $categoryLocalization->slug,
-                'slug' => $localization->slug,
-            ]),
+            'publication_type' => $post->publication_type,
+            'blog_genres' => $post->publication_type === 'blog'
+                ? $post->blogGenres->map(function ($genre) use ($requestedLocale): ?array {
+                    $localization = $genre->localization($requestedLocale);
+
+                    return $localization ? [
+                        'name' => $localization->name,
+                        'slug' => $localization->slug,
+                    ] : null;
+                })->filter()->values()->all()
+                : [],
+            'url' => $post->publication_type === 'blog'
+                ? route('blog.show', [
+                    'locale' => $requestedLocale,
+                    'slug' => $localization->slug,
+                ])
+                : route('posts.show', [
+                    'locale' => $requestedLocale,
+                    'category' => $categoryLocalization->slug,
+                    'slug' => $localization->slug,
+                ]),
         ];
     }
 

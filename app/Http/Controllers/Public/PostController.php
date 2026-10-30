@@ -29,13 +29,14 @@ class PostController extends Controller
             ->where('locale', $locale)
             ->where('slug', $slug)
             ->where('is_active', true)
-            ->whereHas('post', fn ($q) => $q->published()->whereHas('categories', fn ($cq) => $cq->whereKey($categoryLocalization->category_id)))
+            ->whereHas('post', fn ($q) => $q->published()->where('publication_type', 'standard')->whereHas('categories', fn ($cq) => $cq->whereKey($categoryLocalization->category_id)))
             ->firstOrFail();
 
         $post = $localization->post()
             ->with([
                 'author',
                 'categories' => fn ($q) => $q->where('is_active', true)->with(['localizations' => fn ($lq) => $lq->where('locale', $locale)->where('is_active', true)])->orderBy('sort_order'),
+                'genres' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
                 'localizations',
                 'media' => fn ($q) => $q->where('locale', $locale),
             ])
@@ -78,12 +79,14 @@ class PostController extends Controller
 
         $relatedPosts = Post::query()
             ->published()
+            ->where('publication_type', 'standard')
             ->whereKeyNot($post->id)
             ->whereHas('categories', fn ($q) => $q->whereIn('categories.id', $post->categories->pluck('id')))
             ->whereHas('localizations', fn ($q) => $q->where('locale', $locale)->where('is_active', true))
             ->whereHas('media', fn ($q) => $q->where('locale', $locale)->whereIn('type', ['image', 'trailer']))
             ->with([
                 'categories' => fn ($q) => $q->where('is_active', true)->with(['localizations' => fn ($lq) => $lq->where('locale', $locale)->where('is_active', true)])->orderBy('sort_order'),
+                'genres' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
                 'localizations' => fn ($q) => $q->where('locale', $locale)->where('is_active', true),
                 'media' => fn ($q) => $q->where('locale', $locale),
             ])
@@ -116,6 +119,8 @@ class PostController extends Controller
             if ($url) $alternateUrls[$routeLocale] = $url;
         }
 
-        return view('public.post', compact('post', 'localization', 'primaryCategory', 'primaryCategoryLocalization', 'image', 'imageUrl', 'trailer', 'trailerUrl', 'comments', 'viewerHasLiked', 'relatedPosts', 'navigationCategories', 'localeLinks', 'alternateUrls'));
+        $isBlog = false;
+
+        return view('public.post', compact('post', 'localization', 'primaryCategory', 'primaryCategoryLocalization', 'image', 'imageUrl', 'trailer', 'trailerUrl', 'comments', 'viewerHasLiked', 'relatedPosts', 'navigationCategories', 'localeLinks', 'alternateUrls', 'isBlog'));
     }
 }

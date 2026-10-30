@@ -12,7 +12,7 @@ final class RichTextHtml
 {
     private const ALLOWED_TAGS = [
         'p', 'br', 'strong', 'em', 'u', 's', 'blockquote',
-        'ol', 'ul', 'li', 'h2', 'h3', 'a',
+        'ol', 'ul', 'li', 'h2', 'h3', 'a', 'img',
     ];
 
     private const EMPTY_BLOCK_TAGS = ['p', 'blockquote', 'h2', 'h3', 'li', 'ol', 'ul'];
@@ -61,7 +61,7 @@ final class RichTextHtml
 
         $clean = trim($clean);
 
-        return self::plainText($clean) === '' ? null : $clean;
+        return self::hasMeaningfulContent($clean) ? $clean : null;
     }
 
     public static function plainText(?string $html): string
@@ -122,7 +122,15 @@ final class RichTextHtml
                     continue;
                 }
 
-                self::sanitizeAttributes($child, $tag);
+                if ($tag === 'img' && ! self::sanitizeImage($child)) {
+                    $parent->removeChild($child);
+                    $child = $next;
+                    continue;
+                }
+
+                if ($tag !== 'img') {
+                    self::sanitizeAttributes($child, $tag);
+                }
             }
 
             $child = $next;
@@ -143,6 +151,28 @@ final class RichTextHtml
 
         $element->setAttribute('href', $href);
         $element->setAttribute('rel', 'noopener noreferrer');
+    }
+
+    private static function sanitizeImage(DOMElement $element): bool
+    {
+        $src = trim($element->getAttribute('src'));
+        $alt = trim(self::normalizeWhitespace($element->getAttribute('alt')));
+
+        if (! self::isSafeImageSrc($src)) {
+            return false;
+        }
+
+        while ($element->attributes->length > 0) {
+            $element->removeAttributeNode($element->attributes->item(0));
+        }
+
+        $element->setAttribute('src', $src);
+        $element->setAttribute('alt', self::truncate($alt, 180));
+        $element->setAttribute('class', 'img-fluid rounded my-3');
+        $element->setAttribute('loading', 'lazy');
+        $element->setAttribute('decoding', 'async');
+
+        return true;
     }
 
     private static function removeEmptyBlocks(DOMNode $parent): void
@@ -174,12 +204,17 @@ final class RichTextHtml
         }
 
         foreach ($element->childNodes as $child) {
-            if ($child instanceof DOMElement && strtolower($child->tagName) !== 'br') {
+            if ($child instanceof DOMElement && ! in_array(strtolower($child->tagName), ['br'], true)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static function truncate(string $value, int $length): string
+    {
+        return function_exists('mb_substr') ? mb_substr($value, 0, $length) : substr($value, 0, $length);
     }
 
     private static function isSafeHref(string $href): bool
@@ -193,6 +228,22 @@ final class RichTextHtml
         return in_array($scheme, ['http', 'https', 'mailto'], true);
     }
 
+    private static function isSafeImageSrc(string $src): bool
+    {
+        if ($src === '') {
+            return false;
+        }
+
+        $path = parse_url(html_entity_decode($src, ENT_QUOTES | ENT_HTML5, 'UTF-8'), PHP_URL_PATH);
+
+        return is_string($path) && str_starts_with(rawurldecode($path), '/storage/blog-content/');
+    }
+
+    private static function hasMeaningfulContent(string $html): bool
+    {
+        return self::plainText($html) !== '' || preg_match('/<img\b[^>]*>/i', $html) === 1;
+    }
+
     private static function fromPlainText(string $text): ?string
     {
         $text = self::normalizeWhitespace($text);
@@ -203,7 +254,6 @@ final class RichTextHtml
         }
 
         $paragraphs = preg_split('/\n{2,}/', $text) ?: [];
-
         $html = '';
 
         foreach ($paragraphs as $paragraph) {
@@ -222,9 +272,26 @@ final class RichTextHtml
         $html = preg_replace('/<(script|style|iframe|object|embed)\b[^>]*>.*?<\/\1>/is', '', $html) ?? '';
         $html = str_ireplace(['&nbsp;', '&#160;', '&#xA0;'], ' ', $html);
         $html = self::normalizeWhitespace($html);
-        $html = strip_tags($html, '<p><br><strong><em><u><s><blockquote><ol><ul><li><h2><h3><a>');
+        $html = strip_tags($html, '<p><br><strong><em><u><s><blockquote><ol><ul><li><h2><h3><a><img>');
         $html = preg_replace_callback('/<([a-z0-9]+)\b([^>]*)>/i', function (array $match): string {
             $tag = strtolower($match[1]);
+
+            if ($tag === 'img') {
+                $src = '';
+                $alt = '';
+                if (preg_match('/\bsrc\s*=\s*(["\'])(.*?)\1/is', $match[2], $srcMatch)) {
+                    $src = html_entity_decode(trim($srcMatch[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+                if (preg_match('/\balt\s*=\s*(["\'])(.*?)\1/is', $match[2], $altMatch)) {
+                    $alt = self::normalizeWhitespace(html_entity_decode(trim($altMatch[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+
+                if (! self::isSafeImageSrc($src)) {
+                    return '';
+                }
+
+                return '<img src="'.htmlspecialchars($src, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" alt="'.htmlspecialchars(self::truncate($alt, 180), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" class="img-fluid rounded my-3" loading="lazy" decoding="async">';
+            }
 
             if ($tag !== 'a') {
                 return '<'.$tag.'>';
@@ -249,6 +316,6 @@ final class RichTextHtml
         $html = preg_replace('/<(ol|ul)>\s*<\/\1>/i', '', $html) ?? '';
         $html = trim($html);
 
-        return self::plainText($html) === '' ? null : $html;
+        return self::hasMeaningfulContent($html) ? $html : null;
     }
 }

@@ -13,27 +13,6 @@ class CommentController extends Controller
 {
     public function store(Request $request, string $locale, string $category, string $slug): RedirectResponse
     {
-        $validator = Validator::make($request->all(), [
-            'author_name' => ['required', 'string', 'max:80'],
-            'author_email' => ['nullable', 'email:rfc', 'max:255'],
-            'body' => ['required', 'string', 'min:5', 'max:2000'],
-            'website' => ['prohibited'],
-        ]);
-
-        $postUrl = route('posts.show', [
-            'locale' => $locale,
-            'category' => $category,
-            'slug' => $slug,
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->to($postUrl.'#comments')
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        $validated = $validator->validated();
-
         $categoryLocalization = CategoryLocalization::query()
             ->where('locale', $locale)
             ->where('slug', $category)
@@ -45,7 +24,27 @@ class CommentController extends Controller
             ->where('slug', $slug)
             ->where('is_active', true)
             ->whereHas('post', fn ($query) => $query->published()->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereKey($categoryLocalization->category_id)))
+            ->with('post')
             ->firstOrFail();
+
+        $postUrl = $localization->post->publication_type === 'blog'
+            ? route('blog.show', ['locale' => $locale, 'slug' => $slug])
+            : route('posts.show', ['locale' => $locale, 'category' => $category, 'slug' => $slug]);
+
+        $validator = Validator::make($request->all(), [
+            'author_name' => ['required', 'string', 'max:80'],
+            'author_email' => ['nullable', 'email:rfc', 'max:255'],
+            'body' => ['required', 'string', 'min:5', 'max:2000'],
+            'website' => ['prohibited'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->to($postUrl.'#comments')
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
 
         $localization->post->comments()->create([
             'locale' => $locale,

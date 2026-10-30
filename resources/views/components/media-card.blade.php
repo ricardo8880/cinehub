@@ -75,17 +75,12 @@
                 <span>{{ $comments }}</span>
             </button>
 
-            <button class="media-action media-action--save ms-auto" type="button" data-watch-button aria-pressed="false" aria-label="{{ __('Save :title to watchlist', ['title' => $title]) }}">
-                <i class="bi bi-bookmark" aria-hidden="true"></i>
-            </button>
-
             <div class="dropdown">
                 <button class="media-action" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('More options') }}">
                     <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end card-menu">
                     <li><button class="dropdown-item" type="button" data-copy-title="{{ $title }}">{{ __('Copy title') }}</button></li>
-                    <li><button class="dropdown-item" type="button" data-watch-button aria-pressed="false">{{ __('Add to Watchlist') }}</button></li>
                 </ul>
             </div>
         </div>

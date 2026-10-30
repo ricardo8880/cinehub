@@ -35,6 +35,11 @@ class Category extends Model
         return $this->belongsToMany(Post::class)->withTimestamps();
     }
 
+    public function genres(): BelongsToMany
+    {
+        return $this->belongsToMany(Genre::class)->withTimestamps();
+    }
+
     public function localizations(): HasMany
     {
         return $this->hasMany(CategoryLocalization::class);

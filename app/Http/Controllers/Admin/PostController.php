@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PostRequest;
+use App\Models\BlogCategory;
+use App\Models\BlogGenre;
 use App\Models\Category;
+use App\Models\Genre;
 use App\Models\Post;
 use App\Models\PostLocalization;
+use App\Support\ArticleImageManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,10 +22,15 @@ use Illuminate\View\View;
 
 class PostController extends Controller
 {
+    public function __construct(private readonly ArticleImageManager $articleImages)
+    {
+    }
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('q'));
         $status = trim((string) $request->string('status'));
+        $publicationType = $request->string('publication_type')->toString() === 'blog' ? 'blog' : 'standard';
         $defaultLocale = config('localization.default');
 
         $posts = Post::query()
@@ -31,17 +40,21 @@ class PostController extends Controller
                 $localizationQuery->where('title', 'like', "%{$search}%");
             }))
             ->when(in_array($status, ['draft', 'published'], true), fn (Builder $query) => $query->where('status', $status))
+            ->where('publication_type', $publicationType)
             ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.posts.index', compact('posts', 'search', 'status', 'defaultLocale'));
+        return view('admin.posts.index', compact('posts', 'search', 'status', 'publicationType', 'defaultLocale'));
     }
 
     public function create(): View
     {
         return view('admin.posts.create', [
             'categories' => $this->categories(),
+            'genres' => $this->genres(),
+            'blogCategories' => $this->blogCategories(),
+            'blogGenres' => $this->blogGenres(),
             'locales' => config('localization.locales'),
             'defaultLocale' => config('localization.default'),
         ]);
@@ -56,16 +69,23 @@ class PostController extends Controller
             $post = Post::create([
                 'author_id' => $request->user()->id,
                 'status' => $data['status'],
+                'publication_type' => $data['publication_type'],
+                'blog_category_id' => $data['publication_type'] === 'blog' ? ($data['blog_category_id'] ?? null) : null,
                 'is_featured' => false,
                 'published_at' => $publishedAt,
             ]);
 
             $post->categories()->sync($data['categories']);
+            $post->genres()->sync($data['genres'] ?? []);
+            $post->blogGenres()->sync($data['publication_type'] === 'blog' ? ($data['blog_genres'] ?? []) : []);
             $this->syncLocalizations($post, $data['localizations']);
             $this->syncCountryMedia($post, $data['localizations'], $data['media'] ?? [], $request);
 
             return $post;
         });
+
+        $post->load('localizations');
+        $this->articleImages->cleanupOrphansForUser((int) $request->user()->id);
 
         return redirect()
             ->route('admin.posts.edit', $post)
@@ -74,11 +94,14 @@ class PostController extends Controller
 
     public function edit(Post $post): View
     {
-        $post->load(['localizations', 'categories', 'media']);
+        $post->load(['localizations', 'categories', 'genres', 'blogCategory', 'blogGenres', 'media']);
 
         return view('admin.posts.edit', [
             'post' => $post,
             'categories' => $this->categories(),
+            'genres' => $this->genres(),
+            'blogCategories' => $this->blogCategories(),
+            'blogGenres' => $this->blogGenres(),
             'locales' => config('localization.locales'),
             'defaultLocale' => config('localization.default'),
         ]);
@@ -88,18 +111,30 @@ class PostController extends Controller
     {
         $data = $request->validated();
         $publishedAt = $this->publishedAt($data['status'], $data['published_at'] ?? null, $post);
+        $oldArticleBodies = $post->localizations()->pluck('article_body', 'locale')->all();
 
         DB::transaction(function () use ($request, $post, $data, $publishedAt): void {
             $post->update([
                 'status' => $data['status'],
+                'publication_type' => $data['publication_type'],
+                'blog_category_id' => $data['publication_type'] === 'blog' ? ($data['blog_category_id'] ?? null) : null,
                 'is_featured' => false,
                 'published_at' => $publishedAt,
             ]);
 
             $post->categories()->sync($data['categories']);
+            $post->genres()->sync($data['genres'] ?? []);
+            $post->blogGenres()->sync($data['publication_type'] === 'blog' ? ($data['blog_genres'] ?? []) : []);
             $this->syncLocalizations($post, $data['localizations']);
             $this->syncCountryMedia($post, $data['localizations'], $data['media'] ?? [], $request);
         });
+
+        $post->load('localizations');
+        foreach ($oldArticleBodies as $locale => $oldBody) {
+            $newBody = $post->localizations->firstWhere('locale', $locale)?->article_body;
+            $this->articleImages->deleteRemoved($oldBody, $newBody);
+        }
+        $this->articleImages->cleanupOrphansForUser((int) $request->user()->id);
 
         return redirect()
             ->route('admin.posts.edit', $post)
@@ -108,16 +143,52 @@ class PostController extends Controller
 
     public function destroy(Post $post): RedirectResponse
     {
+        $isBlog = $post->publication_type === 'blog';
+        $articleBodies = $post->localizations()->pluck('article_body')->filter()->all();
         $post->delete();
 
+        foreach ($articleBodies as $articleBody) {
+            $this->articleImages->deleteFromHtml($articleBody);
+        }
+
         return redirect()
-            ->route('admin.posts.index')
-            ->with('success', __('Post deleted successfully.'));
+            ->route('admin.posts.index', ['publication_type' => $isBlog ? 'blog' : 'standard'])
+            ->with('success', __($isBlog ? 'Blog article deleted successfully.' : 'Post deleted successfully.'));
     }
 
     private function categories()
     {
         return Category::query()->with('localizations')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
+    }
+
+    private function genres()
+    {
+        return Genre::query()
+            ->with(['categories:id', 'localizations'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+
+    private function blogCategories()
+    {
+        return BlogCategory::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function blogGenres()
+    {
+        return BlogGenre::query()
+            ->with(['categories:id', 'localizations'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
     }
 
     private function syncLocalizations(Post $post, array $localizations): void
@@ -131,12 +202,18 @@ class PostController extends Controller
             $hasCountryVersion = $locale === $defaultLocale || $title !== '';
 
             if (! $hasCountryVersion) {
-                $existing?->update(['is_active' => false, 'is_featured' => false]);
+                $existing?->update([
+                    'is_active' => false,
+                    'is_featured' => false,
+                    'article_body' => null,
+                ]);
                 continue;
             }
             $slug = $this->uniqueSlug($title, $locale, $existing?->id);
 
-            $isFeatured = filter_var($localizationData['is_featured'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $isFeatured = $post->publication_type === 'blog'
+                ? false
+                : filter_var($localizationData['is_featured'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
             if ($isFeatured) {
                 PostLocalization::query()
@@ -156,6 +233,7 @@ class PostController extends Controller
                     'excerpt' => $localizationData['excerpt'] ?? null,
                     'synopsis' => $localizationData['synopsis'] ?? null,
                     'review' => $localizationData['review'] ?? null,
+                    'article_body' => $post->publication_type === 'blog' ? ($localizationData['article_body'] ?? null) : null,
                     'spoilers' => $localizationData['spoilers'] ?? null,
                     'seo_title' => $localizationData['seo_title'] ?: null,
                     'seo_description' => $localizationData['seo_description'] ?: null,

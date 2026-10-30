@@ -22,6 +22,10 @@
                     <i class="bi bi-house-fill" aria-hidden="true"></i>
                     <span>{{ __('Home') }}</span>
                 </a>
+                <a class="topbar-link {{ request()->routeIs('blog.*') ? 'is-active' : '' }}" href="{{ route('blog.index', ['locale' => $currentLocale]) }}">
+                    <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                    <span>{{ __('Blog') }}</span>
+                </a>
                 @foreach ($navigationCategories->take(6) as $navCategory)
                     @php($navLocalization = $navCategory->localization($currentLocale))
                     @if ($navLocalization)
@@ -85,6 +89,7 @@
             <div class="container-xxl py-4 d-flex flex-wrap gap-3 small text-body-secondary">
                 <a href="{{ route('contact', ['locale' => $currentLocale]) }}">{{ __('Contact') }}</a>
                 <a href="{{ route('suggestions.create', ['locale' => $currentLocale]) }}">{{ __('Suggest a topic') }}</a>
+                <a href="{{ route('blog.index', ['locale' => $currentLocale]) }}">{{ __('Blog') }}</a>
                 <a href="{{ route('book', ['locale' => $currentLocale]) }}">{{ __('Book') }}</a>
                 <a href="{{ route('legal.show', ['locale' => $currentLocale, 'page' => 'privacy']) }}">{{ __('Privacy') }}</a>
                 <a href="{{ route('legal.show', ['locale' => $currentLocale, 'page' => 'terms']) }}">{{ __('Terms') }}</a>

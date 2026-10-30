@@ -5,8 +5,16 @@
         <img src="{{ $item['image_url'] }}" alt="{{ $item['image_alt'] ?? $item['title'] }}" class="public-content-card__image" loading="lazy">
     </a>
     <div class="card-body d-flex flex-column">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge text-bg-danger">{{ $item['type_label'] }}</span>
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+            @if (($item['publication_type'] ?? 'standard') === 'blog')
+                @forelse (($item['blog_genres'] ?? []) as $blogGenre)
+                    <span class="badge text-bg-dark border">{{ $blogGenre['name'] }}</span>
+                @empty
+                    <span class="badge text-bg-danger">{{ __('Blog') }}</span>
+                @endforelse
+            @else
+                <span class="badge text-bg-danger">{{ $item['type_label'] }}</span>
+            @endif
             @if (($item['locale'] ?? request()->route('locale')) !== request()->route('locale'))
                 <span class="badge text-bg-secondary">{{ strtoupper($item['locale']) }}</span>
             @endif

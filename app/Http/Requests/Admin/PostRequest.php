@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\BlogGenre;
+use App\Models\Genre;
 use App\Models\Post;
 use App\Support\RichTextHtml;
 use Illuminate\Foundation\Http\FormRequest;
@@ -25,7 +27,7 @@ class PostRequest extends FormRequest
                 $data['slug'] = str($data['slug'])->slug()->value();
             }
 
-            foreach (['excerpt', 'synopsis', 'review'] as $richTextField) {
+            foreach (['excerpt', 'synopsis', 'review', 'article_body'] as $richTextField) {
                 if (array_key_exists($richTextField, $data)) {
                     $data[$richTextField] = RichTextHtml::normalize($data[$richTextField]);
                 }
@@ -42,9 +44,12 @@ class PostRequest extends FormRequest
             if ($seoDescription === '' && $title !== '') {
                 $excerpt = RichTextHtml::plainText($data['excerpt'] ?? null);
                 $synopsis = RichTextHtml::plainText($data['synopsis'] ?? null);
+                $articleBody = RichTextHtml::plainText($data['article_body'] ?? null);
                 $fallback = $excerpt !== ''
                     ? $excerpt
-                    : ($synopsis !== '' ? $synopsis : 'Read '.$title.' on '.config('site.name').'.');
+                    : ($synopsis !== ''
+                        ? $synopsis
+                        : ($articleBody !== '' ? $articleBody : 'Read '.$title.' on '.config('site.name').'.'));
 
                 $data['seo_description'] = Str::limit($fallback, 170, '');
             }
@@ -63,9 +68,15 @@ class PostRequest extends FormRequest
         $post = $this->route('post');
         $rules = [
             'status' => ['required', Rule::in(['draft', 'published'])],
+            'publication_type' => ['required', Rule::in(['standard', 'blog'])],
             'published_at' => ['nullable', 'date', 'before_or_equal:now'],
-            'categories' => ['required', 'array', 'min:1'],
-            'categories.*' => ['integer', 'exists:categories,id'],
+            'categories' => ['required', 'array', 'size:1'],
+            'categories.*' => ['integer', 'distinct', 'exists:categories,id'],
+            'genres' => ['nullable', 'array'],
+            'genres.*' => ['integer', 'distinct', 'exists:genres,id'],
+            'blog_category_id' => [Rule::requiredIf(fn (): bool => $this->input('publication_type') === 'blog'), 'nullable', 'integer', 'exists:blog_categories,id'],
+            'blog_genres' => ['nullable', 'array'],
+            'blog_genres.*' => ['integer', 'distinct', 'exists:blog_genres,id'],
             'localizations' => ['required', 'array'],
             'media' => ['nullable', 'array'],
         ];
@@ -96,6 +107,11 @@ class PostRequest extends FormRequest
             ];
             $rules["localizations.$locale.synopsis"] = ['nullable', 'string'];
             $rules["localizations.$locale.review"] = ['nullable', 'string'];
+            $rules["localizations.$locale.article_body"] = [
+                Rule::requiredIf(fn (): bool => $this->input('publication_type') === 'blog' && $hasCountryVersion),
+                'nullable',
+                'string',
+            ];
             $rules["localizations.$locale.spoilers"] = ['nullable', 'string'];
             $rules["localizations.$locale.seo_title"] = ['nullable', 'string', 'max:70'];
             $rules["localizations.$locale.seo_description"] = ['nullable', 'string', 'max:170'];
@@ -106,5 +122,44 @@ class PostRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $categoryIds = collect((array) $this->input('categories', []))->map(fn ($id) => (int) $id)->filter()->unique();
+            $genreIds = collect((array) $this->input('genres', []))->map(fn ($id) => (int) $id)->filter()->unique();
+
+            if ($genreIds->isNotEmpty() && $categoryIds->isNotEmpty()) {
+                $genres = Genre::query()->with(['categories:id', 'localizations'])->whereIn('id', $genreIds)->get();
+
+                foreach ($genres as $genre) {
+                    if ($genre->categories->pluck('id')->intersect($categoryIds)->isEmpty()) {
+                        $genreName = $genre->localization(config('localization.default'))?->name ?? $genre->name;
+                        $validator->errors()->add('genres', __('The genre :genre is not available for the selected category.', ['genre' => $genreName]));
+                    }
+                }
+            }
+
+            if ($this->input('publication_type') !== 'blog') {
+                return;
+            }
+
+            $blogCategoryId = (int) $this->input('blog_category_id');
+            $blogGenreIds = collect((array) $this->input('blog_genres', []))->map(fn ($id) => (int) $id)->filter()->unique();
+
+            if ($blogCategoryId <= 0 || $blogGenreIds->isEmpty()) {
+                return;
+            }
+
+            $blogGenres = BlogGenre::query()->with('categories:id')->whereIn('id', $blogGenreIds)->get();
+
+            foreach ($blogGenres as $blogGenre) {
+                if (! $blogGenre->categories->pluck('id')->contains($blogCategoryId)) {
+                    $name = $blogGenre->localizations()->where('locale', config('localization.default'))->value('name') ?: '#'.$blogGenre->id;
+                    $validator->errors()->add('blog_genres', __('The Blog genre :genre is not available for the selected Blog category.', ['genre' => $name]));
+                }
+            }
+        });
     }
 }

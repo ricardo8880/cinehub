@@ -43,10 +43,10 @@ class ReactionController extends Controller
             ]);
         }
 
-        return redirect()->to(route('posts.show', [
-            'locale' => $locale,
-            'category' => $category,
-            'slug' => $slug,
-        ]).'#interactions');
+        $postUrl = $localization->post->publication_type === 'blog'
+            ? route('blog.show', ['locale' => $locale, 'slug' => $slug])
+            : route('posts.show', ['locale' => $locale, 'category' => $category, 'slug' => $slug]);
+
+        return redirect()->to($postUrl.'#interactions');
     }
 }

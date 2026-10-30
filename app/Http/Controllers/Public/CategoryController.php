@@ -8,11 +8,12 @@ use App\Models\CategoryLocalization;
 use App\Models\Post;
 use App\Support\PublicPostPresenter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
-    public function __invoke(string $locale, string $category, PublicPostPresenter $presenter): View
+    public function __invoke(Request $request, string $locale, string $category, PublicPostPresenter $presenter): View
     {
         $categoryLocalization = CategoryLocalization::query()
             ->where('locale', $locale)
@@ -24,6 +25,24 @@ class CategoryController extends Controller
         $categoryModel = $categoryLocalization->category;
         abort_unless($categoryModel->is_active, 404);
 
+        $genres = $categoryModel->genres()
+            ->where('genres.is_active', true)
+            ->orderBy('genres.sort_order')
+            ->with(['localizations' => fn ($query) => $query->where('locale', $locale)->where('is_active', true)])
+            ->orderBy('genres.sort_order')
+            ->orderBy('genres.id')
+            ->get()
+            ->filter(fn ($genre) => $genre->localization($locale))
+            ->values();
+
+        $selectedGenre = null;
+        $selectedGenreSlug = $request->string('genre')->lower()->value();
+
+        if ($selectedGenreSlug !== '') {
+            $selectedGenre = $genres->first(fn ($genre) => $genre->localization($locale)?->slug === $selectedGenreSlug);
+            abort_unless($selectedGenre, 404);
+        }
+
         $navigationCategories = Category::query()
             ->where('is_active', true)
             ->whereHas('localizations', fn (Builder $q) => $q->where('locale', $locale)->where('is_active', true))
@@ -32,7 +51,9 @@ class CategoryController extends Controller
 
         $posts = Post::query()
             ->published()
+            ->where('publication_type', 'standard')
             ->whereHas('categories', fn ($query) => $query->whereKey($categoryModel->id))
+            ->when($selectedGenre, fn ($query) => $query->whereHas('genres', fn ($genreQuery) => $genreQuery->whereKey($selectedGenre->id)))
             ->whereHas('localizations', fn ($query) => $query->where('locale', $locale)->where('is_active', true))
             ->whereHas('media', fn ($query) => $query->where('locale', $locale)->whereIn('type', ['image', 'trailer']))
             ->with([
@@ -62,6 +83,8 @@ class CategoryController extends Controller
         return view('public.category', [
             'category' => $categoryModel,
             'categoryLocalization' => $categoryLocalization,
+            'genres' => $genres,
+            'selectedGenre' => $selectedGenre,
             'posts' => $posts,
             'navigationCategories' => $navigationCategories,
             'localeLinks' => $localeLinks,

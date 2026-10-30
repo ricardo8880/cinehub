@@ -5,19 +5,20 @@
 @section('content')
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
     <div>
-        <h1 class="h3 mb-1">{{ __('Posts') }}</h1>
-        <p class="text-body-secondary mb-0">{{ __('Create the content once and reuse it across the site.') }}</p>
+        <h1 class="h3 mb-1">{{ $publicationType === 'blog' ? __('Blog articles') : __('Posts') }}</h1>
+        <p class="text-body-secondary mb-0">{{ $publicationType === 'blog' ? __('Manage the articles published in the Blog.') : __('Create the content once and reuse it across the site.') }}</p>
     </div>
-    <a class="btn btn-danger" href="{{ route('admin.posts.create') }}">
-        <i class="bi bi-plus-lg me-1"></i>{{ __('New post') }}
+    <a class="btn btn-danger" href="{{ route('admin.posts.create', $publicationType === 'blog' ? ['publication_type' => 'blog'] : []) }}">
+        <i class="bi bi-plus-lg me-1"></i>{{ $publicationType === 'blog' ? __('New Blog article') : __('New post') }}
     </a>
 </div>
 
 <form class="row g-2 mb-3" method="GET">
-    <div class="col-12 col-md-5">
+    <input type="hidden" name="publication_type" value="{{ $publicationType }}">
+    <div class="col-12 col-md-7">
         <input class="form-control" type="search" name="q" value="{{ $search }}" placeholder="{{ __('Search posts') }}">
     </div>
-    <div class="col-8 col-md-3">
+    <div class="col-6 col-md-2">
         <select class="form-select" name="status">
             <option value="">{{ __('All statuses') }}</option>
             @foreach (['draft' => 'Draft', 'published' => 'Published'] as $value => $label)
@@ -78,7 +79,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-body-secondary py-4">{{ __('No posts found.') }}</td></tr>
+                    <tr><td colspan="6" class="text-center text-body-secondary py-4">{{ $publicationType === 'blog' ? __('No Blog articles found.') : __('No posts found.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

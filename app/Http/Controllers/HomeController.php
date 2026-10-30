@@ -20,6 +20,7 @@ class HomeController extends Controller
 
         $baseQuery = fn (): Builder => Post::query()
             ->published()
+            ->where('publication_type', 'standard')
             ->whereHas('localizations', fn (Builder $q) => $q->where('locale', $locale)->where('is_active', true))
             ->whereHas('categories.localizations', fn (Builder $q) => $q->where('locale', $locale)->where('is_active', true))
             ->whereHas('media', fn (Builder $q) => $q->where('locale', $locale)->whereIn('type', ['image', 'trailer']))

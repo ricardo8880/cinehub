@@ -17,6 +17,8 @@ class Post extends Model
     protected $fillable = [
         'author_id',
         'status',
+        'publication_type',
+        'blog_category_id',
         'is_featured',
         'published_at',
     ];
@@ -30,9 +32,12 @@ class Post extends Model
     }
 
     public function author(): BelongsTo { return $this->belongsTo(User::class, 'author_id'); }
+    public function blogCategory(): BelongsTo { return $this->belongsTo(BlogCategory::class); }
     public function localizations(): HasMany { return $this->hasMany(PostLocalization::class); }
     public function media(): HasMany { return $this->hasMany(Media::class)->orderBy('sort_order')->orderBy('id'); }
     public function categories(): BelongsToMany { return $this->belongsToMany(Category::class)->withTimestamps(); }
+    public function genres(): BelongsToMany { return $this->belongsToMany(Genre::class)->withTimestamps(); }
+    public function blogGenres(): BelongsToMany { return $this->belongsToMany(BlogGenre::class)->withTimestamps(); }
     public function comments(): HasMany { return $this->hasMany(Comment::class); }
     public function reactions(): HasMany { return $this->hasMany(Reaction::class); }
     public function views(): HasMany { return $this->hasMany(PostView::class); }
