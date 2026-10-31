@@ -456,3 +456,53 @@ Direção planejada:
 
 Esta funcionalidade não faz parte da etapa atual e deverá ser detalhada e melhorada antes da implementação.
 
+
+## 26. Análise editorial assistida pelas métricas
+
+O download JSON do painel de métricas deve ser suficiente para orientar uma IA sobre o que o CineHub deve publicar em seguida, sem depender de explicações adicionais fora do arquivo.
+
+A análise esperada deve:
+
+- começar com um diagnóstico curto do que está crescendo, caindo, alcançando mais pessoas e gerando mais engajamento;
+- comparar categorias, gêneros, gêneros de Blog, formatos de publicação e países/locales;
+- tratar recomendações práticas de conteúdo como prioridade principal;
+- identificar por que títulos com bom desempenho atraíram público, considerando gênero, tema, ambientação, estilo de gameplay, narrativa, atmosfera, franquia e interesse provável da audiência;
+- sugerir títulos e temas semelhantes que possam atrair o mesmo público, inclusive fora da mesma franquia;
+- explicar brevemente a relação entre o conteúdo vencedor e cada recomendação;
+- recomendar, quando os dados permitirem, se a pauta deve ser post padrão ou artigo de Blog;
+- separar sugestões entre publicar mais, testar em seguida e reduzir/despriorizar;
+- não tirar conclusões confiáveis para países/locales com pouca ou nenhuma amostra;
+- usar `editorial_score` como apoio, sempre conferindo também views, engajamento, crescimento, confiança da amostra e quantidade de posts.
+
+Exemplo de raciocínio esperado: se um conteúdo de **Middle-earth: Shadow of Mordor** ou **Shadow of War** tiver desempenho forte, a análise pode identificar afinidade com fantasia, atmosfera medieval, ação em mundo aberto e progressão de personagem e, a partir disso, sugerir conteúdos sobre **The Witcher 3**, **Skyrim**, **Elden Ring**, **Dragon Age** ou obras semelhantes.
+
+O objetivo final não é apenas resumir métricas, mas transformá-las em um plano editorial claro sobre **o que publicar, o que testar e o que reduzir**.
+
+## 27. Exportação de comentários para análise de audiência por IA
+
+O painel de métricas possui um segundo download JSON dedicado aos comentários do público.
+
+Regras:
+
+- o mesmo seletor de período e país/locale da tela de métricas controla a exportação de comentários;
+- o arquivo inclui o texto de cada comentário e o contexto da publicação em que ele foi feito;
+- cada comentário informa data, status de moderação, locale, relação de resposta e identificação técnica da publicação;
+- o contexto da publicação inclui título, slug, formato (`standard` ou `blog`), categoria/tipo editorial, categorias, gêneros, categoria de Blog e gêneros de Blog quando existirem;
+- e-mail do autor e outros identificadores diretos do visitante não são exportados;
+- comentários aprovados têm maior peso para conclusões; pendentes podem ser avaliados com cautela e spam não deve orientar decisões editoriais;
+- a IA deve identificar elogios, críticas, dúvidas, pedidos, temas recorrentes e assuntos que geram discussão;
+- opiniões isoladas não devem ser tratadas como consenso sem repetição suficiente;
+- quando um conteúdo receber reação positiva, a análise deve procurar oportunidades adjacentes e sugerir títulos/temas semelhantes capazes de interessar ao mesmo público;
+- a análise deve diferenciar crítica à obra analisada de crítica ao próprio conteúdo/apresentação do CineHub;
+- quando houver amostra suficiente, padrões podem ser separados por país/locale.
+
+O objetivo desse segundo relatório é complementar as métricas quantitativas com a **opinião textual do público**, permitindo que uma IA responda não apenas ao que está performando, mas também **por que o público gostou ou não gostou e o que ele demonstra querer consumir em seguida**.
+
+A saída esperada da análise deve priorizar:
+
+1. diagnóstico curto da opinião do público;
+2. padrões positivos e negativos recorrentes;
+3. pedidos e interesses explícitos;
+4. recomendações concretas de próximos conteúdos e títulos relacionados;
+5. dúvidas do público que podem virar pautas;
+6. pontos que devem ser reduzidos, investigados ou corrigidos.

@@ -156,22 +156,33 @@ class MetricsController extends Controller
                 'editorial_score' => 'Weighted score combining reach, engagement, growth and number of posts while reducing the influence of very small samples.',
             ],
             'ai_analysis_instructions' => [
-                'goal' => 'Use these metrics to decide what CineHub should publish next.',
-                'prioritize' => [
-                    'Find content types and genres with strong views, engagement and positive growth.',
-                    'Compare standard posts versus Blog articles to identify which publication format performs better.',
-                    'For Blog articles, compare Blog genres to identify which editorial angles and themes deserve more articles.',
-                    'Compare category + genre combinations to discover specific subjects worth publishing more often.',
-                    'Separate high-reach content from high-satisfaction content.',
-                    'Compare countries/locales when data is available.',
-                    'Identify declining content types and genres that should receive less editorial effort.',
-                    'Use editorial_score as a ranking aid and still inspect the underlying views, engagement and growth.',
+                'goal' => 'Use these metrics to decide what CineHub should publish next. The main priority is actionable editorial recommendations, supported by a short diagnosis of what is working and what is losing audience.',
+                'analysis_strategy' => [
+                    'Start with a concise diagnosis of what is growing, declining and generating the strongest reach, engagement and audience response.',
+                    'Identify the strongest and weakest content types, genres, Blog genres, publication formats and countries/locales.',
+                    'Separate high-reach content from high-satisfaction content and consider both before recommending what to publish.',
+                    'Compare current-period performance with the previous period instead of judging only by total views.',
+                    'Use editorial_score as a ranking aid, but always inspect views, engagement, growth, sample confidence and number of posts behind the score.',
+                    'For every strong-performing title, identify the characteristics that may explain its success, including genre, themes, setting, gameplay style, narrative style, atmosphere, franchise appeal and likely audience interest.',
+                    'Use those characteristics to recommend specific related movies, series, games or subjects that may attract the same audience, even when they are from a different franchise.',
+                    'Do not only recommend more content about the exact same title. Expand from the successful audience pattern into adjacent titles and themes.',
+                    'Example: if Middle-earth: Shadow of Mordor or Shadow of War performs strongly, fantasy, medieval atmosphere, open-world action and RPG-like progression may support testing The Witcher 3, Skyrim, Elden Ring, Dragon Age or similar content.',
+                    'Explain the connection between each successful content pattern and each recommended related title or subject.',
+                    'For Blog articles, compare Blog genres and editorial angles to determine which themes deserve more long-form analysis.',
+                    'Compare standard posts versus Blog articles and recommend the format that best fits each suggested subject when the data supports that distinction.',
+                    'Compare countries/locales when data exists. If a country has little or zero activity, explicitly say there is not enough evidence for a reliable recommendation there.',
+                    'Identify declining or weak content patterns that should receive less editorial effort, without treating one small sample as definitive.',
                 ],
                 'required_output' => [
-                    'Recommend concrete future post ideas, not only metric summaries.',
-                    'Suggest specific games, movies, series, curiosities or other subjects supported by the patterns.',
-                    'Recommend whether each idea is better as a standard post or a Blog article when the data supports that distinction.',
-                    'Explain briefly which metric pattern supports each recommendation.',
+                    'Begin with a short editorial diagnosis: what is growing, what is declining, what has the strongest reach, what has the strongest engagement and which format is currently strongest.',
+                    'Then provide a prioritized list of concrete content to publish next. Recommendations are the main output.',
+                    'Suggest specific games, movies, series, curiosities or other subjects, not only broad categories.',
+                    'For strong-performing titles, recommend related titles or themes that could appeal to the same audience and explain why the audience overlap is plausible.',
+                    'For each recommendation, state whether it should preferably be a standard post or a Blog article when the data supports that choice.',
+                    'Briefly cite the metric pattern that supports each recommendation, such as views, engagement, growth, category, genre, Blog genre or country performance.',
+                    'Separate recommendations into: publish more, test next and reduce/deprioritize.',
+                    'When useful, include country-specific opportunities, but do not invent conclusions for locales with insufficient data.',
+                    'Do not stop at summarizing the report. Turn the metrics into an editorial action plan.',
                 ],
             ],
             'summary' => [
@@ -214,6 +225,236 @@ class MetricsController extends Controller
 
         $scope = $data['locale'] ?: 'all-countries';
         $filename = 'cinehub-metrics-'.$scope.'-'.$data['period'].'d-'.now()->format('Y-m-d-His').'.json';
+
+        return response()->streamDownload(
+            static function () use ($json): void {
+                echo $json;
+            },
+            $filename,
+            ['Content-Type' => 'application/json; charset=UTF-8']
+        );
+    }
+
+
+    public function exportComments(Request $request): StreamedResponse
+    {
+        $period = (int) $request->integer('period', 30);
+        $allowedPeriods = [7, 30, 90];
+
+        if (! in_array($period, $allowedPeriods, true)) {
+            $period = 30;
+        }
+
+        $locales = config('localization.locales', []);
+        $supportedLocales = array_keys($locales);
+        $locale = $request->string('locale')->lower()->value();
+
+        if (! array_key_exists($locale, $locales)) {
+            $locale = '';
+        }
+
+        $defaultLocale = config('localization.default');
+        $since = now()->subDays($period - 1)->startOfDay();
+        $until = now();
+
+        $comments = Comment::query()
+            ->with([
+                'post.localizations',
+                'post.categories.localizations',
+                'post.genres.localizations',
+                'post.blogCategory.localizations',
+                'post.blogGenres.localizations',
+            ])
+            ->where('created_at', '>=', $since)
+            ->where('created_at', '<=', $until)
+            ->when($locale, fn ($query) => $query->where('locale', $locale))
+            ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
+            ->orderByDesc('created_at')
+            ->get();
+
+        $rows = $comments->map(function (Comment $comment) use ($defaultLocale): array {
+            $post = $comment->post;
+            $commentLocale = $comment->locale ?: $defaultLocale;
+
+            if (! $post) {
+                return [
+                    'comment_id' => $comment->id,
+                    'parent_comment_id' => $comment->parent_id,
+                    'is_reply' => $comment->parent_id !== null,
+                    'locale' => $commentLocale,
+                    'status' => $comment->status,
+                    'comment' => $comment->body,
+                    'commented_at' => $comment->created_at?->toIso8601String(),
+                    'post' => [
+                        'post_id' => $comment->post_id,
+                        'title' => null,
+                        'slug' => null,
+                        'publication_type' => null,
+                        'content_type' => null,
+                        'categories' => [],
+                        'genres' => [],
+                        'blog_category' => null,
+                        'blog_genres' => [],
+                    ],
+                ];
+            }
+
+            $content = $post->localizations->firstWhere('locale', $commentLocale)
+                ?? $post->localizations->firstWhere('locale', $defaultLocale)
+                ?? $post->localizations->first();
+
+            $categories = $post->categories->map(function ($category) use ($commentLocale, $defaultLocale): array {
+                $localized = $category->localizations->firstWhere('locale', $commentLocale)
+                    ?? $category->localizations->firstWhere('locale', $defaultLocale)
+                    ?? $category->localizations->first();
+
+                return [
+                    'id' => $category->id,
+                    'name' => $localized?->name ?: $category->name ?: $category->slug ?: '#'.$category->id,
+                    'slug' => $localized?->slug ?: $category->slug,
+                ];
+            })->values()->all();
+
+            $genres = $post->genres->map(function ($genre) use ($commentLocale, $defaultLocale): array {
+                $localized = $genre->localizations->firstWhere('locale', $commentLocale)
+                    ?? $genre->localizations->firstWhere('locale', $defaultLocale)
+                    ?? $genre->localizations->first();
+
+                return [
+                    'id' => $genre->id,
+                    'name' => $localized?->name ?: $genre->name,
+                    'slug' => $localized?->slug ?: $genre->slug,
+                ];
+            })->values()->all();
+
+            $blogCategory = null;
+
+            if ($post->blogCategory) {
+                $localized = $post->blogCategory->localizations->firstWhere('locale', $commentLocale)
+                    ?? $post->blogCategory->localizations->firstWhere('locale', $defaultLocale)
+                    ?? $post->blogCategory->localizations->first();
+
+                $blogCategory = [
+                    'id' => $post->blogCategory->id,
+                    'name' => $localized?->name ?: $post->blogCategory->name,
+                ];
+            }
+
+            $blogGenres = $post->blogGenres->map(function ($genre) use ($commentLocale, $defaultLocale): array {
+                $localized = $genre->localizations->firstWhere('locale', $commentLocale)
+                    ?? $genre->localizations->firstWhere('locale', $defaultLocale)
+                    ?? $genre->localizations->first();
+
+                return [
+                    'id' => $genre->id,
+                    'name' => $localized?->name ?: '#'.$genre->id,
+                    'slug' => $localized?->slug,
+                ];
+            })->values()->all();
+
+            $contentType = $this->postContentType($post);
+
+            return [
+                'comment_id' => $comment->id,
+                'parent_comment_id' => $comment->parent_id,
+                'is_reply' => $comment->parent_id !== null,
+                'locale' => $commentLocale,
+                'status' => $comment->status,
+                'comment' => $comment->body,
+                'commented_at' => $comment->created_at?->toIso8601String(),
+                'post' => [
+                    'post_id' => $post->id,
+                    'title' => $content?->title ?: '#'.$post->id,
+                    'slug' => $content?->slug,
+                    'publication_type' => $post->publication_type ?: 'standard',
+                    'content_type' => [
+                        'key' => $contentType['key'],
+                        'label' => $contentType['label'],
+                        'source_category_id' => $contentType['category_id'],
+                    ],
+                    'categories' => $categories,
+                    'genres' => $genres,
+                    'blog_category' => $blogCategory,
+                    'blog_genres' => $blogGenres,
+                    'published_at' => $post->published_at?->toIso8601String(),
+                ],
+            ];
+        })->values();
+
+        $statusCounts = $rows->countBy('status')->sortKeys()->all();
+        $localeCounts = $rows->countBy('locale')->sortKeys()->all();
+        $publicationTypeCounts = $rows
+            ->map(fn (array $row) => $row['post']['publication_type'] ?: 'unknown')
+            ->countBy()
+            ->sortKeys()
+            ->all();
+
+        $report = [
+            'report' => [
+                'name' => 'CineHub audience comments',
+                'generated_at' => now()->toIso8601String(),
+                'period_days' => $period,
+                'current_period' => [
+                    'from' => $since->toIso8601String(),
+                    'to' => $until->toIso8601String(),
+                ],
+                'locale_filter' => $locale ?: 'all',
+                'country_filter' => $locale
+                    ? $this->localeLabel($locale, $locales[$locale] ?? [])
+                    : 'All countries',
+                'purpose' => 'Structured audience comments for AI-assisted sentiment, interest and editorial analysis.',
+                'privacy' => 'Author email and other direct visitor identifiers are intentionally excluded from this export.',
+            ],
+            'summary' => [
+                'comments' => $rows->count(),
+                'by_status' => $statusCounts,
+                'by_locale' => $localeCounts,
+                'by_publication_type' => $publicationTypeCounts,
+            ],
+            'definitions' => [
+                'comment' => 'The text written by the visitor.',
+                'status' => 'Moderation status at export time. Approved comments are public; pending comments may still be under review; spam should not be treated as reliable audience opinion.',
+                'publication_type' => 'Publication format: standard content or Blog article.',
+                'content_type' => 'The main editorial category associated with the post, such as Games, Movies or TV & Series.',
+                'genres' => 'Genres associated with the post and useful for identifying recurring audience interests.',
+                'locale' => 'Country/locale where the visitor submitted the comment.',
+                'is_reply' => 'Whether the comment is a reply to another comment.',
+            ],
+            'ai_analysis_instructions' => [
+                'goal' => 'Use the actual comment text and its post context to explain what the CineHub audience likes, dislikes, asks for and wants to see next. The main priority is actionable editorial recommendations grounded in recurring audience opinion.',
+                'analysis_strategy' => [
+                    'Read each comment together with the title, publication format, content type, categories, genres, Blog genres and locale of the post where it was written.',
+                    'Identify recurring praise, criticism, questions, requests, expectations, frustrations and topics that generate discussion.',
+                    'Separate isolated opinions from recurring patterns. Do not present one comment as a broad audience conclusion unless several comments support the same pattern.',
+                    'Give more weight to approved comments. Pending comments can be considered cautiously; spam should be excluded from audience conclusions.',
+                    'Identify titles, franchises, genres, themes or related works that commenters explicitly ask for or show interest in.',
+                    'When the audience reacts positively to a title or theme, infer adjacent content opportunities from the same audience pattern and recommend specific related games, movies, series or subjects when the connection is reasonable.',
+                    'Example: if comments on Middle-earth: Shadow of Mordor praise fantasy, medieval atmosphere, combat and exploration, consider related opportunities such as The Witcher 3, Skyrim, Elden Ring, Dragon Age or similar subjects.',
+                    'Compare countries/locales only when there are enough comments to support a meaningful pattern.',
+                    'Consider negative feedback as an editorial signal: distinguish criticism of the work itself from criticism of the CineHub article, presentation or coverage.',
+                    'Treat sarcasm, jokes and ambiguous comments cautiously and state uncertainty when sentiment is unclear.',
+                ],
+                'required_output' => [
+                    'Begin with a short audience-opinion diagnosis: what people appear to like most, dislike most and discuss most.',
+                    'List the strongest recurring positive and negative patterns and indicate which posts or themes produced them.',
+                    'Recommend specific content to publish next based on audience comments, not only on broad categories.',
+                    'For each recommendation, explain which audience comment pattern supports it and why the related title or subject may appeal to the same people.',
+                    'Highlight explicit audience requests for games, movies, series, franchises, comparisons, reviews or follow-up articles.',
+                    'When useful, separate opportunities by locale/country, but do not invent country-level conclusions from a very small sample.',
+                    'Separate the final action plan into: publish more, test next, investigate/answer audience questions, and reduce or fix.',
+                    'Do not only summarize comments. Convert them into a practical editorial plan for CineHub.',
+                ],
+            ],
+            'comments' => $rows->all(),
+        ];
+
+        $json = json_encode(
+            $report,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+        );
+
+        $scope = $locale ?: 'all-countries';
+        $filename = 'cinehub-comments-'.$scope.'-'.$period.'d-'.now()->format('Y-m-d-His').'.json';
 
         return response()->streamDownload(
             static function () use ($json): void {

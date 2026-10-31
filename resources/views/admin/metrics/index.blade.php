@@ -29,12 +29,15 @@
             </select>
         </div>
 
-        <div class="col-12 col-sm-auto d-flex gap-2">
+        <div class="col-12 col-sm-auto d-flex flex-wrap gap-2">
             <button class="btn btn-danger btn-sm flex-fill" type="submit">
                 <i class="bi bi-funnel me-1"></i>{{ __('Apply') }}
             </button>
             <button class="btn btn-outline-light btn-sm flex-fill text-nowrap" type="submit" formaction="{{ route('admin.metrics.report') }}">
                 <i class="bi bi-download me-1"></i>{{ __('Download AI report') }}
+            </button>
+            <button class="btn btn-outline-light btn-sm flex-fill text-nowrap" type="submit" formaction="{{ route('admin.metrics.comments-report') }}">
+                <i class="bi bi-chat-square-text me-1"></i>{{ __('Download comments report') }}
             </button>
         </div>
     </form>

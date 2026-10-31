@@ -49,6 +49,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/metrics', AdminMetricsController::class)->name('metrics');
         Route::get('/metrics/report', [AdminMetricsController::class, 'export'])->name('metrics.report');
+        Route::get('/metrics/comments-report', [AdminMetricsController::class, 'exportComments'])->name('metrics.comments-report');
         Route::get('/activity-logs', AdminActivityLogController::class)->name('logs');
         Route::get('/settings', [AdminSiteSettingController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [AdminSiteSettingController::class, 'update'])->name('settings.update');
