@@ -16,6 +16,7 @@ class AuthController extends Controller
     public function login(Request $request, string $locale): View|RedirectResponse
     {
         if ($request->user()) return redirect()->route('member.for-you', ['locale' => $locale]);
+        $this->rememberIntendedDestination($request, $locale);
         return view('member.login');
     }
 
@@ -44,7 +45,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('member.for-you', ['locale' => $locale]);
+        return redirect()->intended(route('member.for-you', ['locale' => $locale]));
     }
 
     public function authenticate(Request $request, string $locale): RedirectResponse
@@ -59,6 +60,36 @@ class AuthController extends Controller
         }
         $request->session()->regenerate();
         return redirect()->intended(route('member.for-you', ['locale' => $locale]));
+    }
+
+    /**
+     * Return visitors to the article they were reading after signing in or registering.
+     * Only same-origin URLs from the active locale are accepted (never an external redirect).
+     */
+    private function rememberIntendedDestination(Request $request, string $locale): void
+    {
+        $destination = $request->query('return_to');
+        if (! is_string($destination) || strlen($destination) > 2048 || preg_match('/[\x00-\x1F\x7F\\\\]/', $destination)) {
+            return;
+        }
+
+        $target = parse_url($destination);
+        $origin = parse_url($request->getSchemeAndHttpHost());
+        if (! is_array($target) || ! is_array($origin)
+            || ! in_array(strtolower($target['scheme'] ?? ''), ['http', 'https'], true)
+            || strtolower($target['scheme'] ?? '') !== strtolower($origin['scheme'] ?? '')
+            || strtolower($target['host'] ?? '') !== strtolower($origin['host'] ?? '')
+            || ($target['port'] ?? null) !== ($origin['port'] ?? null)
+            || isset($target['user']) || isset($target['pass'])) {
+            return;
+        }
+
+        $path = $target['path'] ?? '';
+        if ($path !== '/'.$locale && ! str_starts_with($path, '/'.$locale.'/')) {
+            return;
+        }
+
+        $request->session()->put('url.intended', $destination);
     }
 
     public function logout(Request $request, string $locale): RedirectResponse

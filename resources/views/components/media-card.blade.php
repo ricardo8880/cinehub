@@ -72,10 +72,10 @@
                     </button>
                 </form>
             @else
-                <a class="media-action media-action--like" href="{{ route('member.login') }}" aria-label="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill"></i><span>{{ $likes }}</span></a>
+                <a class="media-action media-action--like" href="{{ route('member.login', ['locale' => request()->route('locale'), 'return_to' => $url.'#interactions']) }}" aria-label="{{ __('Sign in to like') }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill"></i><span>{{ $likes }}</span></a>
             @endauth
 
-            <a class="media-action" href="{{ $url }}#comments" aria-label="{{ __('Comments for :title', ['title' => $title]) }}">
+            <a class="media-action" href="{{ auth()->check() ? $url.'#comments' : route('member.login', ['locale' => request()->route('locale'), 'return_to' => $url.'#comments']) }}" aria-label="{{ auth()->check() ? __('Comments for :title', ['title' => $title]) : __('Sign in to comment') }}" @guest title="{{ __('Sign in to comment') }}" @endguest>
                 <i class="bi bi-chat" aria-hidden="true"></i>
                 <span>{{ $comments }}</span>
             </a>

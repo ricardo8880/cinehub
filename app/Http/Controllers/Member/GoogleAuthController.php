@@ -75,6 +75,6 @@ class GoogleAuthController extends Controller
         if ($user->is_admin) throw ValidationException::withMessages(['email' => __('Use the administrator login for this account.')]);
         Auth::login($user, true);
         $request->session()->regenerate();
-        return redirect()->route('member.for-you', ['locale' => $locale]);
+        return redirect()->intended(route('member.for-you', ['locale' => $locale]));
     }
 }

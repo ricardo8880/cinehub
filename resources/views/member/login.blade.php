@@ -5,6 +5,9 @@
 <div class="row justify-content-center"><div class="col-md-7 col-lg-5">
     <div class="card border-secondary-subtle"><div class="card-body p-4">
         <h1 class="h3 mb-3">{{ __('Sign in') }}</h1>
+        @if (session()->has('url.intended'))
+            <p class="small text-body-secondary">{{ __('Sign in to like, comment, reply or save content. After signing in, you will return to the content you were viewing.') }}</p>
+        @endif
         @if (session('status')) <div class="alert alert-info">{{ session('status') }}</div> @endif
         @if ($errors->any()) <div class="alert alert-danger">{{ $errors->first() }}</div> @endif
         <form method="post" action="{{ route('member.login.store') }}">@csrf

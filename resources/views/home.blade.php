@@ -154,9 +154,9 @@
                                     <button class="media-action media-action--like" type="submit" aria-pressed="{{ in_array($featuredItem['id'], $myLikedIds) ? 'true' : 'false' }}"><i class="bi bi-heart-fill"></i><span data-like-count>{{ $featuredItem['likes_count'] }}</span></button>
                                 </form>
                                 @else
-                                <a class="media-action media-action--like" href="{{ route('member.login') }}"><i class="bi bi-heart-fill"></i><span>{{ $featuredItem['likes_count'] }}</span></a>
+                                <a class="media-action media-action--like" href="{{ route('member.login', ['locale' => $currentLocale, 'return_to' => $featuredItem['url'].'#interactions']) }}" aria-label="{{ __('Sign in to like') }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill"></i><span>{{ $featuredItem['likes_count'] }}</span></a>
                                 @endauth
-                                <a class="media-action" href="{{ $featuredItem['url'] }}#comments" aria-label="{{ __('Open comments') }}"><i class="bi bi-chat"></i><span>{{ $featuredItem['comments_count'] }}</span></a>
+                                <a class="media-action" href="{{ auth()->check() ? $featuredItem['url'].'#comments' : route('member.login', ['locale' => $currentLocale, 'return_to' => $featuredItem['url'].'#comments']) }}" aria-label="{{ auth()->check() ? __('Open comments') : __('Sign in to comment') }}" @guest title="{{ __('Sign in to comment') }}" @endguest><i class="bi bi-chat"></i><span>{{ $featuredItem['comments_count'] }}</span></a>
                             </div>
 
                             @if (! empty($featuredItem['url']))

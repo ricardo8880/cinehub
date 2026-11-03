@@ -530,3 +530,10 @@ A saída esperada da análise deve priorizar:
 - Curtidas em postagens (Home e página interna), curtidas em comentários, favoritos, comentários e respostas usam `fetch` e respostas JSON quando JavaScript está ativo, atualizando apenas os controles e comentários afetados. Preferências de interesses também são salvas sem sair da tela.
 - O botão e os contadores mudam sem rolar a página ao topo, e os novos comentários/respostas aparecem na conversa atual. O comentário em revisão continua visível só para seu autor até a moderação; apenas comentários aprovados incrementam o contador público.
 - Os endpoints mantêm redirecionamento tradicional para navegadores sem JavaScript, preservam autenticação/CSRF, e a moderação de texto permanece obrigatória no servidor. Erros de requisição devem ser exibidos sem reenviar automaticamente a ação e sem duplicar curtidas. O visual e os embeds aprovados não mudam.
+
+## 30. Ações de visitantes e retorno após autenticação
+
+- Na Home e nas postagens, ícones de curtir e comentar continuam visíveis para visitantes não autenticados, sem alterar o layout da Home. Ao tentar interagir, o visitante é direcionado ao login; ícones e contadores de comentários existentes seguem visíveis.
+- Na postagem, curtidas, comentários, respostas e favoritos também mostram controles para visitantes, indicando necessidade de login. A leitura do conteúdo e dos comentários permanece pública.
+- Após login por e-mail, criação de conta ou login Google, o visitante pode retornar à postagem e à seção de onde iniciou a interação; a ação não é executada automaticamente (o usuário precisa confirmar o clique novamente).
+- O destino de retorno do login é validado no servidor: só é aceito um endereço do mesmo domínio, protocolo e locale. Destinos externos não podem ser usados para redirecionamentos abertos.

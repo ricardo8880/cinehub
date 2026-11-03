@@ -1,5 +1,5 @@
 @props(['comment', 'formAction', 'reply' => false])
-<article data-comment-id="{{ $comment->id }}" class="card public-article__section border-0 {{ $reply ? 'mt-2 ms-3 ms-md-5' : '' }}">
+<article id="comment-{{ $comment->id }}" data-comment-id="{{ $comment->id }}" class="card public-article__section border-0 {{ $reply ? 'mt-2 ms-3 ms-md-5' : '' }}">
     <div class="card-body p-3 p-md-4">
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
             <strong>{{ $comment->author_name ?: $comment->user?->name ?: __('Member') }}</strong>
@@ -12,6 +12,9 @@
                     <button type="submit" class="btn btn-link text-body-secondary p-0 text-decoration-none small" aria-pressed="{{ $comment->likes->isNotEmpty() ? 'true' : 'false' }}"><i class="bi {{ $comment->likes->isNotEmpty() ? 'bi-heart-fill text-danger' : 'bi-heart' }} me-1" data-comment-like-icon></i><span data-comment-like-count>{{ $comment->likes_count ?? 0 }}</span> {{ __('Likes') }}</button>
                 </form>
                 <button type="button" class="btn btn-link text-body-secondary p-0 text-decoration-none small" data-bs-toggle="collapse" data-bs-target="#reply-{{ $comment->id }}" aria-expanded="false"><i class="bi bi-reply me-1"></i>{{ __('Reply') }}</button>
+            @else
+                <a class="btn btn-link text-body-secondary p-0 text-decoration-none small" href="{{ route('member.login', ['locale' => request()->route('locale'), 'return_to' => url()->current().'#comment-'.$comment->id]) }}" aria-label="{{ __('Sign in to like') }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart me-1" aria-hidden="true"></i>{{ $comment->likes_count ?? 0 }} {{ __('Likes') }}</a>
+                <a class="btn btn-link text-body-secondary p-0 text-decoration-none small" href="{{ route('member.login', ['locale' => request()->route('locale'), 'return_to' => url()->current().'#comment-'.$comment->id]) }}" title="{{ __('Sign in to reply') }}"><i class="bi bi-reply me-1" aria-hidden="true"></i>{{ __('Reply') }}</a>
             @endauth
         </div>
         @auth

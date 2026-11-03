@@ -100,8 +100,13 @@
                 <span><i class="bi bi-calendar3"></i> {{ $post->published_at->format('M j, Y') }}</span>
             @endif
             <span><i class="bi bi-person"></i> {{ $post->author?->name ?: config('site.name') }}</span>
-            <span><i class="bi bi-heart-fill text-danger"></i> <span data-post-like-count>{{ $post->likes_count }}</span></span>
-            <span><i class="bi bi-chat"></i> <span data-public-comment-count>{{ $post->approved_comments_count }}</span></span>
+            @guest
+                <a class="text-body-secondary text-decoration-none" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#interactions']) }}" aria-label="{{ __('Sign in to like') }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill text-danger"></i> <span data-post-like-count>{{ $post->likes_count }}</span></a>
+                <a class="text-body-secondary text-decoration-none" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#comments']) }}" aria-label="{{ __('Sign in to comment') }}" title="{{ __('Sign in to comment') }}"><i class="bi bi-chat"></i> <span data-public-comment-count>{{ $post->approved_comments_count }}</span></a>
+            @else
+                <span><i class="bi bi-heart-fill text-danger"></i> <span data-post-like-count>{{ $post->likes_count }}</span></span>
+                <a class="text-body-secondary text-decoration-none" href="#comments" aria-label="{{ __('Open comments') }}"><i class="bi bi-chat"></i> <span data-public-comment-count>{{ $post->approved_comments_count }}</span></a>
+            @endguest
             <span><i class="bi bi-eye"></i> {{ $post->views_count }}</span>
         </div>
     </header>
@@ -207,7 +212,11 @@
                         </form>
                     </div>
                 @else
-                    <a class="btn btn-outline-danger" href="{{ route('member.login') }}">{{ __('Sign in to like and save') }}</a>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-danger" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#interactions']) }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart me-1" aria-hidden="true"></i>{{ __('Like') }}</a>
+                        <a class="btn btn-outline-secondary" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#comments']) }}" title="{{ __('Sign in to comment') }}"><i class="bi bi-chat me-1" aria-hidden="true"></i>{{ __('Comment') }}</a>
+                        <a class="btn btn-outline-secondary" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#interactions']) }}" title="{{ __('Sign in to save') }}"><i class="bi bi-bookmark me-1" aria-hidden="true"></i>{{ __('Save') }}</a>
+                    </div>
                 @endauth
             </div>
         </div>
@@ -251,8 +260,8 @@
                 </div>
             </form>
         @else
-            <p class="mb-2">{{ __('Sign in to comment and reply to other members.') }}</p>
-            <a class="btn btn-danger" href="{{ route('member.login') }}">{{ __('Sign in') }}</a>
+            <p class="mb-2 text-body-secondary">{{ __('Sign in to comment and reply to other members.') }}</p>
+            <a class="btn btn-danger" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#comments']) }}"><i class="bi bi-chat me-1" aria-hidden="true"></i>{{ __('Sign in to comment') }}</a>
         @endauth
     </div></div>
     <div class="d-grid gap-3" data-comment-list>
