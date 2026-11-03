@@ -15,7 +15,7 @@ class ArticleImageController extends Controller
         $locales = array_keys(config('localization.locales'));
         $validated = $request->validate([
             'locale' => ['required', 'string', Rule::in($locales)],
-            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:6144'],
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:6144', 'dimensions:max_width=6000,max_height=6000'],
         ]);
 
         $images->cleanupOrphansForUser((int) $request->user()->id);

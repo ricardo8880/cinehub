@@ -1,4 +1,4 @@
-@props(['item', 'compact' => false])
+@props(['item', 'compact' => false, 'myLikedIds' => []])
 
 @php
     $title = data_get($item, 'title');
@@ -65,15 +65,20 @@
         @endif
 
         <div class="media-card__meta mt-auto">
-            <button class="media-action media-action--like" type="button" data-like-button aria-pressed="false" aria-label="{{ __('Like :title', ['title' => $title]) }}">
-                <i class="bi bi-heart-fill" aria-hidden="true"></i>
-                <span data-like-count>{{ $likes }}</span>
-            </button>
+            @auth
+                <form method="post" action="{{ $item['like_url'] }}" data-home-like>@csrf
+                    <button class="media-action media-action--like" type="submit" aria-pressed="{{ in_array($item['id'], $myLikedIds) ? 'true' : 'false' }}" aria-label="{{ __('Like :title', ['title' => $title]) }}">
+                        <i class="bi bi-heart-fill" aria-hidden="true"></i><span data-like-count>{{ $likes }}</span>
+                    </button>
+                </form>
+            @else
+                <a class="media-action media-action--like" href="{{ route('member.login') }}" aria-label="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill"></i><span>{{ $likes }}</span></a>
+            @endauth
 
-            <button class="media-action" type="button" aria-label="{{ __('Comments for :title', ['title' => $title]) }}">
+            <a class="media-action" href="{{ $url }}#comments" aria-label="{{ __('Comments for :title', ['title' => $title]) }}">
                 <i class="bi bi-chat" aria-hidden="true"></i>
                 <span>{{ $comments }}</span>
-            </button>
+            </a>
 
             <div class="dropdown">
                 <button class="media-action" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('More options') }}">

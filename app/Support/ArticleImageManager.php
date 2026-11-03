@@ -8,16 +8,16 @@ use DOMElement;
 use DOMXPath;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class ArticleImageManager
 {
+    public function __construct(private readonly OptimizedImageStorage $imageStorage)
+    {
+    }
+
     public function store(UploadedFile $file, int $userId, string $locale): array
     {
-        $extension = strtolower((string) $file->extension());
-        $extension = in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true) ? $extension : 'jpg';
-        $filename = Str::uuid()->toString().'.'.$extension;
-        $path = $file->storeAs("blog-content/{$userId}/{$locale}", $filename, 'public');
+        $path = $this->imageStorage->store($file, "blog-content/{$userId}/{$locale}", 1600, 1600, 82);
 
         return [
             'path' => $path,

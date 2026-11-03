@@ -69,8 +69,27 @@ class PostController extends Controller
             }
         }
 
-        $viewerHasLiked = $post->reactions()->where('locale', $locale)->where('visitor_key', $visitorKey)->where('type', 'like')->exists();
-        $comments = $post->comments()->where('locale', $locale)->where('status', 'approved')->whereNull('parent_id')->latest()->paginate(10, ['*'], 'comments_page')->withQueryString();
+        $viewerHasLiked = $request->user()
+            ? $post->reactions()->where('locale', $locale)->where('user_id', $request->user()->id)->where('type', 'like')->exists()
+            : false;
+        $viewerHasFavorited = $request->user()
+            ? $request->user()->favoritePosts()->where('posts.id', $post->id)->exists()
+            : false;
+        $visibleToViewer = static function ($query) use ($request): void {
+            $query->where('status', 'approved');
+            if ($request->user()) {
+                $query->orWhere(fn ($private) => $private->whereIn('status', ['pending', 'spam'])->where('user_id', $request->user()->id));
+            }
+        };
+        $comments = $post->comments()->where('locale', $locale)->whereNull('parent_id')
+            ->where(fn ($query) => $visibleToViewer($query))
+            ->withCount('likes')
+            ->with([
+                'likes' => fn ($q) => $q->where('user_id', $request->user()?->id ?? 0),
+                'replies' => fn ($query) => $query->where('locale', $locale)->where(fn ($q) => $visibleToViewer($q))
+                    ->withCount('likes')->with(['likes' => fn ($q) => $q->where('user_id', $request->user()?->id ?? 0)])->oldest(),
+            ])
+            ->latest()->paginate(10, ['*'], 'comments_page')->withQueryString();
 
         $image = $presenter->image($post, $locale);
         $trailer = $presenter->trailer($post, $locale);
@@ -121,6 +140,6 @@ class PostController extends Controller
 
         $isBlog = false;
 
-        return view('public.post', compact('post', 'localization', 'primaryCategory', 'primaryCategoryLocalization', 'image', 'imageUrl', 'trailer', 'trailerUrl', 'comments', 'viewerHasLiked', 'relatedPosts', 'navigationCategories', 'localeLinks', 'alternateUrls', 'isBlog'));
+        return view('public.post', compact('post', 'localization', 'primaryCategory', 'primaryCategoryLocalization', 'image', 'imageUrl', 'trailer', 'trailerUrl', 'comments', 'viewerHasLiked', 'viewerHasFavorited', 'relatedPosts', 'navigationCategories', 'localeLinks', 'alternateUrls', 'isBlog'));
     }
 }

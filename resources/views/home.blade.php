@@ -41,12 +41,13 @@
             </nav>
 
             <div class="topbar__actions ms-auto">
-                <form class="site-search d-none d-md-flex" role="search" method="get" action="{{ route('search') }}" data-search-form data-search-mode="global">
+                <form class="site-search d-none d-md-flex" role="search" method="get" action="{{ route('search', ['locale' => $currentLocale]) }}" data-search-form data-search-mode="global" data-search-suggestions-url="{{ route('search.suggestions', ['locale' => $currentLocale]) }}">
                     <i class="bi bi-search" aria-hidden="true"></i>
-                    <input name="q" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
+                    <input name="q" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" autocomplete="off" data-site-search>
                     <button class="btn site-search__clear" type="button" aria-label="{{ __('Clear search') }}" data-search-clear hidden>
                         <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
+                    <div class="site-search-results" data-search-results hidden></div>
                 </form>
 
                 <button class="btn icon-button d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSearchPanel" aria-controls="mobileSearchPanel" aria-label="{{ __('Search') }}">
@@ -70,6 +71,8 @@
                                 </a>
                             </li>
                         @endforeach
+                        <li><hr class="dropdown-divider"></li>
+                        @include('components.member-menu')
                     </ul>
                 </div>
             </div>
@@ -134,7 +137,7 @@
                                     allowfullscreen
                                 ></iframe>
                             @else
-                                <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" class="w-100 h-100 object-fit-cover">
+                                <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" class="w-100 h-100 object-fit-cover" fetchpriority="high">
                             @endif
                         </div>
                         <div class="featured-card__content">
@@ -146,10 +149,14 @@
                             <p>{{ $featuredItem['excerpt'] }}</p>
 
                             <div class="featured-card__meta">
-                                <button class="media-action media-action--like" type="button" data-like-button aria-pressed="false">
-                                    <i class="bi bi-heart-fill"></i><span data-like-count>{{ $featuredItem['likes_count'] }}</span>
-                                </button>
-                                <button class="media-action" type="button"><i class="bi bi-chat"></i><span>{{ $featuredItem['comments_count'] }}</span></button>
+                                @auth
+                                <form method="post" action="{{ $featuredItem['like_url'] }}" data-home-like>@csrf
+                                    <button class="media-action media-action--like" type="submit" aria-pressed="{{ in_array($featuredItem['id'], $myLikedIds) ? 'true' : 'false' }}"><i class="bi bi-heart-fill"></i><span data-like-count>{{ $featuredItem['likes_count'] }}</span></button>
+                                </form>
+                                @else
+                                <a class="media-action media-action--like" href="{{ route('member.login') }}"><i class="bi bi-heart-fill"></i><span>{{ $featuredItem['likes_count'] }}</span></a>
+                                @endauth
+                                <a class="media-action" href="{{ $featuredItem['url'] }}#comments" aria-label="{{ __('Open comments') }}"><i class="bi bi-chat"></i><span>{{ $featuredItem['comments_count'] }}</span></a>
                             </div>
 
                             @if (! empty($featuredItem['url']))
@@ -179,7 +186,7 @@
 
                     <div class="latest-grid" data-card-grid>
                         @foreach ($latestItems as $item)
-                            <x-media-card :item="$item" />
+                            <x-media-card :item="$item" :my-liked-ids="$myLikedIds" />
                         @endforeach
                     </div>
                 </section>
@@ -192,7 +199,7 @@
 
                     <div class="popular-grid" data-card-grid>
                         @foreach ($popularItems as $item)
-                            <x-media-card :item="$item" compact />
+                            <x-media-card :item="$item" compact :my-liked-ids="$myLikedIds" />
                         @endforeach
                     </div>
                 </section>
@@ -275,12 +282,13 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
     </div>
     <div class="offcanvas-body">
-        <form class="site-search site-search--mobile d-flex" role="search" method="get" action="{{ route('search') }}" data-search-form data-search-mode="global">
+        <form class="site-search site-search--mobile d-flex" role="search" method="get" action="{{ route('search', ['locale' => $currentLocale]) }}" data-search-form data-search-mode="global" data-search-suggestions-url="{{ route('search.suggestions', ['locale' => $currentLocale]) }}">
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input name="q" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" data-site-search>
+            <input name="q" type="search" class="form-control" placeholder="{{ __('Search for movies, series, games...') }}" aria-label="{{ __('Search for movies, series, games...') }}" autocomplete="off" data-site-search>
             <button class="btn site-search__clear" type="button" aria-label="{{ __('Clear search') }}" data-search-clear hidden>
                 <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
+            <div class="site-search-results" data-search-results hidden></div>
         </form>
     </div>
 </div>

@@ -41,6 +41,7 @@ class CategoryController extends Controller
         if ($selectedGenreSlug !== '') {
             $selectedGenre = $genres->first(fn ($genre) => $genre->localization($locale)?->slug === $selectedGenreSlug);
             abort_unless($selectedGenre, 404);
+            $selectedGenre->load('localizations');
         }
 
         $navigationCategories = Category::query()
@@ -70,14 +71,51 @@ class CategoryController extends Controller
 
         $posts->setCollection($posts->getCollection()->map(fn (Post $post) => $presenter->card($post, $locale))->filter()->values());
 
+        $currentPage = $posts->currentPage();
+        $currentGenreLocalization = $selectedGenre?->localization($locale);
+        $canonicalParameters = [
+            'locale' => $locale,
+            'category' => $categoryLocalization->slug,
+        ];
+
+        if ($currentGenreLocalization) {
+            $canonicalParameters['genre'] = $currentGenreLocalization->slug;
+        }
+
+        if ($currentPage > 1) {
+            $canonicalParameters['page'] = $currentPage;
+        }
+
+        $canonicalUrl = route('categories.show', $canonicalParameters);
         $localeLinks = [];
         $alternateUrls = [];
         $categoryModel->loadMissing('localizations');
+
         foreach (array_keys(config('localization.locales')) as $routeLocale) {
             $version = $categoryModel->localization($routeLocale);
-            $url = $version ? route('categories.show', ['locale' => $routeLocale, 'category' => $version->slug]) : null;
+            $genreVersion = $selectedGenre?->localization($routeLocale);
+
+            if (! $version || ($selectedGenre && ! $genreVersion)) {
+                $localeLinks[$routeLocale] = null;
+                continue;
+            }
+
+            $parameters = [
+                'locale' => $routeLocale,
+                'category' => $version->slug,
+            ];
+
+            if ($genreVersion) {
+                $parameters['genre'] = $genreVersion->slug;
+            }
+
+            if ($currentPage > 1) {
+                $parameters['page'] = $currentPage;
+            }
+
+            $url = route('categories.show', $parameters);
             $localeLinks[$routeLocale] = $url;
-            if ($url) $alternateUrls[$routeLocale] = $url;
+            $alternateUrls[$routeLocale] = $url;
         }
 
         return view('public.category', [
@@ -89,6 +127,7 @@ class CategoryController extends Controller
             'navigationCategories' => $navigationCategories,
             'localeLinks' => $localeLinks,
             'alternateUrls' => $alternateUrls,
+            'canonicalUrl' => $canonicalUrl,
         ]);
     }
 }

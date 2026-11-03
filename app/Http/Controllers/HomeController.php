@@ -8,6 +8,7 @@ use App\Support\PublicPostPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class HomeController extends Controller
@@ -58,33 +59,44 @@ class HomeController extends Controller
             ->map(fn (Post $post) => $presenter->card($post, $locale))
             ->filter()->values();
 
-        $popularItems = $baseQuery()
-            ->trending($locale, 7)
-            ->limit(5)
-            ->get()
-            ->map(fn (Post $post) => $presenter->card($post, $locale))
-            ->filter()->values();
+        $popularItems = Cache::remember("cinehub:home:{$locale}:popular", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
+            return $baseQuery()
+                ->trending($locale, 7)
+                ->limit(5)
+                ->get()
+                ->map(fn (Post $post) => $presenter->card($post, $locale))
+                ->filter()
+                ->values();
+        });
 
-        $trendingItems = $baseQuery()
-            ->trending($locale, 2)
-            ->limit(5)
-            ->get()
-            ->map(function (Post $post) use ($presenter, $locale): ?array {
-                $item = $presenter->card($post, $locale);
-                if (! $item) return null;
+        $trendingItems = Cache::remember("cinehub:home:{$locale}:trending", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
+            return $baseQuery()
+                ->trending($locale, 2)
+                ->limit(5)
+                ->get()
+                ->map(function (Post $post) use ($presenter, $locale): ?array {
+                    $item = $presenter->card($post, $locale);
+                    if (! $item) return null;
 
-                return [
-                    'title' => $item['title'],
-                    'subtitle' => $item['type_label'],
-                    'views' => $presenter->formatCount((int) ($post->recent_views_count ?? 0)),
-                    'image_url' => $item['image_url'],
-                    'video_embed_url' => $item['video_embed_url'],
-                    'url' => $item['url'],
-                ];
-            })
-            ->filter()->values();
+                    return [
+                        'title' => $item['title'],
+                        'subtitle' => $item['type_label'],
+                        'views' => $presenter->formatCount((int) ($post->recent_views_count ?? 0)),
+                        'image_url' => $item['image_url'],
+                        'video_embed_url' => $item['video_embed_url'],
+                        'url' => $item['url'],
+                    ];
+                })
+                ->filter()
+                ->values();
+        });
 
-        return view('home', compact('categories', 'activeCategory', 'featuredItem', 'latestItems', 'popularItems', 'trendingItems'));
+        $ids = $latestItems->merge($popularItems)->pluck('id')->push($featuredItem['id'] ?? null)->filter()->unique()->all();
+        $myLikedIds = $request->user() && $ids
+            ? $request->user()->reactions()->where('locale', $locale)->where('type', 'like')->whereIn('post_id', $ids)->pluck('post_id')->all()
+            : [];
+
+        return view('home', compact('categories', 'activeCategory', 'featuredItem', 'latestItems', 'popularItems', 'trendingItems', 'myLikedIds'));
     }
 
     private function categories(string $locale): Collection

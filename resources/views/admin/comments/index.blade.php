@@ -6,7 +6,7 @@
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
     <div>
         <h1 class="h3 mb-1">{{ __('Comments') }}</h1>
-        <p class="text-body-secondary mb-0">{{ __('Review public comments before they appear on the site.') }}</p>
+        <p class="text-body-secondary mb-0">{{ __('Review flagged comments. Safe comments are published automatically.') }}</p>
     </div>
 </div>
 

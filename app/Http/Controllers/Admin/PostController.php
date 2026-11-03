@@ -11,6 +11,7 @@ use App\Models\Genre;
 use App\Models\Post;
 use App\Models\PostLocalization;
 use App\Support\ArticleImageManager;
+use App\Support\OptimizedImageStorage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,8 +23,10 @@ use Illuminate\View\View;
 
 class PostController extends Controller
 {
-    public function __construct(private readonly ArticleImageManager $articleImages)
-    {
+    public function __construct(
+        private readonly ArticleImageManager $articleImages,
+        private readonly OptimizedImageStorage $imageStorage,
+    ) {
     }
 
     public function index(Request $request): View
@@ -317,7 +320,7 @@ class PostController extends Controller
                     Storage::disk('public')->delete($existing->thumbnail_path);
                 }
 
-                $path = $uploadedImage->store('posts/'.$post->id.'/'.$locale, 'public');
+                $path = $this->imageStorage->store($uploadedImage, 'posts/'.$post->id.'/'.$locale, 1920, 1920, 82);
             }
 
             $medium = $existing ?: $post->media()->make(['locale' => $locale]);

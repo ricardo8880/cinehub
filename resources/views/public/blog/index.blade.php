@@ -1,10 +1,24 @@
 @extends('layouts.public')
 
-@section('title', __('Blog').' | '.config('site.name'))
-@section('meta_description', __('Guides, rankings, recommendations and editorial articles from CineHub.'))
-@section('canonical', route('blog.index', ['locale' => request()->route('locale')]))
-@section('og_title', __('Blog').' | '.config('site.name'))
-@section('og_description', __('Guides, rankings, recommendations and editorial articles from CineHub.'))
+@php
+    $baseSeoTitle = __('Blog');
+    $baseSeoDescription = __('Guides, rankings, recommendations and editorial articles from CineHub.');
+    $seoTitle = $selectedGenreLocalization ? $selectedGenreLocalization->name.' · '.$baseSeoTitle : $baseSeoTitle;
+    $seoDescription = $selectedGenreLocalization ? $selectedGenreLocalization->name.' — '.$baseSeoDescription : $baseSeoDescription;
+
+    if ($posts->currentPage() > 1) {
+        $pageLabel = __('Page :current of :last', ['current' => $posts->currentPage(), 'last' => $posts->lastPage()]);
+        $seoTitle .= ' · '.$pageLabel;
+        $seoDescription .= ' · '.$pageLabel;
+    }
+@endphp
+
+@section('title', $seoTitle.' | '.config('site.name'))
+@section('meta_description', $seoDescription)
+@section('canonical', $canonicalUrl)
+@section('og_title', $seoTitle.' | '.config('site.name'))
+@section('og_description', $seoDescription)
+@section('og_url', $canonicalUrl)
 
 @section('public-content')
 <nav aria-label="{{ __('Breadcrumb') }}" class="mb-3">

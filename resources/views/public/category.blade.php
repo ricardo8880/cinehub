@@ -1,10 +1,25 @@
 @extends('layouts.public')
 
-@section('title', ($categoryLocalization->seo_title ?: $categoryLocalization->name).' | '.config('site.name'))
-@section('meta_description', $categoryLocalization->seo_description ?: ($categoryLocalization->description ?: __('Explore :category content on CineHub.', ['category' => $categoryLocalization->name])))
-@section('canonical', route('categories.show', ['locale' => request()->route('locale'), 'category' => $categoryLocalization->slug]))
-@section('og_title', $categoryLocalization->seo_title ?: $categoryLocalization->name)
-@section('og_description', $categoryLocalization->seo_description ?: ($categoryLocalization->description ?: config('site.description')))
+@php
+    $genreLocalization = $selectedGenre?->localization(request()->route('locale'));
+    $baseSeoTitle = $categoryLocalization->seo_title ?: $categoryLocalization->name;
+    $baseSeoDescription = $categoryLocalization->seo_description ?: ($categoryLocalization->description ?: __('Explore :category content on CineHub.', ['category' => $categoryLocalization->name]));
+    $seoTitle = $genreLocalization ? $genreLocalization->name.' · '.$baseSeoTitle : $baseSeoTitle;
+    $seoDescription = $genreLocalization ? $genreLocalization->name.' — '.$baseSeoDescription : $baseSeoDescription;
+
+    if ($posts->currentPage() > 1) {
+        $pageLabel = __('Page :current of :last', ['current' => $posts->currentPage(), 'last' => $posts->lastPage()]);
+        $seoTitle .= ' · '.$pageLabel;
+        $seoDescription .= ' · '.$pageLabel;
+    }
+@endphp
+
+@section('title', $seoTitle.' | '.config('site.name'))
+@section('meta_description', $seoDescription)
+@section('canonical', $canonicalUrl)
+@section('og_title', $seoTitle)
+@section('og_description', $seoDescription)
+@section('og_url', $canonicalUrl)
 
 @section('public-content')
 <nav aria-label="{{ __('Breadcrumb') }}" class="mb-3">

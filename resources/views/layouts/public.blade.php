@@ -76,6 +76,10 @@
                         @endforeach
                     </ul>
                 </div>
+                <div class="dropdown ms-2">
+                    <button class="btn avatar-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('Open account menu') }}"><i class="bi bi-person-fill"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-end">@include('components.member-menu')</ul>
+                </div>
             </div>
         </div>
     </header>

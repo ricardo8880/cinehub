@@ -29,7 +29,7 @@ class MediaRequest extends FormRequest
             'locale' => ['nullable', Rule::in($supportedLocales)],
             'provider' => ['nullable', Rule::in(['youtube', 'vimeo'])],
             'provider_id' => ['nullable', 'string', 'max:180'],
-            'image' => ['nullable', 'image', 'max:5120'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120', 'dimensions:max_width=6000,max_height=6000'],
             'alt_text' => ['required_if:type,image', 'nullable', 'string', 'max:180'],
             'caption' => ['nullable', 'string', 'max:500'],
             'source_url' => ['nullable', 'url', 'max:2000'],

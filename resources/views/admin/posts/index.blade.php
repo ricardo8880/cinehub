@@ -62,9 +62,9 @@
                         <td>
                             @php($statusClass = $post->status === 'published' ? 'success' : 'warning')
                             <span class="badge text-bg-{{ $statusClass }}">{{ ucfirst($post->status) }}</span>
-                            @if ($post->is_featured)
-                                <span class="badge text-bg-danger">{{ __('Featured') }}</span>
-                            @endif
+                            @foreach ($post->localizations->filter(fn ($localization) => $localization->is_active && $localization->is_featured) as $featuredLocalization)
+                                <span class="badge text-bg-danger">{{ __('Featured') }} · {{ strtoupper($featuredLocalization->locale) }}</span>
+                            @endforeach
                         </td>
                         <td class="text-center">{{ $post->media_count }}</td>
                         <td>{{ $post->published_at?->format('Y-m-d H:i') ?? '—' }}</td>

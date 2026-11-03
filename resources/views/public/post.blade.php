@@ -100,8 +100,8 @@
                 <span><i class="bi bi-calendar3"></i> {{ $post->published_at->format('M j, Y') }}</span>
             @endif
             <span><i class="bi bi-person"></i> {{ $post->author?->name ?: config('site.name') }}</span>
-            <span><i class="bi bi-heart-fill text-danger"></i> {{ $post->likes_count }}</span>
-            <span><i class="bi bi-chat"></i> {{ $post->approved_comments_count }}</span>
+            <span><i class="bi bi-heart-fill text-danger"></i> <span data-post-like-count>{{ $post->likes_count }}</span></span>
+            <span><i class="bi bi-chat"></i> <span data-public-comment-count>{{ $post->approved_comments_count }}</span></span>
             <span><i class="bi bi-eye"></i> {{ $post->views_count }}</span>
         </div>
     </header>
@@ -193,15 +193,22 @@
                     <h2 class="h4 fw-bold mb-1">{{ __('Did you like this content?') }}</h2>
                     <p class="text-body-secondary mb-0">{{ __('Your reaction helps highlight popular content.') }}</p>
                 </div>
-                <form method="POST" action="{{ $isBlog
-                    ? route('blog.reactions.like', ['locale' => $localization->locale, 'slug' => $localization->slug])
-                    : route('reactions.like', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
-                    @csrf
-                    <button class="btn {{ $viewerHasLiked ? 'btn-danger' : 'btn-outline-danger' }}" type="submit">
-                        <i class="bi {{ $viewerHasLiked ? 'bi-heart-fill' : 'bi-heart' }} me-1"></i>
-                        {{ $viewerHasLiked ? __('Liked') : __('Like') }}
-                    </button>
-                </form>
+                @auth
+                    <div class="d-flex flex-wrap gap-2">
+                        <form method="POST" data-ajax-post-like data-on-label="{{ __('Liked') }}" data-off-label="{{ __('Like') }}" action="{{ $isBlog
+                            ? route('blog.reactions.like', ['locale' => $localization->locale, 'slug' => $localization->slug])
+                            : route('reactions.like', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
+                            @csrf
+                            <button class="btn {{ $viewerHasLiked ? 'btn-danger' : 'btn-outline-danger' }}" type="submit" aria-pressed="{{ $viewerHasLiked ? 'true' : 'false' }}" data-like-button><i class="bi {{ $viewerHasLiked ? 'bi-heart-fill' : 'bi-heart' }} me-1" data-like-icon></i><span data-like-label>{{ $viewerHasLiked ? __('Liked') : __('Like') }}</span></button>
+                        </form>
+                        <form method="POST" data-ajax-favorite data-on-label="{{ __('Saved') }}" data-off-label="{{ __('Save') }}" action="{{ route('member.favorites.toggle', ['post' => $post->id]) }}">
+                            @csrf
+                            <button class="btn {{ $viewerHasFavorited ? 'btn-secondary' : 'btn-outline-secondary' }}" type="submit" aria-pressed="{{ $viewerHasFavorited ? 'true' : 'false' }}" data-favorite-button><i class="bi {{ $viewerHasFavorited ? 'bi-bookmark-fill' : 'bi-bookmark' }} me-1" data-favorite-icon></i><span data-favorite-label>{{ $viewerHasFavorited ? __('Saved') : __('Save') }}</span></button>
+                        </form>
+                    </div>
+                @else
+                    <a class="btn btn-outline-danger" href="{{ route('member.login') }}">{{ __('Sign in to like and save') }}</a>
+                @endauth
             </div>
         </div>
     </section>
@@ -221,77 +228,48 @@
 <section class="public-article mt-5" id="comments">
     <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
         <h2 class="h3 fw-bold mb-0">{{ __('Comments') }}</h2>
-        <span class="badge text-bg-secondary">{{ $post->approved_comments_count }}</span>
+        <span class="badge text-bg-secondary" data-public-comment-count>{{ $post->approved_comments_count }}</span>
     </div>
-
-    @if (session('comment_success'))
-        <div class="alert alert-success" role="status">{{ session('comment_success') }}</div>
-    @endif
-
-    @if ($errors->any())
-        <div class="alert alert-danger" role="alert">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
-    <div class="card public-article__section border-0 mb-4">
-        <div class="card-body p-4">
-            <h3 class="h5 fw-bold mb-3">{{ __('Leave a comment') }}</h3>
-            <form method="POST" action="{{ $isBlog
-                ? route('blog.comments.store', ['locale' => $localization->locale, 'slug' => $localization->slug])
-                : route('comments.store', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]) }}">
+    @if (session('comment_success'))<div class="alert alert-success" role="status">{{ session('comment_success') }}</div>@endif
+    @if ($errors->any())<div class="alert alert-danger" role="alert"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+    @php($commentAction = $isBlog
+        ? route('blog.comments.store', ['locale' => $localization->locale, 'slug' => $localization->slug])
+        : route('comments.store', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug, 'slug' => $localization->slug]))
+    <div class="card public-article__section border-0 mb-4"><div class="card-body p-4">
+        <h3 class="h5 fw-bold mb-3">{{ __('Leave a comment') }}</h3>
+        @auth
+            <form method="POST" action="{{ $commentAction }}" data-moderated-comment data-preview-url="{{ route('member.comments.preview') }}" data-block-warning="{{ __('Your comment contains abusive or prohibited language. Edit it to continue.') }}" data-check-error="{{ __('Unable to check this comment. Please try again.') }}">
                 @csrf
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="author_name">{{ __('Name') }}</label>
-                        <input class="form-control" id="author_name" name="author_name" value="{{ old('author_name') }}" maxlength="80" required>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="author_email">{{ __('Email') }} <span class="text-body-secondary">({{ __('optional') }})</span></label>
-                        <input class="form-control" id="author_email" name="author_email" type="email" value="{{ old('author_email') }}" maxlength="255">
-                    </div>
-                    <div class="col-12 d-none" aria-hidden="true">
-                        <label for="website">Website</label>
-                        <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="comment_body">{{ __('Comment') }}</label>
-                        <textarea class="form-control" id="comment_body" name="body" rows="5" minlength="5" maxlength="2000" required>{{ old('body') }}</textarea>
-                    </div>
-                    <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
-                        <small class="text-body-secondary">{{ __('Comments are reviewed before publication.') }}</small>
-                        <button class="btn btn-danger" type="submit"><i class="bi bi-send me-1"></i>{{ __('Send comment') }}</button>
-                    </div>
+                <div class="d-none" aria-hidden="true"><label for="website">Website</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+                <label for="comment_body" class="form-label">{{ __('Comment as :name', ['name' => auth()->user()->name]) }}</label>
+                <textarea class="form-control" id="comment_body" name="body" rows="5" minlength="5" maxlength="2000" required>{{ !old('parent_id') ? old('body') : '' }}</textarea>
+                <div class="small mt-2 text-danger" role="status" aria-live="polite" data-comment-warning hidden></div>
+                <div class="small mt-2 text-success" role="status" aria-live="polite" data-comment-success hidden></div>
+                <div class="d-flex align-items-center justify-content-between gap-3 mt-3">
+                    <small class="text-body-secondary">{{ __('Respect other people. Criticism and everyday expressions are welcome.') }}</small>
+                    <button class="btn btn-danger flex-shrink-0" type="submit" data-comment-submit><i class="bi bi-send me-1"></i>{{ __('Send comment') }}</button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <div class="d-grid gap-3">
+        @else
+            <p class="mb-2">{{ __('Sign in to comment and reply to other members.') }}</p>
+            <a class="btn btn-danger" href="{{ route('member.login') }}">{{ __('Sign in') }}</a>
+        @endauth
+    </div></div>
+    <div class="d-grid gap-3" data-comment-list>
         @forelse ($comments as $comment)
-            <article class="card public-article__section border-0">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between gap-3 mb-2">
-                        <strong>{{ $comment->author_name ?: __('Anonymous') }}</strong>
-                        <time class="small text-body-secondary" datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('M j, Y') }}</time>
-                    </div>
-                    <div>{!! nl2br(e($comment->body)) !!}</div>
+            <div data-comment-thread-id="{{ $comment->id }}">
+                <x-comment-entry :comment="$comment" :form-action="$commentAction" />
+                <div data-comment-replies>
+                    @foreach ($comment->replies as $reply)
+                        <x-comment-entry :comment="$reply" :form-action="$commentAction" reply />
+                    @endforeach
                 </div>
-            </article>
-        @empty
-            <div class="card public-empty-state border-0">
-                <div class="card-body p-4 text-center text-body-secondary">{{ __('No approved comments yet.') }}</div>
             </div>
+        @empty
+            <div data-comment-empty class="card public-empty-state border-0"><div class="card-body p-4 text-center text-body-secondary">{{ __('No comments yet.') }}</div></div>
         @endforelse
     </div>
-
-    @if ($comments->hasPages())
-        <div class="mt-3">{{ $comments->links('pagination::bootstrap-5') }}</div>
-    @endif
+    @if ($comments->hasPages())<div class="mt-3">{{ $comments->links('pagination::bootstrap-5') }}</div>@endif
 </section>
 
 @if ($relatedPosts->isNotEmpty())

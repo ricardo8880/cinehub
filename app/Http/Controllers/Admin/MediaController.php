@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MediaRequest;
 use App\Models\Media;
 use App\Models\Post;
+use App\Support\OptimizedImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,10 @@ use Illuminate\View\View;
 
 class MediaController extends Controller
 {
+    public function __construct(private readonly OptimizedImageStorage $imageStorage)
+    {
+    }
+
     public function index(Post $post): View
     {
         $post->load(['localizations', 'media']);
@@ -41,7 +46,9 @@ class MediaController extends Controller
                 $post->media()->where('type', $data['type'])->update(['is_primary' => false]);
             }
 
-            $path = $request->file('image')?->store('posts/'.$post->id, 'public');
+            $path = $request->file('image')
+                ? $this->imageStorage->store($request->file('image'), 'posts/'.$post->id, 1920, 1920, 82)
+                : null;
 
             $post->media()->create([
                 'locale' => $data['locale'] ?? null,
@@ -97,7 +104,7 @@ class MediaController extends Controller
                     Storage::disk('public')->delete($path);
                 }
 
-                $path = $request->file('image')->store('posts/'.$post->id, 'public');
+                $path = $this->imageStorage->store($request->file('image'), 'posts/'.$post->id, 1920, 1920, 82);
             }
 
             $medium->update([

@@ -4,84 +4,113 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\CategoryLocalization;
+use App\Models\Comment;
 use App\Models\PostLocalization;
+use App\Support\CommentModeration;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
-
-    public function storeBlog(Request $request, string $locale, string $slug): RedirectResponse
+    public function preview(Request $request, CommentModeration $moderation): JsonResponse
     {
-        $localization = PostLocalization::query()
-            ->where('locale', $locale)
-            ->where('slug', $slug)
-            ->where('is_active', true)
-            ->whereHas('post', fn ($query) => $query
-                ->published()
-                ->where('publication_type', 'blog')
-                ->whereHas('blogCategory', fn ($categoryQuery) => $categoryQuery->where('is_active', true))
-                ->whereHas('blogCategory.localizations', fn ($localizationQuery) => $localizationQuery
-                    ->where('locale', $locale)
-                    ->where('is_active', true)))
-            ->with('post')
-            ->firstOrFail();
-
-        return $this->storeComment(
-            $request,
-            $localization,
-            route('blog.show', ['locale' => $locale, 'slug' => $slug])
-        );
+        $data = $request->validate(['body' => ['present', 'string', 'max:2000']]);
+        return response()->json(['classification' => $moderation->classify($data['body'])]);
     }
 
-    public function store(Request $request, string $locale, string $category, string $slug): RedirectResponse
+    public function storeBlog(Request $request, string $locale, string $slug, CommentModeration $moderation): RedirectResponse|JsonResponse
     {
-        $categoryLocalization = CategoryLocalization::query()
-            ->where('locale', $locale)
-            ->where('slug', $category)
-            ->where('is_active', true)
-            ->firstOrFail();
-
-        $localization = PostLocalization::query()
-            ->where('locale', $locale)
-            ->where('slug', $slug)
-            ->where('is_active', true)
-            ->whereHas('post', fn ($query) => $query->published()->whereHas('categories', fn ($categoryQuery) => $categoryQuery->whereKey($categoryLocalization->category_id)))
-            ->with('post')
-            ->firstOrFail();
-
-        $postUrl = route('posts.show', ['locale' => $locale, 'category' => $category, 'slug' => $slug]);
-
-        return $this->storeComment($request, $localization, $postUrl);
+        $localization = PostLocalization::query()->where('locale', $locale)->where('slug', $slug)
+            ->where('is_active', true)->whereHas('post', fn ($q) => $q->published()->where('publication_type', 'blog')
+                ->whereHas('blogCategory', fn ($cq) => $cq->where('is_active', true))
+                ->whereHas('blogCategory.localizations', fn ($lq) => $lq->where('locale', $locale)->where('is_active', true)))
+            ->with('post')->firstOrFail();
+        return $this->storeComment($request, $localization, route('blog.show', compact('locale', 'slug')), $moderation);
     }
 
-    private function storeComment(Request $request, PostLocalization $localization, string $postUrl): RedirectResponse
+    public function store(Request $request, string $locale, string $category, string $slug, CommentModeration $moderation): RedirectResponse|JsonResponse
+    {
+        $categoryLocalization = CategoryLocalization::query()->where('locale', $locale)->where('slug', $category)->where('is_active', true)->firstOrFail();
+        $localization = PostLocalization::query()->where('locale', $locale)->where('slug', $slug)
+            ->where('is_active', true)->whereHas('post', fn ($q) => $q->published()->where('publication_type', 'standard')
+                ->whereHas('categories', fn ($cq) => $cq->whereKey($categoryLocalization->category_id)))
+            ->with('post')->firstOrFail();
+        return $this->storeComment($request, $localization, route('posts.show', compact('locale', 'category', 'slug')), $moderation);
+    }
+
+    private function storeComment(Request $request, PostLocalization $localization, string $postUrl, CommentModeration $moderation): RedirectResponse|JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'author_name' => ['required', 'string', 'max:80'],
-            'author_email' => ['nullable', 'email:rfc', 'max:255'],
             'body' => ['required', 'string', 'min:5', 'max:2000'],
+            'parent_id' => ['nullable', 'integer', 'min:1'],
             'website' => ['prohibited'],
         ]);
-
         if ($validator->fails()) {
-            return redirect()->to($postUrl.'#comments')
-                ->withErrors($validator)
-                ->withInput();
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+            return redirect()->to($postUrl.'#comments')->withErrors($validator)->withInput();
+        }
+        $data = $validator->validated();
+        $status = $moderation->classify($data['body']);
+
+        if ($status === 'blocked') {
+            $message = __('Your comment contains abusive or prohibited language. Please edit it before sending.');
+            if ($request->expectsJson()) return response()->json(['message' => $message], 422);
+            return redirect()->to($postUrl.'#comments')->withErrors(['body' => $message])->withInput();
         }
 
-        $validated = $validator->validated();
+        $parentId = null;
+        if (! empty($data['parent_id'])) {
+            $parent = Comment::query()->whereKey($data['parent_id'])
+                ->where('post_id', $localization->post_id)->where('locale', $localization->locale)
+                ->where(function ($q) use ($request): void {
+                    $q->where('status', 'approved')
+                        ->orWhere(fn ($private) => $private->whereIn('status', ['pending', 'spam'])->where('user_id', $request->user()->id));
+                })->first();
+            if (! $parent) {
+                $message = __('This comment is no longer available.');
+                if ($request->expectsJson()) return response()->json(['message' => $message], 422);
+                return redirect()->to($postUrl.'#comments')->withErrors(['body' => $message]);
+            }
+            $parentId = $parent->parent_id ?: $parent->id;
+        }
 
-        $localization->post->comments()->create([
+        $comment = $localization->post->comments()->create([
             'locale' => $localization->locale,
-            'author_name' => trim($validated['author_name']),
-            'author_email' => filled($validated['author_email'] ?? null) ? strtolower(trim($validated['author_email'])) : null,
-            'body' => trim($validated['body']),
-            'status' => 'pending',
+            'parent_id' => $parentId,
+            'user_id' => $request->user()->id,
+            'author_name' => $request->user()->name,
+            'author_email' => null,
+            'body' => trim($data['body']),
+            'status' => $status === 'review' ? 'pending' : 'approved',
         ]);
 
-        return redirect()->to($postUrl.'#comments')
-            ->with('comment_success', __('Your comment was sent for moderation.'));
+        if ($request->expectsJson()) {
+            $comment->loadCount('likes')->load([
+                'likes' => fn ($query) => $query->where('user_id', $request->user()->id),
+            ]);
+
+            return response()->json([
+                'message' => __('Your comment was posted.'),
+                'comment_id' => $comment->id,
+                'parent_id' => $parentId,
+                'visibility' => $status === 'review' ? 'private' : 'public',
+                'approved_count' => $localization->post->comments()
+                    ->where('locale', $localization->locale)->where('status', 'approved')->count(),
+                'html' => view('components.comment-entry', [
+                    'comment' => $comment,
+                    'formAction' => $request->url(),
+                    'reply' => $parentId !== null,
+                ])->render(),
+            ], 201);
+        }
+
+        return redirect()->to($postUrl.'#comments')->with('comment_success', __('Your comment was posted.'));
     }
 }

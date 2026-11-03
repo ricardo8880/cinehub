@@ -54,6 +54,12 @@ class MetricsController extends Controller
                 ] : null;
             })->filter()->values()->all();
 
+            $featuredLocales = $post->localizations
+                ->filter(fn ($localization) => $localization->is_active && $localization->is_featured)
+                ->pluck('locale')
+                ->values()
+                ->all();
+
             return [
                 'post_id' => $post->id,
                 'title' => $row['title'],
@@ -68,7 +74,10 @@ class MetricsController extends Controller
                 'blog_category' => $post->blogCategory ? ['id' => $post->blogCategory->id, 'name' => $post->blogCategory->name] : null,
                 'blog_genres' => $blogGenres,
                 'published_at' => $post->published_at?->toIso8601String(),
-                'is_featured' => (bool) $post->is_featured,
+                'is_featured' => $data['locale'] !== ''
+                    ? in_array($data['locale'], $featuredLocales, true)
+                    : $featuredLocales !== [],
+                'featured_locales' => $featuredLocales,
                 'categories' => $categories,
                 'views' => $row['views'],
                 'likes' => $row['likes'],

@@ -116,7 +116,7 @@ class PostRequest extends FormRequest
             $rules["localizations.$locale.seo_title"] = ['nullable', 'string', 'max:70'];
             $rules["localizations.$locale.seo_description"] = ['nullable', 'string', 'max:170'];
             $rules["media.$locale.type"] = ['nullable', Rule::in(['image', 'youtube'])];
-            $rules["media.$locale.image"] = ['nullable', 'image', 'max:5120'];
+            $rules["media.$locale.image"] = ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120', 'dimensions:max_width=6000,max_height=6000'];
             $rules["media.$locale.youtube_url"] = ['nullable', 'url', 'max:2000'];
             $rules["media.$locale.alt_text"] = ['nullable', 'string', 'max:180'];
         }

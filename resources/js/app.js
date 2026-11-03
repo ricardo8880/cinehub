@@ -1,6 +1,6 @@
 import './bootstrap';
 import 'bootstrap';
-import { Offcanvas } from 'bootstrap';
+import { Offcanvas, Collapse } from 'bootstrap';
 
 const root = document.documentElement;
 const themeButton = document.querySelector('[data-theme-toggle]');
@@ -305,13 +305,6 @@ document.addEventListener('click', (event) => {
         return;
     }
 
-    const likeButton = event.target.closest('[data-like-button]');
-    if (likeButton) {
-        const pressed = likeButton.getAttribute('aria-pressed') === 'true';
-        likeButton.setAttribute('aria-pressed', String(!pressed));
-        return;
-    }
-
     const copyButton = event.target.closest('[data-copy-title]');
     if (copyButton) {
         navigator.clipboard?.writeText(copyButton.dataset.copyTitle ?? '');
@@ -362,3 +355,264 @@ document.querySelectorAll('[data-spoiler-content]').forEach((content) => {
 syncWatchlist();
 syncSearchControls();
 applyContentFilters();
+
+// The server always validates authentication, CSRF, and moderation. Forms keep their
+// ordinary POST action as a no-JavaScript fallback; with JS they never navigate.
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+const numberFormat = new Intl.NumberFormat('en-US');
+
+const submitJson = async (form) => {
+    const response = await fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken,
+        },
+        credentials: 'same-origin',
+        body: new FormData(form),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || 'Could not complete this action. Please try again.');
+    return result;
+};
+
+let feedbackTimeout;
+const showActionError = (message) => {
+    let notice = document.querySelector('[data-ajax-feedback]');
+    if (!notice) {
+        notice = document.createElement('div');
+        notice.className = 'alert alert-danger position-fixed bottom-0 end-0 m-3 shadow';
+        notice.style.zIndex = '1100';
+        notice.setAttribute('role', 'alert');
+        notice.dataset.ajaxFeedback = '';
+        document.body.appendChild(notice);
+    }
+    notice.textContent = message;
+    notice.hidden = false;
+    clearTimeout(feedbackTimeout);
+    feedbackTimeout = setTimeout(() => { notice.hidden = true; }, 5000);
+};
+
+// Clicks on a post like, comment like, favorite or Home like update in place.
+// Delegation also works for newly inserted comments and replies.
+document.addEventListener('submit', async (event) => {
+    const form = event.target.closest('form[data-home-like], form[data-ajax-post-like], form[data-ajax-comment-like], form[data-ajax-favorite], form[data-ajax-interests]');
+    if (!form) return;
+    event.preventDefault();
+    if (form.dataset.busy === '1') return;
+    const button = form.querySelector('button[type="submit"]');
+    const isInterests = form.matches('[data-ajax-interests]');
+    form.dataset.busy = '1';
+    if (button) button.disabled = true;
+
+    try {
+        const result = await submitJson(form);
+        if (form.matches('[data-home-like], [data-ajax-post-like]')) {
+            if (typeof result.liked !== 'boolean' || typeof result.likes_count !== 'number') throw new Error('Unexpected server response. Please try again.');
+            document.querySelectorAll('form[data-home-like], form[data-ajax-post-like]').forEach((other) => {
+                if (other.action !== form.action) return;
+                const otherButton = other.querySelector('button');
+                if (!otherButton) return;
+                otherButton.setAttribute('aria-pressed', String(result.liked));
+                const count = otherButton.querySelector('[data-like-count]');
+                if (count) count.textContent = numberFormat.format(result.likes_count);
+                if (other.matches('[data-ajax-post-like]')) {
+                    otherButton.classList.toggle('btn-danger', result.liked);
+                    otherButton.classList.toggle('btn-outline-danger', !result.liked);
+                    const icon = otherButton.querySelector('[data-like-icon]');
+                    if (icon) {
+                        icon.classList.toggle('bi-heart-fill', result.liked);
+                        icon.classList.toggle('bi-heart', !result.liked);
+                    }
+                    const label = otherButton.querySelector('[data-like-label]');
+                    if (label) label.textContent = result.liked ? other.dataset.onLabel : other.dataset.offLabel;
+                }
+            });
+            document.querySelectorAll('[data-post-like-count]').forEach((count) => {
+                count.textContent = numberFormat.format(result.likes_count);
+            });
+        } else if (form.matches('[data-ajax-comment-like]')) {
+            if (typeof result.liked !== 'boolean' || typeof result.likes_count !== 'number') throw new Error('Unexpected server response. Please try again.');
+            button?.setAttribute('aria-pressed', String(result.liked));
+            const count = button?.querySelector('[data-comment-like-count]');
+            if (count) count.textContent = numberFormat.format(result.likes_count);
+            const icon = button?.querySelector('[data-comment-like-icon]');
+            icon?.classList.toggle('bi-heart-fill', result.liked);
+            icon?.classList.toggle('text-danger', result.liked);
+            icon?.classList.toggle('bi-heart', !result.liked);
+        } else if (form.matches('[data-ajax-favorite]')) {
+            if (typeof result.saved !== 'boolean') throw new Error('Unexpected server response. Please try again.');
+            button?.setAttribute('aria-pressed', String(result.saved));
+            button?.classList.toggle('btn-secondary', result.saved);
+            button?.classList.toggle('btn-outline-secondary', !result.saved);
+            const icon = button?.querySelector('[data-favorite-icon]');
+            icon?.classList.toggle('bi-bookmark-fill', result.saved);
+            icon?.classList.toggle('bi-bookmark', !result.saved);
+            const label = button?.querySelector('[data-favorite-label]');
+            if (label) label.textContent = result.saved ? form.dataset.onLabel : form.dataset.offLabel;
+        } else if (isInterests) {
+            if (typeof result.message !== 'string') throw new Error('Unexpected server response. Please try again.');
+            const status = form.querySelector('[data-interests-status]');
+            if (status) {
+                status.textContent = result.message;
+                status.className = 'small mt-2 text-success';
+                status.hidden = false;
+            }
+        }
+    } catch (error) {
+        if (isInterests) {
+            const status = form.querySelector('[data-interests-status]');
+            if (status) {
+                status.textContent = error.message || 'Unable to save your interests.';
+                status.className = 'small mt-2 text-danger';
+                status.hidden = false;
+            }
+        } else {
+            showActionError(error.message || 'Could not complete this action. Please try again.');
+        }
+    } finally {
+        form.dataset.busy = '0';
+        if (button) button.disabled = false;
+    }
+});
+
+const addCommentToPage = (result) => {
+    if (typeof result.html !== 'string' || !result.html || !Number.isInteger(result.comment_id)) {
+        throw new Error('Unexpected server response. Please try again.');
+    }
+    const list = document.querySelector('[data-comment-list]');
+    if (!list) return;
+    const fragment = document.createElement('div');
+    fragment.innerHTML = result.html; // Blade already escapes comment content on the server.
+    if (result.parent_id) {
+        const thread = list.querySelector(`[data-comment-thread-id="${Number(result.parent_id)}"]`);
+        const replies = thread?.querySelector('[data-comment-replies]');
+        if (replies) replies.append(...fragment.childNodes);
+        else return;
+    } else {
+        list.querySelector('[data-comment-empty]')?.remove();
+        fragment.dataset.commentThreadId = String(result.comment_id);
+        const replies = document.createElement('div');
+        replies.dataset.commentReplies = '';
+        fragment.appendChild(replies);
+        list.prepend(fragment);
+    }
+    list.querySelectorAll('[data-moderated-comment]').forEach(setupModeratedComment);
+    if (result.visibility === 'public' && Number.isInteger(result.approved_count)) {
+        document.querySelectorAll('[data-public-comment-count]').forEach((count) => {
+            count.textContent = numberFormat.format(result.approved_count);
+        });
+    }
+};
+
+// While typing, check with the server; blocked text cannot be submitted.
+// Both original comments and newly added reply forms use the same code.
+const setupModeratedComment = (form) => {
+    if (form.dataset.moderationBound === '1') return;
+    form.dataset.moderationBound = '1';
+    const input = form.querySelector('textarea[name="body"]');
+    const submit = form.querySelector('[data-comment-submit]');
+    const warning = form.querySelector('[data-comment-warning]');
+    const success = form.querySelector('[data-comment-success]');
+    if (!input || !submit || !warning || !csrfToken) return;
+
+    let timer;
+    let controller;
+    let checkedText = null;
+    let classification = null;
+    let sending = false;
+
+    const display = (message) => {
+        warning.textContent = message;
+        warning.hidden = message === '';
+    };
+
+    const check = async () => {
+        const text = input.value.trim();
+        controller?.abort();
+        if (text.length < 5) {
+            checkedText = null;
+            classification = null;
+            submit.disabled = false;
+            display('');
+            return;
+        }
+        controller = new AbortController();
+        const requestController = controller;
+        submit.disabled = true;
+        try {
+            const response = await fetch(form.dataset.previewUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                credentials: 'same-origin',
+                body: JSON.stringify({ body: text }),
+                signal: requestController.signal,
+            });
+            if (!response.ok) throw new Error('moderation-failed');
+            const result = await response.json();
+            if (input.value.trim() !== text || controller !== requestController) return;
+            checkedText = text;
+            classification = result.classification;
+            if (!['safe', 'review', 'blocked'].includes(classification)) throw new Error('moderation-failed');
+            display(classification === 'blocked' ? form.dataset.blockWarning : '');
+            submit.disabled = sending || classification === 'blocked';
+        } catch (error) {
+            if (error.name === 'AbortError' || controller !== requestController) return;
+            checkedText = null;
+            classification = null;
+            display(form.dataset.checkError);
+            submit.disabled = true;
+        }
+    };
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        controller?.abort();
+        checkedText = null;
+        classification = null;
+        display('');
+        if (success) success.hidden = true;
+        submit.disabled = sending || input.value.trim().length >= 5;
+        timer = setTimeout(check, 350);
+    });
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (sending || !form.reportValidity()) return;
+        clearTimeout(timer);
+        if (checkedText !== input.value.trim() || !['safe', 'review', 'blocked'].includes(classification)) await check();
+        if (!['safe', 'review'].includes(classification) || checkedText !== input.value.trim()) return;
+
+        sending = true;
+        submit.disabled = true;
+        const originalText = input.value;
+        try {
+            const result = await submitJson(form);
+            if (typeof result.html !== 'string' || !result.html) throw new Error('Unexpected server response. Please try again.');
+            addCommentToPage(result);
+            if (input.value === originalText) {
+                form.reset();
+                checkedText = null;
+                classification = null;
+                display('');
+            }
+            if (success) {
+                success.textContent = result.message || '';
+                success.hidden = false;
+            }
+            // A reply is already visible under its parent; collapse its editor without moving the viewport.
+            const replyPanel = form.closest('.collapse');
+            if (replyPanel) Collapse.getOrCreateInstance(replyPanel).hide();
+        } catch (error) {
+            display(error.message || form.dataset.checkError);
+        } finally {
+            sending = false;
+            submit.disabled = classification === 'blocked' ||
+                (input.value.trim().length >= 5 && checkedText !== input.value.trim());
+        }
+    });
+    if (input.value.trim()) check();
+};
+
+document.querySelectorAll('[data-moderated-comment]').forEach(setupModeratedComment);

@@ -40,6 +40,7 @@ class Post extends Model
     public function blogGenres(): BelongsToMany { return $this->belongsToMany(BlogGenre::class)->withTimestamps(); }
     public function comments(): HasMany { return $this->hasMany(Comment::class); }
     public function reactions(): HasMany { return $this->hasMany(Reaction::class); }
+    public function favoritedBy(): BelongsToMany { return $this->belongsToMany(User::class, 'user_favorites')->withTimestamps(); }
     public function views(): HasMany { return $this->hasMany(PostView::class); }
 
     public function localization(?string $locale = null): ?PostLocalization

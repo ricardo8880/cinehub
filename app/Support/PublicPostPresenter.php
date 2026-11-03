@@ -75,6 +75,9 @@ class PublicPostPresenter
                     ] : null;
                 })->filter()->values()->all()
                 : [],
+            'like_url' => $post->publication_type === 'blog'
+                ? route('blog.reactions.like', ['locale' => $requestedLocale, 'slug' => $localization->slug])
+                : route('reactions.like', ['locale' => $requestedLocale, 'category' => $categoryLocalization->slug, 'slug' => $localization->slug]),
             'url' => $post->publication_type === 'blog'
                 ? route('blog.show', [
                     'locale' => $requestedLocale,

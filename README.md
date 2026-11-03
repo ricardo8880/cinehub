@@ -63,7 +63,7 @@ O projeto deve manter:
 - URLs descritivas e estáveis;
 - HTML semântico;
 - títulos e descrições únicos;
-- canonical correto;
+- canonical correto, incluindo paginação e filtros editoriais indexáveis;
 - `hreflang` entre versões regionais equivalentes;
 - sitemap XML;
 - robots.txt;
@@ -202,6 +202,7 @@ Toda implementação deve considerar:
 - moderação de comentários;
 - proteção contra curtidas automatizadas;
 - autenticação forte no admin;
+- login administrativo limitado a 5 tentativas por minuto por origem;
 - logs e backups em produção;
 - nenhuma senha ou segredo versionado.
 
@@ -211,6 +212,7 @@ Toda implementação deve considerar:
 - Não baixar e republicar trailers sem autorização.
 - Registrar fonte quando necessário.
 - Imagens e thumbnails devem possuir uso permitido.
+- Imagens enviadas pelo admin são redimensionadas e convertidas para WebP quando o servidor possui suporte GD; sem GD, o upload original continua funcionando como fallback.
 - No futuro, vídeos devem usar carregamento sob demanda para preservar performance.
 - Na postagem individual, imagem e vídeo ficam centralizados e limitados a 900 px de largura; imagens têm limite visual de 520 px de altura.
 - O fluxo público de vídeo usa provedores controlados; URL genérica de embed não deve ser aceita.
@@ -246,7 +248,7 @@ Evitar lógica complexa diretamente nas views.
 
 - Home responsiva aprovada visualmente e preservada;
 - navegação principal, dark/light e estrutura `en-us` / `en-gb` / `en-au` / `en-ca`;
-- SEO base, sitemap, canonical e `hreflang`;
+- SEO base, sitemap, canonical e `hreflang`, com canonical próprio para paginação e filtros de gênero;
 - autenticação e proteção do painel administrativo;
 - CRUD de categorias, posts e mídia;
 - SEO por categoria e por localização de post;
@@ -257,12 +259,13 @@ Evitar lógica complexa diretamente nas views.
 - imagens, trailers, fontes, alt text e ordenação;
 - Home usando posts reais sem alteração visual;
 - páginas públicas de categorias, busca, post e relacionados;
-- busca pública global com sugestões em tempo real, resultados agrupados e navegação por teclado;
+- busca pública global com sugestões em tempo real, resultados agrupados e navegação por teclado, inclusive na Home desktop e mobile;
 - tema escuro como padrão e tema claro com contraste próprio para todos os componentes principais;
 - seção de spoilers por localização, recolhida por padrão e aberta somente por escolha do visitante;
 - comentários com moderação;
 - curtidas persistentes e visualizações deduplicadas;
 - **Most Liked** e **Trending** por métricas reais;
+- **Trending Now** e **Popular This Week** usam cache curto de 2 minutos por locale para reduzir consultas sem deixar rankings longamente desatualizados;
 - sugestões públicas de pauta e moderação administrativa;
 - formulário de contato e caixa administrativa;
 - painel interno de métricas;
@@ -342,10 +345,10 @@ Antes de alterar o projeto:
 8. atualizar este README quando uma decisão arquitetural, regra ou etapa relevante mudar.
 ## 19. Regras de interação pública
 
-- Visitantes não precisam criar conta para curtir ou comentar.
+- Apenas usuários autenticados com e-mail verificado podem comentar, responder, curtir e favoritar. Visitas e leitura continuam livres.
 - A identificação técnica de visitante usa hash e não armazena IP puro no banco de reações/visualizações.
-- Curtida funciona como alternância: curtir e remover curtida.
-- Comentários novos começam como `pending` e só aparecem publicamente após aprovação.
+- Curtidas são vinculadas ao `user_id`, com alternância curtir/descurtir e limite de uma reação por usuário/post/locale; comentários também podem receber curtidas.
+- Comentários classificados como seguros são aprovados automaticamente; suspeitos ficam `pending`, visíveis somente ao autor logado até revisão do administrador; graves são recusados no servidor.
 - Comentários marcados como `spam` nunca aparecem no site.
 - Visualizações repetidas do mesmo visitante em menos de 6 horas não aumentam o contador.
 - Bots conhecidos não devem aumentar visualizações.
@@ -429,7 +432,7 @@ Antes de alterar o projeto:
 - Não existe fallback público de texto, categoria, imagem ou vídeo entre países.
 - Mídia só pode ser usada quando `media.locale` corresponde exatamente ao país da URL.
 - Curtidas, comentários e visualizações registram `locale`, evitando que métricas de um país alterem rankings de outro.
-- Destaque editorial é definido por versão regional (`post_localizations.is_featured`).
+- Destaque editorial é definido exclusivamente pela versão regional (`post_localizations.is_featured`) nas telas, Home e relatórios; o campo legado de `posts` não deve orientar destaque.
 - `Trending Now`: atividade recente do país (janela atual de 2 dias), ponderando visualizações, curtidas e comentários.
 - `Latest Videos`: somente publicações do país com vídeo YouTube cadastrado para aquele país, ordenadas pela publicação mais recente.
 - `Popular This Week`: atividade dos últimos 7 dias do país, ponderando visualizações, curtidas e comentários.
@@ -506,3 +509,24 @@ A saída esperada da análise deve priorizar:
 4. recomendações concretas de próximos conteúdos e títulos relacionados;
 5. dúvidas do público que podem virar pautas;
 6. pontos que devem ser reduzidos, investigados ou corrigidos.
+
+
+## 28. Contas de membros, moderação contextual e personalização
+
+- O público pode ler o portal sem cadastro. Para curtir postagens/comentários, comentar, responder, salvar ou personalizar a experiência, exige-se somente conta autenticada. Não há verificação de e-mail no cadastro.
+- Cadastro/login por e-mail e senha libera acesso imediatamente após criar a conta, sem mensagem de confirmação nem envio de e-mail de verificação. A recuperação de senha por e-mail continua opcional, somente quando solicitada pelo usuário, e precisa de `MAIL_*` configurado. Login Google é opcional via OAuth e só aparece com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` definidos. No Google Cloud, configurar URI de retorno `https://DOMINIO/{locale}/account/google/callback` para cada locale habilitado; nunca enviar segredos ao frontend.
+- O login administrativo anterior é preservado. Cadastro público jamais concede `is_admin`. A Home aprovada visualmente só ganhou links funcionais no menu já existente.
+- Comentários e respostas utilizam a mesma moderação gratuita, pelo inglês compartilhado entre US/UK/AU/CA. Expressões informais e críticas a filmes/games não são bloqueadas só por conter palavrões. Regras levam em conta padrões de ataques, ameaças, pornografia, spam e disfarces, com limitações sem IA.
+- No formulário, o navegador consulta a classificação enquanto o usuário digita: `blocked` desabilita o envio e mostra aviso abaixo do texto; após a correção, libera. O servidor reclassifica obrigatoriamente cada envio. `safe` vira `approved`; `review` vira `pending`, visível só ao próprio autor e à equipe administrativa no painel; `blocked` não é salvo. Aplicável a respostas também.
+- Comentários públicos incluem respostas em um nível visual de profundidade; respostas a respostas entram no mesmo tópico. O admin aprova ou rejeita suspeitos em `/admin/comments`.
+- Membros possuem favoritos por postagem e interesses por categorias, gêneros, temas de Blog e gêneros de Blog. A área `/for-you` reordena posts recentes conforme interesses explícitos e assuntos associados a likes e favoritos, sem tradução/fallback entre países. Não há envio de notificações push ou e-mails editoriais nesta etapa.
+- As páginas da conta não são indexáveis (`noindex`), e comentários pendentes não contam para rankings públicos ou dados estruturados. Comentários antigos sem `user_id` continuam visíveis se já aprovados, mas não permitem login retroativo do autor.
+- Antes de ativar em produção: executar as migrations novas; configurar credenciais OAuth opcionais, domínio/cookies HTTPS e validar o fluxo de cadastro imediato e moderação em staging. Configurar `MAIL_*` somente se a recuperação de senha por e-mail for utilizada. Como não há confirmação de e-mail, considerar proteções contra cadastros abusivos e e-mails de terceiros. A estrutura anterior de anúncios, o locale `ja-jp` de testes e os embeds do YouTube permanecem inalterados.
+
+- O painel `/admin/moderation` permite manter termos ou expressões adicionais (`review` / `blocked`, todas as regiões ou uma região específica). Regras embutidas continuam protegendo as categorias principais, e termos isolados não devem ser confundidos com intenção.
+
+## 29. Interações assíncronas sem recarga
+
+- Curtidas em postagens (Home e página interna), curtidas em comentários, favoritos, comentários e respostas usam `fetch` e respostas JSON quando JavaScript está ativo, atualizando apenas os controles e comentários afetados. Preferências de interesses também são salvas sem sair da tela.
+- O botão e os contadores mudam sem rolar a página ao topo, e os novos comentários/respostas aparecem na conversa atual. O comentário em revisão continua visível só para seu autor até a moderação; apenas comentários aprovados incrementam o contador público.
+- Os endpoints mantêm redirecionamento tradicional para navegadores sem JavaScript, preservam autenticação/CSRF, e a moderação de texto permanece obrigatória no servidor. Erros de requisição devem ser exibidos sem reenviar automaticamente a ação e sem duplicar curtidas. O visual e os embeds aprovados não mudam.

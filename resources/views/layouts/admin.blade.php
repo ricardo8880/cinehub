@@ -38,6 +38,7 @@
                     </ul>
                 </li>
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.comments*') ? 'active' : '' }}" href="{{ route('admin.comments.index') }}"><i class="bi bi-chat-left-text me-1"></i>{{ __('Comments') }}</a></li>
+                <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.moderation*') ? 'active' : '' }}" href="{{ route('admin.moderation.index') }}"><i class="bi bi-shield-check me-1"></i>{{ __('Moderation') }}</a></li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.suggestions*','admin.contacts*','admin.metrics','admin.logs','admin.settings*','admin.ad-slots*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown">{{ __('More') }}</a>
                     <ul class="dropdown-menu dropdown-menu-dark">
