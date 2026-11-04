@@ -29,7 +29,7 @@
             @if (! empty($alternateUrls[$routeLocale] ?? null))
                 <link
                     rel="alternate"
-                    hreflang="{{ strtolower($localeConfig['language'].'-'.$localeConfig['region']) }}"
+                    hreflang="{{ $routeLocale === 'en-us' ? 'en' : strtolower($localeConfig['language'].'-'.$localeConfig['region']) }}"
                     href="{{ $alternateUrls[$routeLocale] }}"
                 >
             @endif
@@ -41,7 +41,7 @@
         @foreach (config('localization.locales') as $routeLocale => $localeConfig)
             <link
                 rel="alternate"
-                hreflang="{{ strtolower($localeConfig['language'].'-'.$localeConfig['region']) }}"
+                hreflang="{{ $routeLocale === 'en-us' ? 'en' : strtolower($localeConfig['language'].'-'.$localeConfig['region']) }}"
                 href="{{ route($routeName, array_merge($routeParameters, ['locale' => $routeLocale])) }}"
             >
         @endforeach
@@ -74,5 +74,6 @@
 </head>
 <body>
     @yield('body')
+    @stack('scripts')
 </body>
 </html>

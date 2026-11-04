@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Support\EnglishGroup;
+
 use App\Http\Controllers\Controller;
 use App\Models\BlogGenre;
 use App\Models\BlogGenreLocalization;
@@ -57,9 +59,9 @@ class BlogController extends Controller
                 'media' => fn ($query) => $query->where('locale', $locale),
             ])
             ->withCount([
-                'reactions as likes_count' => fn ($query) => $query->where('locale', $locale)->where('type', 'like'),
-                'comments as approved_comments_count' => fn ($query) => $query->where('locale', $locale)->where('status', 'approved'),
-                'views as views_count' => fn ($query) => $query->where('locale', $locale),
+                'reactions as likes_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
+                'comments as approved_comments_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
+                'views as views_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)),
             ])
             ->latest('published_at')
             ->paginate(12)
@@ -159,9 +161,9 @@ class BlogController extends Controller
                 'media' => fn ($query) => $query->where('locale', $locale),
             ])
             ->withCount([
-                'reactions as likes_count' => fn ($query) => $query->where('locale', $locale)->where('type', 'like'),
-                'comments as approved_comments_count' => fn ($query) => $query->where('locale', $locale)->where('status', 'approved'),
-                'views as views_count' => fn ($query) => $query->where('locale', $locale),
+                'reactions as likes_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
+                'comments as approved_comments_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
+                'views as views_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)),
             ])
             ->firstOrFail();
 
@@ -179,7 +181,7 @@ class BlogController extends Controller
         if (! $visitorIdentity->isBot($request)) {
             $recentViewExists = PostView::query()
                 ->where('post_id', $post->id)
-                ->where('locale', $locale)
+                ->whereIn('locale', EnglishGroup::history($locale))
                 ->where('visitor_key', $visitorKey)
                 ->where('viewed_at', '>=', now()->subHours(6))
                 ->exists();
@@ -191,7 +193,7 @@ class BlogController extends Controller
         }
 
         $viewerHasLiked = $request->user()
-            ? $post->reactions()->where('locale', $locale)->where('user_id', $request->user()->id)->where('type', 'like')->exists()
+            ? $post->reactions()->whereIn('locale', EnglishGroup::history($locale))->where('user_id', $request->user()->id)->where('type', 'like')->exists()
             : false;
         $viewerHasFavorited = $request->user()
             ? $request->user()->favoritePosts()->where('posts.id', $post->id)->exists()
@@ -202,12 +204,12 @@ class BlogController extends Controller
                 $query->orWhere(fn ($private) => $private->whereIn('status', ['pending', 'spam'])->where('user_id', $request->user()->id));
             }
         };
-        $comments = $post->comments()->where('locale', $locale)->whereNull('parent_id')
+        $comments = $post->comments()->whereIn('locale', EnglishGroup::history($locale))->whereNull('parent_id')
             ->where(fn ($query) => $visibleToViewer($query))
             ->withCount('likes')
             ->with([
                 'likes' => fn ($q) => $q->where('user_id', $request->user()?->id ?? 0),
-                'replies' => fn ($query) => $query->where('locale', $locale)->where(fn ($q) => $visibleToViewer($q))
+                'replies' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where(fn ($q) => $visibleToViewer($q))
                     ->withCount('likes')->with(['likes' => fn ($q) => $q->where('user_id', $request->user()?->id ?? 0)])->oldest(),
             ])
             ->latest()->paginate(10, ['*'], 'comments_page')->withQueryString();
@@ -249,9 +251,9 @@ class BlogController extends Controller
                 'media' => fn ($query) => $query->where('locale', $locale),
             ])
             ->withCount([
-                'reactions as likes_count' => fn ($query) => $query->where('locale', $locale)->where('type', 'like'),
-                'comments as approved_comments_count' => fn ($query) => $query->where('locale', $locale)->where('status', 'approved'),
-                'views as views_count' => fn ($query) => $query->where('locale', $locale),
+                'reactions as likes_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
+                'comments as approved_comments_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
+                'views as views_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)),
             ])
             ->latest('published_at')
             ->limit(4)

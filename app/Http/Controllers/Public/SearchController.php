@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Support\EnglishGroup;
+
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Post;
@@ -129,9 +131,9 @@ class SearchController extends Controller
                 'media' => fn ($q) => $q->where('locale', $locale),
             ])
             ->withCount([
-                'reactions as likes_count' => fn ($q) => $q->where('locale', $locale)->where('type', 'like'),
-                'comments as approved_comments_count' => fn ($q) => $q->where('locale', $locale)->where('status', 'approved'),
-                'views as views_count' => fn ($q) => $q->where('locale', $locale),
+                'reactions as likes_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
+                'comments as approved_comments_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
+                'views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)),
             ]);
     }
 

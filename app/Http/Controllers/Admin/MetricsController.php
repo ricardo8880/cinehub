@@ -7,7 +7,9 @@ use App\Models\Comment;
 use App\Models\Post;
 use App\Models\PostView;
 use App\Models\Reaction;
+use App\Support\EnglishGroup;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -63,7 +65,7 @@ class MetricsController extends Controller
             return [
                 'post_id' => $post->id,
                 'title' => $row['title'],
-                'content_locale' => $row['content_locale'],
+                'content_locale' => EnglishGroup::publicLocale($row['content_locale'] ?? ''),
                 'publication_type' => $row['publication_type'],
                 'content_type' => [
                     'key' => $row['content_type_key'],
@@ -75,9 +77,9 @@ class MetricsController extends Controller
                 'blog_genres' => $blogGenres,
                 'published_at' => $post->published_at?->toIso8601String(),
                 'is_featured' => $data['locale'] !== ''
-                    ? in_array($data['locale'], $featuredLocales, true)
+                    ? array_intersect(EnglishGroup::history($data['locale']), $featuredLocales) !== []
                     : $featuredLocales !== [],
-                'featured_locales' => $featuredLocales,
+                'featured_locales' => array_values(array_unique(array_map(EnglishGroup::publicLocale(...), $featuredLocales))),
                 'categories' => $categories,
                 'views' => $row['views'],
                 'likes' => $row['likes'],
@@ -89,6 +91,7 @@ class MetricsController extends Controller
                 'view_change' => $row['view_delta'],
                 'growth_rate_percent' => $row['growth_rate'],
                 'new_activity' => $row['is_new_growth'],
+                'page_time' => $row['page_time'],
             ];
         })->sortByDesc('views')->values()->all();
 
@@ -128,6 +131,7 @@ class MetricsController extends Controller
                 'view_change' => $row['view_delta'],
                 'growth_rate_percent' => $row['growth_rate'],
                 'new_activity' => $row['is_new_growth'],
+                'page_time' => $row['page_time'],
             ];
         };
 
@@ -144,7 +148,7 @@ class MetricsController extends Controller
                     'from' => $data['previousSince']->toIso8601String(),
                     'to' => $data['previousUntil']->copy()->subSecond()->toIso8601String(),
                 ],
-                'locale_filter' => $data['locale'] ?: 'all',
+                'locale_filter' => $data['locale'] ? EnglishGroup::publicLocale($data['locale']) : 'all',
                 'country_filter' => $data['locale']
                     ? ($data['localeLabels'][$data['locale']] ?? strtoupper($data['locale']))
                     : 'All countries',
@@ -152,10 +156,12 @@ class MetricsController extends Controller
             ],
             'definitions' => [
                 'engagement_rate' => '(likes + approved comments) / views * 100',
+                'page_time' => 'Measured page visits: average_page_seconds is elapsed time, average_engaged_seconds is foreground active time, bounce_rate_percent is the share of visits without 10 active seconds or an interaction. These are independent of deduplicated views.',
                 'like_rate' => 'likes / views * 100',
                 'comment_rate' => 'approved comments / views * 100',
                 'growth_rate' => '(current period views - previous period views) / previous period views * 100',
                 'unique_visitors' => 'Approximation using distinct visitor identifiers stored by CineHub.',
+                'english_region' => 'The /en group combines US, UK, Canada and Australia. Historical regional interactions are aggregated without altering their original records. New activity is stored under en-us.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category assigned to the post, such as Games, Movies, Series or Curiosities.',
                 'genres' => 'Genres explicitly assigned to each post and restricted by its selected categories.',
@@ -203,6 +209,7 @@ class MetricsController extends Controller
                 'engagement_rate_percent' => $data['engagementRate'],
                 'like_rate_percent' => $data['likeRate'],
                 'comment_rate_percent' => $data['commentRate'],
+                'page_time' => $data['pageTime'],
             ],
             'editorial_highlights' => [
                 'best_content_type' => $data['bestContentType'],
@@ -232,7 +239,7 @@ class MetricsController extends Controller
             JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
         );
 
-        $scope = $data['locale'] ?: 'all-countries';
+        $scope = $data['locale'] ? EnglishGroup::publicLocale($data['locale']) : 'all-countries';
         $filename = 'cinehub-metrics-'.$scope.'-'.$data['period'].'d-'.now()->format('Y-m-d-His').'.json';
 
         return response()->streamDownload(
@@ -255,8 +262,13 @@ class MetricsController extends Controller
         }
 
         $locales = config('localization.locales', []);
-        $supportedLocales = array_keys($locales);
+        $supportedLocales = EnglishGroup::expand(array_keys($locales));
         $locale = $request->string('locale')->lower()->value();
+        // Accept the shared /en locale as a filter while keeping the en-us key
+        // for existing content, media and interaction records.
+        if ($locale === 'en') {
+            $locale = 'en-us';
+        }
 
         if (! array_key_exists($locale, $locales)) {
             $locale = '';
@@ -276,7 +288,7 @@ class MetricsController extends Controller
             ])
             ->where('created_at', '>=', $since)
             ->where('created_at', '<=', $until)
-            ->when($locale, fn ($query) => $query->where('locale', $locale))
+            ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
             ->orderByDesc('created_at')
             ->get();
@@ -290,7 +302,8 @@ class MetricsController extends Controller
                     'comment_id' => $comment->id,
                     'parent_comment_id' => $comment->parent_id,
                     'is_reply' => $comment->parent_id !== null,
-                    'locale' => $commentLocale,
+                    'locale' => EnglishGroup::publicLocale($commentLocale),
+                    'source_locale' => $commentLocale,
                     'status' => $comment->status,
                     'comment' => $comment->body,
                     'commented_at' => $comment->created_at?->toIso8601String(),
@@ -367,7 +380,8 @@ class MetricsController extends Controller
                 'comment_id' => $comment->id,
                 'parent_comment_id' => $comment->parent_id,
                 'is_reply' => $comment->parent_id !== null,
-                'locale' => $commentLocale,
+                'locale' => EnglishGroup::publicLocale($commentLocale),
+                'source_locale' => $commentLocale,
                 'status' => $comment->status,
                 'comment' => $comment->body,
                 'commented_at' => $comment->created_at?->toIso8601String(),
@@ -407,7 +421,7 @@ class MetricsController extends Controller
                     'from' => $since->toIso8601String(),
                     'to' => $until->toIso8601String(),
                 ],
-                'locale_filter' => $locale ?: 'all',
+                'locale_filter' => $locale ? EnglishGroup::publicLocale($locale) : 'all',
                 'country_filter' => $locale
                     ? $this->localeLabel($locale, $locales[$locale] ?? [])
                     : 'All countries',
@@ -422,11 +436,12 @@ class MetricsController extends Controller
             ],
             'definitions' => [
                 'comment' => 'The text written by the visitor.',
+                'source_locale' => 'Original stored regional code, retained for historical context; locale is the shared English group when applicable.',
                 'status' => 'Moderation status at export time. Approved comments are public; pending comments may still be under review; spam should not be treated as reliable audience opinion.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category associated with the post, such as Games, Movies or TV & Series.',
                 'genres' => 'Genres associated with the post and useful for identifying recurring audience interests.',
-                'locale' => 'Country/locale where the visitor submitted the comment.',
+                'locale' => 'Public language group; the four legacy English regions map to en. Original region is available in source_locale.',
                 'is_reply' => 'Whether the comment is a reply to another comment.',
             ],
             'ai_analysis_instructions' => [
@@ -462,7 +477,7 @@ class MetricsController extends Controller
             JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
         );
 
-        $scope = $locale ?: 'all-countries';
+        $scope = $locale ? EnglishGroup::publicLocale($locale) : 'all-countries';
         $filename = 'cinehub-comments-'.$scope.'-'.$period.'d-'.now()->format('Y-m-d-His').'.json';
 
         return response()->streamDownload(
@@ -472,6 +487,17 @@ class MetricsController extends Controller
             $filename,
             ['Content-Type' => 'application/json; charset=UTF-8']
         );
+    }
+
+    private function pageTimeStats($rows): array
+    {
+        $count = $rows->count();
+        return [
+            'measured_visits' => $count,
+            'average_page_seconds' => $count ? round($rows->avg('duration_seconds'), 1) : 0,
+            'average_engaged_seconds' => $count ? round($rows->avg('active_seconds'), 1) : 0,
+            'bounce_rate_percent' => $count ? round($rows->where('engaged', false)->count() / $count * 100, 1) : 0,
+        ];
     }
 
     private function metricsData(Request $request): array
@@ -484,8 +510,13 @@ class MetricsController extends Controller
         }
 
         $locales = config('localization.locales', []);
-        $supportedLocales = array_keys($locales);
+        $supportedLocales = EnglishGroup::expand(array_keys($locales));
         $locale = $request->string('locale')->lower()->value();
+        // Accept the shared /en locale as a filter while keeping the en-us key
+        // for existing content, media and interaction records.
+        if ($locale === 'en') {
+            $locale = 'en-us';
+        }
 
         if (! array_key_exists($locale, $locales)) {
             $locale = '';
@@ -499,8 +530,16 @@ class MetricsController extends Controller
 
         $viewsQuery = PostView::query()
             ->where('viewed_at', '>=', $since)
-            ->when($locale, fn ($query) => $query->where('locale', $locale))
+            ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales));
+
+        $engagementQuery = DB::table('page_engagements')
+            ->where('started_at', '>=', $since)
+            ->when($locale, fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)))
+            ->when(! $locale && $supportedLocales !== [], fn ($q) => $q->whereIn('locale', $supportedLocales));
+        $pageTime = $this->pageTimeStats((clone $engagementQuery)->get());
+        $pageTimeByPost = (clone $engagementQuery)->get()->groupBy('post_id')
+            ->map(fn ($rows) => $this->pageTimeStats($rows));
 
         $views = (clone $viewsQuery)->count();
         $uniqueVisitors = (clone $viewsQuery)->distinct()->count('visitor_key');
@@ -508,21 +547,21 @@ class MetricsController extends Controller
         $likes = Reaction::query()
             ->where('type', 'like')
             ->where('created_at', '>=', $since)
-            ->when($locale, fn ($query) => $query->where('locale', $locale))
+            ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
             ->count();
 
         $comments = Comment::query()
             ->where('status', 'approved')
             ->where('created_at', '>=', $since)
-            ->when($locale, fn ($query) => $query->where('locale', $locale))
+            ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
             ->count();
 
         $publishedPosts = Post::query()
             ->published()
             ->when($locale, fn ($query) => $query->whereHas('localizations', fn ($localizationQuery) => $localizationQuery
-                ->where('locale', $locale)
+                ->whereIn('locale', EnglishGroup::history($locale))
                 ->where('is_active', true)))
             ->count();
 
@@ -534,31 +573,31 @@ class MetricsController extends Controller
             ->published()
             ->with(['localizations', 'categories.localizations', 'genres', 'blogCategory', 'blogGenres.localizations'])
             ->when($locale, fn ($query) => $query->whereHas('localizations', fn ($localizationQuery) => $localizationQuery
-                ->where('locale', $locale)
+                ->whereIn('locale', EnglishGroup::history($locale))
                 ->where('is_active', true)))
             ->withCount([
                 'views as metrics_views_count' => fn ($query) => $query
                     ->where('viewed_at', '>=', $since)
-                    ->when($locale, fn ($viewQuery) => $viewQuery->where('locale', $locale))
+                    ->when($locale, fn ($viewQuery) => $viewQuery->whereIn('locale', EnglishGroup::history($locale)))
                     ->when(! $locale && $supportedLocales !== [], fn ($viewQuery) => $viewQuery->whereIn('locale', $supportedLocales)),
                 'reactions as metrics_likes_count' => fn ($query) => $query
                     ->where('type', 'like')
                     ->where('created_at', '>=', $since)
-                    ->when($locale, fn ($reactionQuery) => $reactionQuery->where('locale', $locale))
+                    ->when($locale, fn ($reactionQuery) => $reactionQuery->whereIn('locale', EnglishGroup::history($locale)))
                     ->when(! $locale && $supportedLocales !== [], fn ($reactionQuery) => $reactionQuery->whereIn('locale', $supportedLocales)),
                 'comments as metrics_comments_count' => fn ($query) => $query
                     ->where('status', 'approved')
                     ->where('created_at', '>=', $since)
-                    ->when($locale, fn ($commentQuery) => $commentQuery->where('locale', $locale))
+                    ->when($locale, fn ($commentQuery) => $commentQuery->whereIn('locale', EnglishGroup::history($locale)))
                     ->when(! $locale && $supportedLocales !== [], fn ($commentQuery) => $commentQuery->whereIn('locale', $supportedLocales)),
                 'views as previous_views_count' => fn ($query) => $query
                     ->where('viewed_at', '>=', $previousSince)
                     ->where('viewed_at', '<', $previousUntil)
-                    ->when($locale, fn ($viewQuery) => $viewQuery->where('locale', $locale))
+                    ->when($locale, fn ($viewQuery) => $viewQuery->whereIn('locale', EnglishGroup::history($locale)))
                     ->when(! $locale && $supportedLocales !== [], fn ($viewQuery) => $viewQuery->whereIn('locale', $supportedLocales)),
             ])
             ->get()
-            ->map(function (Post $post) use ($titleLocale, $defaultLocale): array {
+            ->map(function (Post $post) use ($titleLocale, $defaultLocale, $pageTimeByPost): array {
                 $content = $post->localizations->firstWhere('locale', $titleLocale)
                     ?? $post->localizations->firstWhere('locale', $defaultLocale)
                     ?? $post->localizations->first();
@@ -579,6 +618,7 @@ class MetricsController extends Controller
                     'content_type_label' => $contentType['label'],
                     'content_type_category_id' => $contentType['category_id'],
                     'views' => $postViews,
+                    'page_time' => $pageTimeByPost->get($post->id, $this->pageTimeStats(collect())),
                     'likes' => $postLikes,
                     'comments' => $postComments,
                     'engagement_rate' => $postViews > 0 ? round((($postLikes + $postComments) / $postViews) * 100, 1) : 0,
@@ -903,15 +943,24 @@ class MetricsController extends Controller
             ->keyBy('id');
 
         $countryStats = collect($locales)->map(function (array $settings, string $routeLocale) use ($viewsByLocale, $likesByLocale, $commentsByLocale, $topPostRows, $topPostModels): array {
-            $topRow = $topPostRows->firstWhere('locale', $routeLocale);
+            $groupLocales = EnglishGroup::history($routeLocale);
+            $topRow = $topPostRows->whereIn('locale', $groupLocales)
+                ->groupBy('post_id')
+                ->map(fn ($rows) => (object) [
+                    'post_id' => $rows->first()->post_id,
+                    'total' => $rows->sum('total'),
+                ])
+                ->sortByDesc('total')
+                ->first();
             $topPost = $topRow ? $topPostModels->get($topRow->post_id) : null;
-            $topLocalization = $topPost?->localizations?->firstWhere('locale', $routeLocale);
-            $localeViews = (int) ($viewsByLocale[$routeLocale] ?? 0);
-            $localeLikes = (int) ($likesByLocale[$routeLocale] ?? 0);
-            $localeComments = (int) ($commentsByLocale[$routeLocale] ?? 0);
+            $topLocalization = $topPost?->localizations?->firstWhere('locale', $routeLocale)
+                ?? $topPost?->localizations?->first(fn ($loc) => in_array($loc->locale, $groupLocales, true));
+            $localeViews = (int) $viewsByLocale->only($groupLocales)->sum();
+            $localeLikes = (int) $likesByLocale->only($groupLocales)->sum();
+            $localeComments = (int) $commentsByLocale->only($groupLocales)->sum();
 
             return [
-                'locale' => $routeLocale,
+                'locale' => EnglishGroup::publicLocale($routeLocale),
                 'label' => $this->localeLabel($routeLocale, $settings),
                 'views' => $localeViews,
                 'likes' => $localeLikes,
@@ -934,7 +983,7 @@ class MetricsController extends Controller
         $dailyRows = PostView::query()
             ->selectRaw('DATE(viewed_at) as day, COUNT(*) as total')
             ->where('viewed_at', '>=', $since)
-            ->when($locale, fn ($query) => $query->where('locale', $locale))
+            ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
             ->groupBy('day')
             ->orderBy('day')
@@ -959,6 +1008,7 @@ class MetricsController extends Controller
             'locales' => $locales,
             'localeLabels' => collect($locales)->map(fn (array $settings, string $routeLocale) => $this->localeLabel($routeLocale, $settings)),
             'views' => $views,
+            'pageTime' => $pageTime,
             'uniqueVisitors' => $uniqueVisitors,
             'likes' => $likes,
             'comments' => $comments,

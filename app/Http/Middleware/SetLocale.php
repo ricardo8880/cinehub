@@ -15,6 +15,12 @@ class SetLocale
     public function handle(Request $request, Closure $next): Response
     {
         $routeLocale = $request->route('locale');
+
+        // The public /en URL uses the existing en-us database records.
+        if ($routeLocale === 'en') {
+            $routeLocale = 'en-us';
+            $request->route()->setParameter('locale', $routeLocale);
+        }
         $locale = config("localization.locales.{$routeLocale}");
 
         abort_unless(is_array($locale), 404);

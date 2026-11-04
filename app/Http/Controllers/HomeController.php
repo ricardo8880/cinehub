@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\EnglishGroup;
+
 use App\Models\Category;
 use App\Models\Post;
 use App\Support\PublicPostPresenter;
@@ -31,9 +33,9 @@ class HomeController extends Controller
                 'media' => fn ($q) => $q->where('locale', $locale),
             ])
             ->withCount([
-                'reactions as likes_count' => fn (Builder $q) => $q->where('locale', $locale)->where('type', 'like'),
-                'comments as approved_comments_count' => fn (Builder $q) => $q->where('locale', $locale)->where('status', 'approved'),
-                'views as views_count' => fn (Builder $q) => $q->where('locale', $locale),
+                'reactions as likes_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
+                'comments as approved_comments_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
+                'views as views_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale)),
             ]);
 
         $featuredPost = $baseQuery()
@@ -93,7 +95,7 @@ class HomeController extends Controller
 
         $ids = $latestItems->merge($popularItems)->pluck('id')->push($featuredItem['id'] ?? null)->filter()->unique()->all();
         $myLikedIds = $request->user() && $ids
-            ? $request->user()->reactions()->where('locale', $locale)->where('type', 'like')->whereIn('post_id', $ids)->pluck('post_id')->all()
+            ? $request->user()->reactions()->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like')->whereIn('post_id', $ids)->pluck('post_id')->all()
             : [];
 
         return view('home', compact('categories', 'activeCategory', 'featuredItem', 'latestItems', 'popularItems', 'trendingItems', 'myLikedIds'));

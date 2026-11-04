@@ -28,6 +28,7 @@ use App\Http\Controllers\Public\CookieConsentController;
 use App\Http\Controllers\Public\LegalController;
 use App\Http\Controllers\Public\ReactionController;
 use App\Http\Controllers\Public\PostController as PublicPostController;
+use App\Http\Controllers\Public\PageEngagementController;
 use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SuggestionController;
 use App\Http\Controllers\SitemapController;
@@ -35,6 +36,7 @@ use App\Http\Controllers\Member\AuthController as MemberAuthController;
 use App\Http\Controllers\Member\GoogleAuthController;
 use App\Http\Controllers\Member\FeedController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 // Laravel's auth middleware uses this route when a guest follows a protected link.
@@ -76,9 +78,21 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     });
 });
 
+// Preserve old links, including their full paths and query parameters.
+// Use 308 for non-GET methods so existing forms retain their request body.
+Route::any('/{englishRegion}/{path?}', function (Request $request, string $englishRegion, ?string $path = null) {
+    $target = '/en'.($path !== null && $path !== '' ? '/'.$path : '');
+
+    if ($request->getQueryString()) {
+        $target .= '?'.$request->getQueryString();
+    }
+
+    return redirect()->to($target, $request->isMethod('GET') || $request->isMethod('HEAD') ? 301 : 308);
+})->where(['englishRegion' => 'en-us|en-gb|en-ca|en-au', 'path' => '.*']);
+
 $localePattern = implode('|', array_map(
     static fn (string $locale): string => preg_quote($locale, '/'),
-    array_keys(config('localization.locales')),
+    array_unique(array_merge(['en'], array_keys(config('localization.locales')))),
 ));
 
 Route::prefix('{locale}')
@@ -117,6 +131,7 @@ Route::prefix('{locale}')
         Route::get('/legal/{page}', [LegalController::class, 'show'])->where('page', 'privacy|terms|cookies')->name('legal.show');
         Route::post('/privacy/consent', [CookieConsentController::class, 'update'])->middleware('throttle:10,1')->name('privacy.consent');
         Route::get('/book', BookController::class)->name('book');
+        Route::post('/page-engagement', PageEngagementController::class)->middleware('throttle:120,1')->name('page-engagement.store');
         Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
         Route::post('/blog/{slug}/comments', [PublicCommentController::class, 'storeBlog'])
             ->middleware(['auth', 'throttle:5,1'])

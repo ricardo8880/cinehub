@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Support\EnglishGroup;
 use App\Models\CategoryLocalization;
 use App\Models\PostLocalization;
 use Illuminate\Http\RedirectResponse;
@@ -39,9 +40,11 @@ class ReactionController extends Controller
     {
         $user = $request->user();
         $reactions = $localization->post->reactions();
-        $reaction = (clone $reactions)->where('locale', $localization->locale)->where('user_id', $user->id)->where('type', 'like')->first();
-        if ($reaction) {
-            $reaction->delete();
+        $existingLikes = (clone $reactions)
+            ->whereIn('locale', EnglishGroup::history($localization->locale))
+            ->where('user_id', $user->id)->where('type', 'like');
+        if ((clone $existingLikes)->exists()) {
+            $existingLikes->delete();
             return false;
         }
 
@@ -57,7 +60,7 @@ class ReactionController extends Controller
         return response()->json([
             'liked' => $liked,
             'likes_count' => $localization->post->reactions()
-                ->where('locale', $localization->locale)->where('type', 'like')->count(),
+                ->whereIn('locale', EnglishGroup::history($localization->locale))->where('type', 'like')->count(),
         ]);
     }
 }

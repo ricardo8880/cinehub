@@ -18,13 +18,15 @@ O conteúdo é publicado somente pela administração. Visitantes podem consumir
 
 O projeto será internacional, começando por:
 
-- Estados Unidos: `/en-us/` — USD ($)
-- Reino Unido: `/en-gb/` — GBP (£)
-- Austrália: `/en-au/` — AUD (A$)
-- Canadá: `/en-ca/` — CAD (C$)
+- Estados Unidos: `/en/` — USD ($)
+- Reino Unido: `/en/` — GBP (£)
+- Austrália: `/en/` — AUD (A$)
+- Canadá: `/en/` — CAD (C$)
 - Japão: `/ja-jp/` — JPY (¥), mantido atualmente como locale de teste visual de regionalização.
 
-É um único projeto, um único código-base e um único domínio. Não devem ser criados sites separados por região.
+Os quatro países de língua inglesa compartilham **uma única versão editorial em inglês** e **uma única URL pública `/en`**. Os caminhos anteriores `/en-us/`, `/en-gb/`, `/en-au/` e `/en-ca/` são redirecionados para `/en/` (inclusive páginas internas e parâmetros de busca). As moedas acima identificam os mercados de interesse; a URL compartilhada não determina o país geográfico de quem acessa.
+
+É um único projeto, um único código-base e um único domínio. Não devem ser criados sites separados por região. A estrutura de localizações continua disponível para idiomas e mercados futuros.
 
 ## 2. Stack atual
 
@@ -64,7 +66,7 @@ O projeto deve manter:
 - HTML semântico;
 - títulos e descrições únicos;
 - canonical correto, incluindo paginação e filtros editoriais indexáveis;
-- `hreflang` entre versões regionais equivalentes;
+- `hreflang` entre versões públicas distintas de idioma/região, sem criar quatro URLs inglesas equivalentes;
 - sitemap XML;
 - robots.txt;
 - conteúdo indexável sem depender de JavaScript pesado;
@@ -117,7 +119,7 @@ Pode conter:
 - SEO title;
 - SEO description.
 
-Isso evita duplicar completamente uma publicação para cada país. Um registro em `posts` pode ter versões `en-us`, `en-gb`, `en-au` e `en-ca` em `post_localizations`.
+Isso evita duplicar completamente uma publicação para cada país. Um registro em `posts` continua podendo ter localizações independentes, como `en-us` e `ja-jp`. Na estratégia atual, `en-us` é a **chave interna compartilhada** para o conteúdo em inglês exibido em `/en` nos Estados Unidos, Reino Unido, Austrália e Canadá. As versões antigas `en-gb`, `en-au` e `en-ca` permanecem armazenadas para compatibilidade e histórico, sem exigir novos cadastros separados. Outros idiomas podem ter localização própria futuramente.
 
 ### `categories`
 Registro base das categorias editoriais.
@@ -140,6 +142,9 @@ Curtidas e futuras reações.
 ### `post_views`
 Visualizações usadas para métricas e tendências.
 
+### `page_engagements`
+Coleta de duração da visita à página, tempo ativo de engajamento e sinal de sessão engajada para calcular a taxa de rejeição. A tabela é criada pela migration específica `2026_11_04_000100_create_page_engagements_table.php`; seus dados começam a existir após a implantação e não são inventados retroativamente.
+
 ### `suggestions`
 Sugestões de pauta enviadas futuramente pelos visitantes.
 
@@ -156,24 +161,23 @@ A data de publicação vem preenchida automaticamente no cadastro e pode ser alt
 
 Configuração central em `config/localization.php`.
 
-Atualmente:
+Atualmente, os endereços públicos e as chaves internas são:
 
-- `en-us` -> `en_US` — Estados Unidos
-- `en-gb` -> `en_GB` — Reino Unido
-- `en-au` -> `en_AU` — Austrália
-- `en-ca` -> `en_CA` — Canadá
+- `/en` — inglês compartilhado entre Estados Unidos, Reino Unido, Austrália e Canadá; utiliza `en-us` / `en_US` internamente.
+- `/ja-jp` — japonês, com `ja-jp` / `ja_JP` independente, atualmente em teste.
+- `en-gb`, `en-au` e `en-ca` — códigos históricos preservados no banco e na configuração para compatibilidade. Suas URLs antigas redirecionam para `/en`.
 
 Regras:
 
-1. Não duplicar conteúdo quando não houver diferença real.
-2. Permitir conteúdo regional específico quando necessário.
-3. Manter URL, idioma e região coerentes.
-4. Usar `hreflang` em páginas equivalentes.
+1. Não duplicar conteúdo em inglês quando não houver diferença editorial real: um cadastro atende aos quatro países.
+2. Manter a estrutura preparada para novos países/idiomas com conteúdo próprio quando necessário.
+3. Manter URL pública, idioma e localização técnica coerentes, usando `/en` para o grupo inglês.
+4. Usar `hreflang` apenas entre versões públicas distintas e equivalentes.
 5. Não obrigar troca de região apenas por IP.
-6. Uma versão regional só recebe URL indexável quando sua localização estiver ativa.
-7. Não existe fallback público entre países: sem versão regional própria, o conteúdo não aparece naquela região.
-8. Imagem e vídeo também não usam mídia de outro país.
-9. Categorias só aparecem quando possuem versão ativa para o locale atual.
+6. Uma versão de outro idioma só recebe URL indexável quando sua localização estiver ativa.
+7. Não existe fallback público automático entre **idiomas independentes**: sem versão `ja-jp`, por exemplo, a publicação não aparece em `/ja-jp`. O inglês compartilhado não é considerado fallback entre países.
+8. Imagem e vídeo do grupo `/en` usam a mídia da localização interna `en-us`; não usar mídia de outro idioma como fallback.
+9. Categorias do grupo `/en` usam a localização interna em inglês; outros idiomas exigem sua versão ativa.
 
 ## 9. Painel administrativo
 
@@ -247,7 +251,7 @@ Evitar lógica complexa diretamente nas views.
 ## 14. O que já está construído
 
 - Home responsiva aprovada visualmente e preservada;
-- navegação principal, dark/light e estrutura `en-us` / `en-gb` / `en-au` / `en-ca`;
+- navegação principal, dark/light e URL pública compartilhada `/en` para US/UK/AU/CA, com `/ja-jp` independente e redirecionamentos das URLs inglesas antigas;
 - SEO base, sitemap, canonical e `hreflang`, com canonical próprio para paginação e filtros de gênero;
 - autenticação e proteção do painel administrativo;
 - CRUD de categorias, posts e mídia;
@@ -268,7 +272,7 @@ Evitar lógica complexa diretamente nas views.
 - **Trending Now** e **Popular This Week** usam cache curto de 2 minutos por locale para reduzir consultas sem deixar rankings longamente desatualizados;
 - sugestões públicas de pauta e moderação administrativa;
 - formulário de contato e caixa administrativa;
-- painel interno de métricas;
+- painel interno de métricas, incluindo tempo médio na página, tempo médio de engajamento e taxa de rejeição, com exportação JSON para IA;
 - páginas de privacidade, termos e cookies;
 - preferência de Analytics armazenada por cookie;
 - integração estrutural com Google Analytics, ativada apenas com ID configurado e consentimento concedido;
@@ -353,8 +357,9 @@ Antes de alterar o projeto:
 - Visualizações repetidas do mesmo visitante em menos de 6 horas não aumentam o contador.
 - Bots conhecidos não devem aumentar visualizações.
 - Rotas públicas de comentário e curtida usam rate limiting.
-- Métricas públicas são separadas por `locale`.
-- **Trending Now** usa atividade recente do país; **Popular This Week** usa atividade dos últimos 7 dias do país.
+- Interações e métricas continuam registrando o `locale` técnico. Novos acessos em `/en` usam `en-us`; dados históricos em `en-us`, `en-gb`, `en-au` e `en-ca` são agregados no grupo público `en`, sem apagar os registros originais.
+- **Trending Now** usa atividade recente do grupo de idioma; **Popular This Week** usa atividade dos últimos 7 dias do grupo. Outros idiomas, como `ja-jp`, mantêm indicadores próprios.
+- Uma URL `/en` não identifica o país físico do visitante. Métricas geográficas individuais dos quatro países exigiriam coleta de localização adicional, que não faz parte desta unificação.
 
 
 ## 20. Regras de integrações e privacidade
@@ -382,34 +387,38 @@ Antes de alterar o projeto:
 - A geração automática também ocorre no backend para não depender de JavaScript.
 
 ### Ajuste administrativo — países das postagens
-- No formulário de postagem, `en-us`, `en-gb`, `en-au` e `en-ca` são apresentados como países: United States, United Kingdom, Australia e Canada.
-- O controle “Use a specific version for this region” foi removido.
-- O país padrão continua obrigatório.
-- Um país adicional passa a ter versão ativa quando seu título é preenchido; se ficar sem título, a versão fica inativa.
-- Existe apenas um registro principal em `posts`; cada país possui sua própria linha em `post_localizations`, com título, slug, resumo, sinopse, review e SEO.
-- Nesta etapa, as versões regionais são preenchidas manualmente no admin. Não há API de IA nem tradução automática paga.
-- Textos fixos da interface usam o sistema de tradução do Laravel conforme o locale da URL; conteúdo vindo do banco é responsabilidade editorial de cada versão regional.
-- Os códigos técnicos de locale/região continuam existindo para URLs, `hreflang` e SEO internacional.
+- Estados Unidos, Reino Unido, Austrália e Canadá compartilham uma única versão editorial em inglês, acessível por `/en`. Não criar quatro conteúdos ingleses equivalentes.
+- A chave técnica principal de conteúdo em inglês continua `en-us`; o formulário e o fluxo editorial devem trabalhar com essa versão compartilhada para os quatro mercados.
+- O controle “Use a specific version for this region” permanece removido.
+- A localização padrão em inglês continua obrigatória; localizações de outros idiomas, como `ja-jp`, são opcionais e independentes.
+- Uma localização adicional passa a ter versão ativa quando seu título é preenchido; se ficar sem título, permanece inativa.
+- Existe apenas um registro principal em `posts`; `post_localizations` preserva título, slug, resumo, sinopse, review e SEO por idioma/localização, sem duplicar a postagem inteira.
+- Localizações antigas `en-gb`, `en-au` e `en-ca` são mantidas no banco para compatibilidade e histórico, mas não precisam ser preenchidas para novos conteúdos do grupo `/en`.
+- Conteúdos de idiomas distintos continuam sendo preparados manualmente no admin. Não há API de IA nem tradução automática paga.
+- Textos fixos da interface usam o sistema de tradução do Laravel para o idioma selecionado; o conteúdo do banco é responsabilidade editorial da respectiva localização.
+- Os códigos técnicos permanecem no banco/configuração para compatibilidade; a URL pública dos quatro mercados ingleses é somente `/en`.
 
-## 22. Regionalização da Home por país
+## 22. Regionalização da Home por idioma
 
 - A Home continua sendo um único arquivo e mantém exatamente o mesmo layout visual.
-- A URL define o locale ativo: `en-us`, `en-gb`, `en-au` ou `en-ca`.
-- `SetLocale` aplica o locale correspondente e os textos fixos são resolvidos pelos arquivos JSON em `lang/`.
-- Títulos de seções, busca, categorias padrão, descrições das categorias e SEO da Home variam conforme o país.
-- As seis categorias padrão são regionalizadas pelo `slug`, evitando depender de um único nome global salvo em `categories`.
-- Conteúdo editorial vindo de `post_localizations` continua sendo controlado no admin por país.
-- Não duplicar a Home em quatro arquivos. Novos países devem ser adicionados em `config/localization.php` e receber seu arquivo de idioma.
+- A URL pública `/en` representa a Home compartilhada de Estados Unidos, Reino Unido, Austrália e Canadá; `/ja-jp` permanece independente para japonês.
+- `SetLocale` associa `/en` à chave interna `en-us` e aplica o locale correspondente; textos fixos continuam resolvidos pelos arquivos JSON em `lang/`.
+- Títulos de seções, busca, categorias padrão, descrições de categorias e SEO da Home são compartilhados em inglês no grupo `/en`; outras localizações podem ter textos próprios.
+- As seis categorias padrão continuam regionalizadas pelo `slug`, evitando depender de um único nome global salvo em `categories`.
+- Conteúdo editorial de `post_localizations` usa a versão inglesa compartilhada para `/en`, sem exigir quatro publicações; outros idiomas continuam independentes.
+- Não duplicar a Home por país. Novos idiomas/localizações devem ser adicionados em `config/localization.php` e receber seus arquivos de idioma.
+- URLs públicas antigas `/en-us`, `/en-gb`, `/en-au` e `/en-ca`, inclusive subcaminhos, redirecionam para `/en`.
 
-## 23. Mídia por país no cadastro de postagem
+## 23. Mídia por idioma/localização no cadastro de postagem
 
-- A mídia principal agora é cadastrada diretamente dentro de cada aba de país da postagem.
-- Cada país pode escolher independentemente entre `Image` e `YouTube video`.
+- A mídia principal continua sendo cadastrada no fluxo da respectiva localização da postagem.
+- A versão inglesa compartilhada `/en` usa a mídia da chave interna `en-us` para Estados Unidos, Reino Unido, Austrália e Canadá.
+- Outros idiomas/localizações, como `ja-jp`, podem escolher independentemente entre `Image` e `YouTube video`.
 - Para YouTube, o admin recebe apenas a URL normal do vídeo; o sistema extrai o ID e monta o embed automaticamente.
-- URLs de YouTube podem ser diferentes em `en-us`, `en-gb`, `en-au` e `en-ca`, permitindo trailer/vídeo específico para cada país.
-- Imagens também podem ser diferentes por país e são armazenadas no disco `public`, dentro da pasta da postagem/locale.
-- O banco continua usando a entidade `media`; não foi necessária nova migration.
-- Para cada país, o formulário básico mantém uma mídia principal. Ao trocar imagem por YouTube (ou o contrário), a mídia principal daquele país é substituída.
+- Não é necessário cadastrar quatro trailers ou imagens diferentes para o mesmo conteúdo em inglês. Mídias históricas de `en-gb`, `en-au` e `en-ca` permanecem armazenadas, sem uso como fallback público do grupo `/en`.
+- Imagens continuam armazenadas no disco `public`, dentro da pasta da postagem/locale.
+- O banco continua usando a entidade `media`; a unificação das URLs não exige nova migration.
+- Para cada localização ativa, o formulário básico mantém uma mídia principal. Ao trocar imagem por YouTube (ou o contrário), a mídia principal daquela localização é substituída.
 - Se não houver vídeo, a Home mostra a imagem sem alterar o layout aprovado.
 - Se houver vídeo do YouTube e não houver imagem própria, os cards podem usar a thumbnail pública do vídeo como capa.
 
@@ -423,20 +432,20 @@ Antes de alterar o projeto:
 - O conteúdo vindo do banco continua dependendo da versão `post_localizations` cadastrada para `ja-jp`.
 - Se o Japão não fizer parte do lançamento, remover `ja-jp` antes da publicação definitiva para não expor uma versão regional de teste ao Google.
 
-## 22. Regras estritas por país
+## 22. Regras estritas por idioma/localização
 
-- Categorias seguem o mesmo modelo regional das postagens: uma categoria base e versões em `category_localizations`.
-- Nome, slug, descrição e SEO de categoria são cadastrados por país.
-- Se uma categoria não tiver versão ativa para a URL atual, ela não aparece nesse país.
-- Se uma postagem não tiver `post_localizations` ativo para a URL atual, ela não aparece nesse país.
-- Não existe fallback público de texto, categoria, imagem ou vídeo entre países.
-- Mídia só pode ser usada quando `media.locale` corresponde exatamente ao país da URL.
-- Curtidas, comentários e visualizações registram `locale`, evitando que métricas de um país alterem rankings de outro.
-- Destaque editorial é definido exclusivamente pela versão regional (`post_localizations.is_featured`) nas telas, Home e relatórios; o campo legado de `posts` não deve orientar destaque.
-- `Trending Now`: atividade recente do país (janela atual de 2 dias), ponderando visualizações, curtidas e comentários.
-- `Latest Videos`: somente publicações do país com vídeo YouTube cadastrado para aquele país, ordenadas pela publicação mais recente.
-- `Popular This Week`: atividade dos últimos 7 dias do país, ponderando visualizações, curtidas e comentários.
-- Sitemap só deve incluir categorias e postagens que realmente tenham versão regional ativa.
+- Categorias seguem o mesmo modelo das postagens: uma categoria base e localizações em `category_localizations`.
+- Nome, slug, descrição e SEO de categoria do grupo `/en` usam a versão inglesa compartilhada (`en-us`); outros idiomas podem ter localizações independentes.
+- Se uma categoria não tiver versão ativa para o idioma da URL atual, ela não aparece nessa versão pública.
+- Se uma postagem não tiver `post_localizations` ativo para o idioma da URL atual, ela não aparece nessa versão pública.
+- Não existe fallback público de texto, categoria, imagem ou vídeo **entre idiomas distintos**. O compartilhamento de `/en` entre quatro países não representa fallback.
+- Mídia do grupo `/en` utiliza `media.locale = en-us`; outras localizações utilizam sua própria mídia.
+- Curtidas, comentários, visualizações e engajamento continuam registrando `locale`. O grupo público `en` reúne os registros históricos de `en-us`, `en-gb`, `en-au` e `en-ca` para indicadores e rankings, sem reescrevê-los.
+- Destaque editorial é definido exclusivamente pela versão localizada (`post_localizations.is_featured`) nas telas, Home e relatórios; o campo legado de `posts` não deve orientar destaque.
+- `Trending Now`: atividade recente do idioma/grupo (janela atual de 2 dias), ponderando visualizações, curtidas e comentários.
+- `Latest Videos`: somente publicações do idioma/grupo com vídeo YouTube cadastrado para sua localização ativa, ordenadas pela publicação mais recente.
+- `Popular This Week`: atividade dos últimos 7 dias do idioma/grupo, ponderando visualizações, curtidas e comentários.
+- Sitemap só deve incluir categorias e postagens que realmente tenham versão pública ativa; os quatro países ingleses usam a URL `/en`.
 
 ## 25. Publicidade direta para anunciantes — planejamento futuro
 
@@ -464,17 +473,25 @@ Esta funcionalidade não faz parte da etapa atual e deverá ser detalhada e melh
 
 O download JSON do painel de métricas deve ser suficiente para orientar uma IA sobre o que o CineHub deve publicar em seguida, sem depender de explicações adicionais fora do arquivo.
 
+O painel e o JSON incluem, além de visualizações, visitantes únicos aproximados, curtidas e comentários aprovados:
+
+- **Tempo médio na página:** média do tempo decorrido nas visitas medidas (`average_page_seconds`).
+- **Tempo médio de engajamento:** média do tempo em que a página esteve ativa/em primeiro plano (`average_engaged_seconds`).
+- **Taxa de rejeição:** porcentagem de visitas medidas sem ao menos 10 segundos ativos nem interação (`bounce_rate_percent`).
+- Essas informações vêm de `page_engagements` e são apresentadas nos indicadores gerais e por conteúdo, respeitando os filtros de período e de idioma/grupo. Dados anteriores à coleta não devem ser preenchidos artificialmente.
+- O grupo `/en` agrega registros das quatro antigas regiões inglesas. Essa agregação não deve ser apresentada como localização geográfica real dos visitantes.
+
 A análise esperada deve:
 
 - começar com um diagnóstico curto do que está crescendo, caindo, alcançando mais pessoas e gerando mais engajamento;
-- comparar categorias, gêneros, gêneros de Blog, formatos de publicação e países/locales;
+- comparar categorias, gêneros, gêneros de Blog, formatos de publicação e idiomas/grupos públicos, considerando o inglês `en` como uma única audiência editorial;
 - tratar recomendações práticas de conteúdo como prioridade principal;
 - identificar por que títulos com bom desempenho atraíram público, considerando gênero, tema, ambientação, estilo de gameplay, narrativa, atmosfera, franquia e interesse provável da audiência;
 - sugerir títulos e temas semelhantes que possam atrair o mesmo público, inclusive fora da mesma franquia;
 - explicar brevemente a relação entre o conteúdo vencedor e cada recomendação;
 - recomendar, quando os dados permitirem, se a pauta deve ser post padrão ou artigo de Blog;
 - separar sugestões entre publicar mais, testar em seguida e reduzir/despriorizar;
-- não tirar conclusões confiáveis para países/locales com pouca ou nenhuma amostra;
+- não tirar conclusões confiáveis para idiomas/grupos com pouca ou nenhuma amostra, nem inferir o país real do visitante a partir da URL `/en`;
 - usar `editorial_score` como apoio, sempre conferindo também views, engajamento, crescimento, confiança da amostra e quantidade de posts.
 
 Exemplo de raciocínio esperado: se um conteúdo de **Middle-earth: Shadow of Mordor** ou **Shadow of War** tiver desempenho forte, a análise pode identificar afinidade com fantasia, atmosfera medieval, ação em mundo aberto e progressão de personagem e, a partir disso, sugerir conteúdos sobre **The Witcher 3**, **Skyrim**, **Elden Ring**, **Dragon Age** ou obras semelhantes.
@@ -487,9 +504,9 @@ O painel de métricas possui um segundo download JSON dedicado aos comentários 
 
 Regras:
 
-- o mesmo seletor de período e país/locale da tela de métricas controla a exportação de comentários;
+- o mesmo seletor de período e idioma/grupo da tela de métricas controla a exportação de comentários; o grupo inglês reúne as quatro regiões históricas;
 - o arquivo inclui o texto de cada comentário e o contexto da publicação em que ele foi feito;
-- cada comentário informa data, status de moderação, locale, relação de resposta e identificação técnica da publicação;
+- cada comentário informa data, status de moderação, locale público, relação de resposta e identificação técnica da publicação; `source_locale` preserva o código regional original dos registros históricos;
 - o contexto da publicação inclui título, slug, formato (`standard` ou `blog`), categoria/tipo editorial, categorias, gêneros, categoria de Blog e gêneros de Blog quando existirem;
 - e-mail do autor e outros identificadores diretos do visitante não são exportados;
 - comentários aprovados têm maior peso para conclusões; pendentes podem ser avaliados com cautela e spam não deve orientar decisões editoriais;
@@ -497,7 +514,7 @@ Regras:
 - opiniões isoladas não devem ser tratadas como consenso sem repetição suficiente;
 - quando um conteúdo receber reação positiva, a análise deve procurar oportunidades adjacentes e sugerir títulos/temas semelhantes capazes de interessar ao mesmo público;
 - a análise deve diferenciar crítica à obra analisada de crítica ao próprio conteúdo/apresentação do CineHub;
-- quando houver amostra suficiente, padrões podem ser separados por país/locale.
+- quando houver amostra suficiente, padrões podem ser separados por idioma/grupo; o grupo `en` não permite distinguir geograficamente os quatro países apenas pela URL.
 
 O objetivo desse segundo relatório é complementar as métricas quantitativas com a **opinião textual do público**, permitindo que uma IA responda não apenas ao que está performando, mas também **por que o público gostou ou não gostou e o que ele demonstra querer consumir em seguida**.
 
@@ -514,12 +531,12 @@ A saída esperada da análise deve priorizar:
 ## 28. Contas de membros, moderação contextual e personalização
 
 - O público pode ler o portal sem cadastro. Para curtir postagens/comentários, comentar, responder, salvar ou personalizar a experiência, exige-se somente conta autenticada. Não há verificação de e-mail no cadastro.
-- Cadastro/login por e-mail e senha libera acesso imediatamente após criar a conta, sem mensagem de confirmação nem envio de e-mail de verificação. A recuperação de senha por e-mail continua opcional, somente quando solicitada pelo usuário, e precisa de `MAIL_*` configurado. Login Google é opcional via OAuth e só aparece com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` definidos. No Google Cloud, configurar URI de retorno `https://DOMINIO/{locale}/account/google/callback` para cada locale habilitado; nunca enviar segredos ao frontend.
+- Cadastro/login por e-mail e senha libera acesso imediatamente após criar a conta, sem mensagem de confirmação nem envio de e-mail de verificação. A recuperação de senha por e-mail continua opcional, somente quando solicitada pelo usuário, e precisa de `MAIL_*` configurado. Login Google é opcional via OAuth e só aparece com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` definidos. No Google Cloud, configurar URI de retorno `https://DOMINIO/{locale}/account/google/callback` para cada locale público habilitado (incluindo `/en`); nunca enviar segredos ao frontend.
 - O login administrativo anterior é preservado. Cadastro público jamais concede `is_admin`. A Home aprovada visualmente só ganhou links funcionais no menu já existente.
 - Comentários e respostas utilizam a mesma moderação gratuita, pelo inglês compartilhado entre US/UK/AU/CA. Expressões informais e críticas a filmes/games não são bloqueadas só por conter palavrões. Regras levam em conta padrões de ataques, ameaças, pornografia, spam e disfarces, com limitações sem IA.
 - No formulário, o navegador consulta a classificação enquanto o usuário digita: `blocked` desabilita o envio e mostra aviso abaixo do texto; após a correção, libera. O servidor reclassifica obrigatoriamente cada envio. `safe` vira `approved`; `review` vira `pending`, visível só ao próprio autor e à equipe administrativa no painel; `blocked` não é salvo. Aplicável a respostas também.
 - Comentários públicos incluem respostas em um nível visual de profundidade; respostas a respostas entram no mesmo tópico. O admin aprova ou rejeita suspeitos em `/admin/comments`.
-- Membros possuem favoritos por postagem e interesses por categorias, gêneros, temas de Blog e gêneros de Blog. A área `/for-you` reordena posts recentes conforme interesses explícitos e assuntos associados a likes e favoritos, sem tradução/fallback entre países. Não há envio de notificações push ou e-mails editoriais nesta etapa.
+- Membros possuem favoritos por postagem e interesses por categorias, gêneros, temas de Blog e gêneros de Blog. A área `/for-you` reordena posts recentes conforme interesses explícitos e assuntos associados a likes e favoritos, sem tradução/fallback entre idiomas independentes; `/en` é compartilhado pelos quatro mercados ingleses. Não há envio de notificações push ou e-mails editoriais nesta etapa.
 - As páginas da conta não são indexáveis (`noindex`), e comentários pendentes não contam para rankings públicos ou dados estruturados. Comentários antigos sem `user_id` continuam visíveis se já aprovados, mas não permitem login retroativo do autor.
 - Antes de ativar em produção: executar as migrations novas; configurar credenciais OAuth opcionais, domínio/cookies HTTPS e validar o fluxo de cadastro imediato e moderação em staging. Configurar `MAIL_*` somente se a recuperação de senha por e-mail for utilizada. Como não há confirmação de e-mail, considerar proteções contra cadastros abusivos e e-mails de terceiros. A estrutura anterior de anúncios, o locale `ja-jp` de testes e os embeds do YouTube permanecem inalterados.
 
@@ -536,4 +553,4 @@ A saída esperada da análise deve priorizar:
 - Na Home e nas postagens, ícones de curtir e comentar continuam visíveis para visitantes não autenticados, sem alterar o layout da Home. Ao tentar interagir, o visitante é direcionado ao login; ícones e contadores de comentários existentes seguem visíveis.
 - Na postagem, curtidas, comentários, respostas e favoritos também mostram controles para visitantes, indicando necessidade de login. A leitura do conteúdo e dos comentários permanece pública.
 - Após login por e-mail, criação de conta ou login Google, o visitante pode retornar à postagem e à seção de onde iniciou a interação; a ação não é executada automaticamente (o usuário precisa confirmar o clique novamente).
-- O destino de retorno do login é validado no servidor: só é aceito um endereço do mesmo domínio, protocolo e locale. Destinos externos não podem ser usados para redirecionamentos abertos.
+- O destino de retorno do login é validado no servidor: só é aceito um endereço do mesmo domínio, protocolo e locale público (incluindo o grupo `/en`). Destinos externos não podem ser usados para redirecionamentos abertos.

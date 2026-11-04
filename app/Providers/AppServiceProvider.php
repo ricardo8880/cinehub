@@ -12,7 +12,19 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Keep existing stored content (en-us), but expose one English entry in
+        // the admin and in regional menus. Other languages are untouched.
+        $locales = config('localization.locales', []);
+
+        if (isset($locales['en-us'])) {
+            foreach (['en-gb', 'en-ca', 'en-au'] as $regionalEnglish) {
+                unset($locales[$regionalEnglish]);
+            }
+
+            $locales['en-us']['region'] = 'EN';
+            $locales['en-us']['country'] = 'English (US, UK, Canada, Australia)';
+            config()->set('localization.locales', $locales);
+        }
     }
 
     public function boot(): void
@@ -26,6 +38,12 @@ class AppServiceProvider extends ServiceProvider
 
         app()->setLocale($locale);
         URL::defaults(['locale' => $routeLocale]);
+
+        // Named-route URLs continue to use en-us as their storage locale,
+        // but visitors only ever see the common /en address.
+        URL::formatPathUsing(static fn (string $path): string => preg_replace(
+            '~^/en-(?:us|gb|ca|au)(?=/|$)~i', '/en', $path
+        ) ?? $path);
 
         View::composer('layouts.public', function ($view): void {
             $view->with('publicSiteLinks', SiteSetting::query()

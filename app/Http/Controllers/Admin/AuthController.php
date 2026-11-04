@@ -20,9 +20,18 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        // A persistent, revocable authentication cookie is issued only when
+        // "Remember me" is checked. It expires after 30 days, or on logout.
+        $guard = Auth::guard('web');
+        $guard->setRememberDuration(60 * 24 * 30);
+
+        if (! $guard->attempt([
+            'email' => $credentials['email'],
+            'password' => $credentials['password'],
+        ], $request->boolean('remember'))) {
             return back()
                 ->withErrors(['email' => __('The provided credentials do not match our records.')])
                 ->onlyInput('email');
@@ -30,8 +39,8 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        if (! $request->user()?->is_admin) {
-            Auth::logout();
+        if (! $guard->user()?->is_admin) {
+            $guard->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 

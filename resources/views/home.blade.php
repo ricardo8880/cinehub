@@ -237,27 +237,7 @@
                     </ol>
                 </section>
 
-                <section class="promo-card">
-                    <div class="promo-card__copy">
-                        <h3>{{ __('Create Your Own SaaS') }}</h3>
-                        <p>{{ __('Turn your ideas into real projects with simple and powerful tools.') }}</p>
-                        <button class="btn promo-card__button" type="button">{{ __('Get Started') }} <i class="bi bi-arrow-right"></i></button>
-                    </div>
-                    <div class="promo-card__visual" aria-hidden="true">
-                        <div class="promo-window"><span></span><span></span><span></span><div></div><div></div><div></div></div>
-                    </div>
-                </section>
-
-                <section class="ad-card" aria-label="{{ __('Advertisement') }}">
-                    <div class="ad-card__top"><span>{{ __('Advertisement') }}</span><button class="btn" type="button">{{ __('Report') }}</button></div>
-                    <div class="ad-card__body">
-                        <span class="ad-card__logo"><i class="bi bi-cloud-fill"></i> Cloud Studio</span>
-                        <h3>{{ __('Build what’s next') }}</h3>
-                        <p>{{ __('Secure, scalable tools for your next project.') }}</p>
-                        <button class="btn ad-card__button" type="button">{{ __('Learn more') }}</button>
-                        <div class="ad-card__art" aria-hidden="true"><span></span><span></span><span></span></div>
-                    </div>
-                </section>
+                @include('components.sidebar-ads', ['context' => 'home'])
             </aside>
         </div>
 

@@ -2,6 +2,7 @@
 
 @php
     $isBlog = $isBlog ?? ($post->publication_type === 'blog');
+    $publicAuthorName = 'Dear Mr. R.';
     $pageTitle = $localization->seo_title ?: $localization->title;
     $pageDescription = $localization->seo_description ?: (\App\Support\RichTextHtml::plainText($localization->excerpt) ?: config('site.description'));
     $canonicalUrl = $isBlog
@@ -26,7 +27,7 @@
         'mainEntityOfPage' => $canonicalUrl,
         'author' => [
             '@type' => 'Person',
-            'name' => $post->author?->name ?: config('site.name'),
+            'name' => $publicAuthorName,
         ],
         'publisher' => [
             '@type' => 'Organization',
@@ -99,7 +100,7 @@
             @if ($post->published_at)
                 <span><i class="bi bi-calendar3"></i> {{ $post->published_at->format('M j, Y') }}</span>
             @endif
-            <span><i class="bi bi-person"></i> {{ $post->author?->name ?: config('site.name') }}</span>
+            <span><i class="bi bi-person"></i> {{ $publicAuthorName }}</span>
             @guest
                 <a class="text-body-secondary text-decoration-none" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#interactions']) }}" aria-label="{{ __('Sign in to like') }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill text-danger"></i> <span data-post-like-count>{{ $post->likes_count }}</span></a>
                 <a class="text-body-secondary text-decoration-none" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#comments']) }}" aria-label="{{ __('Sign in to comment') }}" title="{{ __('Sign in to comment') }}"><i class="bi bi-chat"></i> <span data-public-comment-count>{{ $post->approved_comments_count }}</span></a>
@@ -297,3 +298,33 @@
     </section>
 @endif
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    if (!window.crypto?.randomUUID) return;
+    const token = crypto.randomUUID();
+    const url = @json(route('page-engagement.store', ['locale' => $localization->locale]));
+    const csrf = @json(csrf_token());
+    const postId = @json($post->id);
+    const locale = @json($localization->locale);
+    const started = performance.now();
+    let last = started, active = 0, interacted = false;
+    const update = () => {
+        const now = performance.now();
+        if (document.visibilityState === 'visible' && document.hasFocus()) active += Math.min((now - last) / 1000, 30);
+        last = now;
+    };
+    const send = () => {
+        update();
+        const body = JSON.stringify({token, post_id: postId, locale, duration: Math.min(14400, Math.floor((performance.now() - started) / 1000)), active: Math.min(14400, Math.floor(active)), interacted});
+        fetch(url, {method: 'POST', credentials: 'same-origin', keepalive: true, headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}, body}).catch(() => {});
+    };
+    for (const event of ['click', 'keydown', 'scroll']) window.addEventListener(event, () => { interacted = true; }, {passive: true});
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { update(); send(); } else last = performance.now(); });
+    window.addEventListener('pagehide', send);
+    send();
+    setInterval(send, 15000);
+})();
+</script>
+@endpush

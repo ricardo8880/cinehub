@@ -86,7 +86,12 @@
 
     <main class="public-main">
         <div class="container-xxl py-4">
-            @yield('public-content')
+            <div class="row g-4 align-items-start">
+                <div class="col-12 col-xl-9">@yield('public-content')</div>
+                <aside class="col-12 col-xl-3" aria-label="{{ __('Advertisements') }}">
+                    @include('components.sidebar-ads', ['context' => request()->routeIs('posts.show', 'blog.show') ? 'post' : (request()->routeIs('blog.*') ? 'blog' : (request()->routeIs('categories.*') ? 'category' : (request()->routeIs('search*') ? 'search' : (request()->routeIs('book') ? 'book' : 'default'))))])
+                </aside>
+            </div>
         </div>
 
         <footer class="border-top border-secondary-subtle mt-4">

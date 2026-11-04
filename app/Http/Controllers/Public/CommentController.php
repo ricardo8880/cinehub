@@ -7,6 +7,7 @@ use App\Models\CategoryLocalization;
 use App\Models\Comment;
 use App\Models\PostLocalization;
 use App\Support\CommentModeration;
+use App\Support\EnglishGroup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,7 +69,7 @@ class CommentController extends Controller
         $parentId = null;
         if (! empty($data['parent_id'])) {
             $parent = Comment::query()->whereKey($data['parent_id'])
-                ->where('post_id', $localization->post_id)->where('locale', $localization->locale)
+                ->where('post_id', $localization->post_id)->whereIn('locale', EnglishGroup::history($localization->locale))
                 ->where(function ($q) use ($request): void {
                     $q->where('status', 'approved')
                         ->orWhere(fn ($private) => $private->whereIn('status', ['pending', 'spam'])->where('user_id', $request->user()->id));
@@ -102,7 +103,7 @@ class CommentController extends Controller
                 'parent_id' => $parentId,
                 'visibility' => $status === 'review' ? 'private' : 'public',
                 'approved_count' => $localization->post->comments()
-                    ->where('locale', $localization->locale)->where('status', 'approved')->count(),
+                    ->whereIn('locale', EnglishGroup::history($localization->locale))->where('status', 'approved')->count(),
                 'html' => view('components.comment-entry', [
                     'comment' => $comment,
                     'formAction' => $request->url(),

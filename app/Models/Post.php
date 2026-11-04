@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use App\Support\EnglishGroup;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,9 +63,9 @@ class Post extends Model
 
         return $query
             ->withCount([
-                'views as recent_views_count' => fn (Builder $q) => $q->where('locale', $locale)->where('viewed_at', '>=', $since),
-                'reactions as recent_likes_count' => fn (Builder $q) => $q->where('locale', $locale)->where('type', 'like')->where('created_at', '>=', $since),
-                'comments as recent_comments_count' => fn (Builder $q) => $q->where('locale', $locale)->where('status', 'approved')->where('created_at', '>=', $since),
+                'views as recent_views_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('viewed_at', '>=', $since),
+                'reactions as recent_likes_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like')->where('created_at', '>=', $since),
+                'comments as recent_comments_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved')->where('created_at', '>=', $since),
             ])
             ->orderByRaw('(recent_views_count + (recent_likes_count * 3) + (recent_comments_count * 5)) DESC');
     }

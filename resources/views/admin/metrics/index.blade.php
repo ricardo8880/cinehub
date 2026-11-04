@@ -23,7 +23,7 @@
                 <option value="">{{ __('All countries') }}</option>
                 @foreach ($locales as $routeLocale => $settings)
                     <option value="{{ $routeLocale }}" @if ($locale == $routeLocale) selected @endif>
-                        {{ $localeLabels[$routeLocale] ?? strtoupper($routeLocale) }} · {{ strtoupper($routeLocale) }}
+                        {{ $localeLabels[$routeLocale] ?? strtoupper($routeLocale) }} · {{ strtoupper(\App\Support\EnglishGroup::publicLocale($routeLocale)) }}
                     </option>
                 @endforeach
             </select>
@@ -43,6 +43,19 @@
     </form>
 </div>
 
+<div class="row g-3 mb-4">
+    @foreach ([
+        ['Average page time', number_format($pageTime['average_page_seconds'], 1).'s', 'bi-clock'],
+        ['Average engaged time', number_format($pageTime['average_engaged_seconds'], 1).'s', 'bi-stopwatch'],
+        ['Bounce rate', number_format($pageTime['bounce_rate_percent'], 1).'%', 'bi-box-arrow-right']
+    ] as [$label, $value, $icon])
+        <div class="col-12 col-sm-6 col-xl-4"><div class="card h-100 border-secondary-subtle"><div class="card-body">
+            <div class="text-body-secondary small">{{ __($label) }}</div>
+            <div class="fs-3 fw-bold">{{ $value }}</div>
+            <div class="text-body-secondary small">{{ number_format($pageTime['measured_visits']) }} {{ __('measured visits') }} · {{ $period }} {{ __('days') }}</div>
+        </div></div></div>
+    @endforeach
+</div>
 <div class="row g-3 mb-4">
     @foreach ([
         ['Published posts', $publishedPosts, 'bi-file-earmark-check'],
@@ -243,7 +256,7 @@
         <span>{{ __('Views by day') }}</span>
         <span class="text-body-secondary small">
             @if ($locale)
-                {{ $localeLabels[$locale] ?? strtoupper($locale) }} · {{ strtoupper($locale) }}
+                {{ $localeLabels[$locale] ?? strtoupper($locale) }} · {{ strtoupper(\App\Support\EnglishGroup::publicLocale($locale)) }}
             @else
                 {{ __('All countries') }}
             @endif
@@ -578,7 +591,7 @@
         <span>{{ __('Top posts by views') }}</span>
         <span class="text-body-secondary small">
             @if ($locale)
-                {{ $localeLabels[$locale] ?? strtoupper($locale) }} · {{ strtoupper($locale) }}
+                {{ $localeLabels[$locale] ?? strtoupper($locale) }} · {{ strtoupper(\App\Support\EnglishGroup::publicLocale($locale)) }}
             @else
                 {{ __('All countries') }}
             @endif
