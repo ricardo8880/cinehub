@@ -31,4 +31,14 @@ class CommentModerationTest extends TestCase
         $this->assertSame('review', $moderation->classify('Your opinion is shit.'));
         $this->assertSame('review', $moderation->classify('Join my group at https://example.test'));
     }
+    public function test_french_and_german_threats_are_blocked_without_blocking_normal_opinions(): void
+    {
+        $moderation = app(CommentModeration::class);
+        $this->assertSame('blocked', $moderation->classify('Je vais te tuer', 'fr'));
+        $this->assertSame('review', $moderation->classify('Cliquez ici pour gagner', 'fr'));
+        $this->assertSame('safe', $moderation->classify('Ce film est magnifique.', 'fr'));
+        $this->assertSame('blocked', $moderation->classify('Ich werde dich töten', 'de'));
+        $this->assertSame('review', $moderation->classify('Klick hier für mehr', 'de'));
+        $this->assertSame('safe', $moderation->classify('Der Film war wirklich gut.', 'de'));
+    }
 }

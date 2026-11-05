@@ -56,20 +56,20 @@
                 </button>
 
                 <div class="dropdown">
-                    <button class="btn avatar-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('Open region menu') }}">
+                    <button class="btn avatar-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('Open language menu') }}">
                         <i class="bi bi-globe2" aria-hidden="true"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end locale-menu">
-                        <li><h6 class="dropdown-header">{{ __('Language / Region') }}</h6></li>
+                        <li><h6 class="dropdown-header">{{ __('Language') }}</h6></li>
                         @foreach ($supportedLocales as $routeLocale => $localeConfig)
                             <li>
                                 @if (! empty($localeLinks[$routeLocale]))
                                     <a class="dropdown-item {{ $currentLocale === $routeLocale ? 'active' : '' }}" href="{{ $localeLinks[$routeLocale] }}">
-                                        {{ strtoupper($localeConfig['language']) }} · {{ $localeConfig['region'] }}
+                                        {{ $localeConfig['label'] ?? (strtoupper($localeConfig['language']).' · '.$localeConfig['region']) }}
                                     </a>
                                 @else
                                     <span class="dropdown-item disabled" aria-disabled="true">
-                                        {{ strtoupper($localeConfig['language']) }} · {{ $localeConfig['region'] }}
+                                        {{ $localeConfig['label'] ?? (strtoupper($localeConfig['language']).' · '.$localeConfig['region']) }}
                                     </span>
                                 @endif
                             </li>
@@ -99,7 +99,9 @@
                 <a href="{{ route('contact', ['locale' => $currentLocale]) }}">{{ __('Contact') }}</a>
                 <a href="{{ route('suggestions.create', ['locale' => $currentLocale]) }}">{{ __('Suggest a topic') }}</a>
                 <a href="{{ route('blog.index', ['locale' => $currentLocale]) }}">{{ __('Blog') }}</a>
-                <a href="{{ route('book', ['locale' => $currentLocale]) }}">{{ __('Book') }}</a>
+                @if (filled(\App\Models\SiteSetting::valueFor(\App\Models\SiteSetting::bookKey('title', $currentLocale))))
+                    <a href="{{ route('book', ['locale' => $currentLocale]) }}">{{ __('Book') }}</a>
+                @endif
                 <a href="{{ route('legal.show', ['locale' => $currentLocale, 'page' => 'privacy']) }}">{{ __('Privacy') }}</a>
                 <a href="{{ route('legal.show', ['locale' => $currentLocale, 'page' => 'terms']) }}">{{ __('Terms') }}</a>
                 <a href="{{ route('legal.show', ['locale' => $currentLocale, 'page' => 'cookies']) }}">{{ __('Cookies') }}</a>

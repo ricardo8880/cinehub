@@ -49,12 +49,14 @@ Route::get('/', function () {
 })->name('root');
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
-    Route::middleware('guest')->group(function (): void {
+    Route::middleware('guest:admin')->group(function (): void {
         Route::get('/login', [AdminAuthController::class, 'create'])->name('login');
         Route::post('/login', [AdminAuthController::class, 'store'])->middleware('throttle:5,1')->name('login.store');
+        Route::get('/two-factor', [AdminAuthController::class, 'twoFactorForm'])->name('two-factor.form');
+        Route::post('/two-factor', [AdminAuthController::class, 'verifyTwoFactor'])->middleware('throttle:5,1')->name('two-factor.verify');
     });
 
-    Route::middleware(['auth', 'admin', 'admin.log'])->group(function (): void {
+    Route::middleware(['auth:admin', 'admin', 'admin.session', 'admin.log'])->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/metrics', AdminMetricsController::class)->name('metrics');
         Route::get('/metrics/report', [AdminMetricsController::class, 'export'])->name('metrics.report');
@@ -120,10 +122,10 @@ Route::prefix('{locale}')
             Route::post('/comments/preview', [PublicCommentController::class, 'preview'])->middleware('throttle:120,1')->name('member.comments.preview');
         });
 
-        Route::get('/search', SearchController::class)->name('search');
+        Route::get('/search', SearchController::class)->middleware('throttle:30,1')->name('search');
         Route::post('/comments/{comment}/like', CommentReactionController::class)
             ->middleware(['auth', 'throttle:30,1'])->name('comments.like');
-        Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->middleware('throttle:120,1')->name('search.suggestions');
+        Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->middleware('throttle:60,1')->name('search.suggestions');
         Route::get('/contact', [ContactController::class, 'create'])->name('contact');
         Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:3,10')->name('contact.store');
         Route::get('/suggest', [SuggestionController::class, 'create'])->name('suggestions.create');

@@ -6,6 +6,7 @@ use App\Models\BlogGenre;
 use App\Models\Genre;
 use App\Models\Post;
 use App\Support\RichTextHtml;
+use App\Support\SeoDescription;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -33,6 +34,10 @@ class PostRequest extends FormRequest
                 }
             }
 
+            if (array_key_exists('spoilers', $data)) {
+                $data['spoilers'] = RichTextHtml::normalizeSpoilers($data['spoilers']);
+            }
+
             $title = trim((string) ($data['title'] ?? ''));
             $seoTitle = trim((string) ($data['seo_title'] ?? ''));
             $seoDescription = trim((string) ($data['seo_description'] ?? ''));
@@ -49,9 +54,9 @@ class PostRequest extends FormRequest
                     ? $excerpt
                     : ($synopsis !== ''
                         ? $synopsis
-                        : ($articleBody !== '' ? $articleBody : 'Read '.$title.' on '.config('site.name').'.'));
+                        : ($articleBody !== '' ? $articleBody : trans('Read :title on :site.', ['title' => $title, 'site' => config('site.name')], config("localization.locales.{$locale}.locale"))));
 
-                $data['seo_description'] = Str::limit($fallback, 170, '');
+                $data['seo_description'] = SeoDescription::summarize($fallback);
             }
 
             $localizations[$locale] = $data;

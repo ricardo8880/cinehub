@@ -136,8 +136,8 @@
 <hr class="my-4">
 <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
     <div>
-        <h2 class="h5 mb-1">{{ __('Country content and SEO') }}</h2>
-        <p class="small text-body-secondary mb-0">{{ __('The default country is required. Other countries are optional. Fill a country to create its version.') }}</p>
+        <h2 class="h5 mb-1">{{ __('Language content and SEO') }}</h2>
+        <p class="small text-body-secondary mb-0">{{ __('English is required. French and German are optional. Fill in a language to publish its version.') }}</p>
     </div>
 </div>
 
@@ -161,7 +161,7 @@
             <div class="form-check form-switch mb-3" data-standard-post-fields>
                 <input type="hidden" name="localizations[{{ $locale }}][is_featured]" value="0">
                 <input class="form-check-input" id="featured-{{ $locale }}" type="checkbox" name="localizations[{{ $locale }}][is_featured]" value="1" @checked(old("localizations.$locale.is_featured", $localization?->is_featured ?? false))>
-                <label class="form-check-label" for="featured-{{ $locale }}">{{ __('Featured in this country') }}</label>
+                <label class="form-check-label" for="featured-{{ $locale }}">{{ __('Featured in this language') }}</label>
             </div>
             <div class="row g-3">
                 <div class="col-12">
@@ -192,7 +192,7 @@
                 </div>
                 <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="synopsis-{{ $locale }}">{{ __('Synopsis') }}</label>
-                    <div data-rich-text-wrapper>
+                    <div data-rich-text-wrapper data-rich-subheadings-only>
                         <textarea class="form-control" id="synopsis-{{ $locale }}" data-rich-text-input data-post-synopsis="{{ $locale }}" name="localizations[{{ $locale }}][synopsis]" rows="5">{{ old("localizations.$locale.synopsis", $localization?->synopsis) }}</textarea>
                         <div data-rich-text-editor></div>
                         <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
@@ -201,7 +201,7 @@
                 </div>
                 <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="review-{{ $locale }}">{{ __('Review') }}</label>
-                    <div data-rich-text-wrapper>
+                    <div data-rich-text-wrapper data-rich-subheadings-only>
                         <textarea class="form-control" id="review-{{ $locale }}" data-rich-text-input name="localizations[{{ $locale }}][review]" rows="8">{{ old("localizations.$locale.review", $localization?->review) }}</textarea>
                         <div data-rich-text-editor></div>
                         <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
@@ -210,7 +210,12 @@
                 </div>
                 <div class="col-12" data-standard-post-fields>
                     <label class="form-label" for="spoilers-{{ $locale }}">{{ __('Spoilers') }}</label>
-                    <textarea class="form-control" id="spoilers-{{ $locale }}" name="localizations[{{ $locale }}][spoilers]" rows="7">{{ old("localizations.$locale.spoilers", $localization?->spoilers) }}</textarea>
+                    <div data-rich-text-wrapper data-rich-subheadings-only>
+                        <textarea class="form-control" id="spoilers-{{ $locale }}" data-rich-text-input name="localizations[{{ $locale }}][spoilers]" rows="7">{{ old("localizations.$locale.spoilers", \App\Support\RichTextHtml::normalizeSpoilers($localization?->spoilers)) }}</textarea>
+                        <div data-rich-text-editor></div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
+                        <textarea class="form-control font-monospace mt-2 d-none" rows="9" data-rich-text-source spellcheck="false" aria-label="{{ __('HTML source') }}"></textarea>
+                    </div>
                     <div class="form-text">{{ __('Hidden by default on the public post. Visitors choose whether to reveal it.') }}</div>
                 </div>
             </div>
@@ -384,7 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const plainTextFromHtml = (html) => {
         const documentNode = document.implementation.createHTMLDocument('');
         const container = documentNode.createElement('div');
-        container.innerHTML = html || '';
+        container.innerHTML = String(html || '').replace(/<br\s*\/?>/gi, ' ')
+            .replace(/<\/(p|li|h2|h3|blockquote)>/gi, ' ');
         return (container.textContent || '').replace(/\s+/g, ' ').trim();
     };
 
@@ -404,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const toolbarOptions = [
-            [{ header: [2, 3, false] }],
+            [{ header: wrapper.hasAttribute('data-rich-subheadings-only') ? [3, false] : [2, 3, false] }],
             ['bold', 'italic', 'underline', 'strike'],
             [{ list: 'ordered' }, { list: 'bullet' }],
             allowImages ? ['blockquote', 'link', 'image'] : ['blockquote', 'link'],
@@ -560,6 +566,21 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMediaFields();
     });
 
+    @php
+        $seoReadPrefixesByLocale = [];
+        foreach ($locales as $locale => $config) {
+            $seoReadPrefixesByLocale[$locale] = trans('Read :title on :site.', ['title' => '__TITLE__', 'site' => config('site.name')], $config['locale']);
+        }
+    @endphp
+    const seoReadPrefixes = @json($seoReadPrefixesByLocale);
+    const seoDescriptionPreview = (source) => {
+        const characters = [...String(source || '').replace(/\s+/gu, ' ').trim()];
+        if (characters.length <= 160) return characters.join('');
+        const prefix = characters.slice(0, 160).join('');
+        if (/\s/u.test(characters[160])) return prefix.trim();
+        return (prefix.replace(/\s+\S*$/u, '').trim() || prefix);
+    };
+
     document.querySelectorAll('[data-post-title]').forEach((titleInput) => {
         const locale = titleInput.dataset.postTitle;
         const excerptInput = document.querySelector(`[data-post-excerpt="${locale}"]`);
@@ -573,7 +594,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let seoTitleAutomatic = seoTitleInput.value.trim() === '';
-        let seoDescriptionAutomatic = seoDescriptionInput.value.trim() === '';
+        const initialSource = plainTextFromHtml(excerptInput?.value || '')
+            || plainTextFromHtml(synopsisInput?.value || '')
+            || plainTextFromHtml(articleBodyInput?.value || '');
+        const storedSeo = seoDescriptionInput.value.trim();
+        let seoDescriptionAutomatic = storedSeo === ''
+            || (storedSeo.length >= 160 && storedSeo.length <= 170
+                && initialSource.length > storedSeo.length && initialSource.startsWith(storedSeo));
 
         const updateSeoTitle = () => {
             if (seoTitleAutomatic) {
@@ -590,8 +617,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const synopsis = plainTextFromHtml(synopsisInput?.value || '');
             const articleBody = plainTextFromHtml(articleBodyInput?.value || '');
             const title = titleInput.value.trim();
-            const fallback = title ? `Read ${title} on {{ config('site.name') }}.` : '';
-            seoDescriptionInput.value = (excerpt || synopsis || articleBody || fallback).slice(0, 170);
+            const fallback = title ? (seoReadPrefixes[locale] || '').replace('__TITLE__', title) : '';
+            seoDescriptionInput.value = seoDescriptionPreview(excerpt || synopsis || articleBody || fallback);
         };
 
         seoTitleInput.addEventListener('input', () => {

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Category;
+use App\Support\SeoDescription;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -32,8 +33,8 @@ class CategoryRequest extends FormRequest
             }
 
             if (trim((string) ($data['seo_description'] ?? '')) === '' && $name !== '') {
-                $fallback = $description !== '' ? $description : 'Explore '.$name.' on '.config('site.name').'.';
-                $data['seo_description'] = Str::limit($fallback, 170, '');
+                $fallback = $description !== '' ? $description : trans('Explore :category on :site.', ['category' => $name, 'site' => config('site.name')], config("localization.locales.{$locale}.locale"));
+                $data['seo_description'] = SeoDescription::summarize($fallback);
             }
 
             $localizations[$locale] = $data;

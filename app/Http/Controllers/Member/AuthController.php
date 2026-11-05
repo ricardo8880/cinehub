@@ -55,6 +55,7 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        Auth::guard('web')->setRememberDuration(60 * 24 * 30);
         if (! Auth::attempt(['email' => strtolower(trim($data['email'])), 'password' => $data['password']], $request->boolean('remember'))) {
             return back()->withErrors(['email' => __('Invalid login credentials.')])->onlyInput('email');
         }

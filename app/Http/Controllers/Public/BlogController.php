@@ -67,6 +67,8 @@ class BlogController extends Controller
             ->paginate(12)
             ->withQueryString();
 
+        abort_if($posts->currentPage() > max(1, $posts->lastPage()), 404);
+
         $posts->setCollection($posts->getCollection()->map(fn (Post $post) => $presenter->card($post, $locale))->filter()->values());
 
         $blogGenres = BlogGenre::query()
@@ -100,10 +102,24 @@ class BlogController extends Controller
         $localeLinks = [];
         $alternateUrls = [];
 
-        foreach (array_keys(config('localization.locales')) as $routeLocale) {
-            $genreVersion = $selectedGenre?->localization($routeLocale);
+        foreach (array_keys(config('localization.locales', [])) as $routeLocale) {
+            // Paginated lists vary by language. Their canonical URLs stay
+            // independent rather than advertising incorrect cross-links.
+            if ($currentPage > 1) {
+                break;
+            }
 
-            if ($selectedGenre && ! $genreVersion) {
+            $genreVersion = $selectedGenre?->localization($routeLocale);
+            $hasArticles = Post::query()
+                ->published()
+                ->where('publication_type', 'blog')
+                ->whereHas('localizations', fn (Builder $query) => $query->where('locale', $routeLocale)->where('is_active', true))
+                ->whereHas('blogCategory', fn (Builder $query) => $query->where('is_active', true))
+                ->whereHas('blogCategory.localizations', fn (Builder $query) => $query->where('locale', $routeLocale)->where('is_active', true))
+                ->when($selectedGenre, fn (Builder $query) => $query->whereHas('blogGenres', fn (Builder $genreQuery) => $genreQuery->whereKey($selectedGenre->id)))
+                ->exists();
+
+            if ($selectedGenre && ! $genreVersion || ! $hasArticles) {
                 $localeLinks[$routeLocale] = null;
                 continue;
             }
@@ -120,7 +136,9 @@ class BlogController extends Controller
 
             $url = route('blog.index', $parameters);
             $localeLinks[$routeLocale] = $url;
-            $alternateUrls[$routeLocale] = $url;
+            if (\App\Support\Seo::indexable($routeLocale)) {
+                $alternateUrls[$routeLocale] = $url;
+            }
         }
 
         return view('public.blog.index', compact(
@@ -266,11 +284,14 @@ class BlogController extends Controller
         $localeLinks = [];
         $alternateUrls = [];
 
-        foreach (array_keys(config('localization.locales')) as $routeLocale) {
+        foreach (array_keys(config('localization.locales', [])) as $routeLocale) {
             $version = $post->localizations->first(fn ($item) => $item->locale === $routeLocale && $item->is_active);
-            $url = $version ? route('blog.show', ['locale' => $routeLocale, 'slug' => $version->slug]) : null;
+            $categoryVersion = $post->blogCategory?->localization($routeLocale);
+            $url = ($version && $post->blogCategory?->is_active && $categoryVersion)
+                ? route('blog.show', ['locale' => $routeLocale, 'slug' => $version->slug])
+                : null;
             $localeLinks[$routeLocale] = $url;
-            if ($url) {
+            if ($url && \App\Support\Seo::indexable($routeLocale)) {
                 $alternateUrls[$routeLocale] = $url;
             }
         }

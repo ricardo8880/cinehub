@@ -1,7 +1,20 @@
 @php
     $context = $context ?? 'default';
+    $locale = (string) request()->route('locale', config('localization.default'));
     $campaigns = collect(config('sidebar_ads.campaigns', []))
-        ->filter(fn ($ad) => ! empty($ad['title']) && ! empty($ad['url']) && in_array($context, $ad['contexts'] ?? ['default'], true))
+        ->filter(fn ($ad) => in_array($context, $ad['contexts'] ?? ['default'], true))
+        ->map(function ($ad) use ($locale) {
+            // The legacy single-language campaign can appear in English only.
+            $localized = $ad['localizations'][$locale] ?? ($locale === 'en-us' ? $ad : null);
+            if (! is_array($localized)) return null;
+            return array_merge($ad, [
+                'title' => $localized['title'] ?? null,
+                'description' => $localized['description'] ?? null,
+                'url' => $localized['url'] ?? $ad['url'] ?? null,
+                'image' => $localized['image'] ?? $ad['image'] ?? null,
+            ]);
+        })
+        ->filter(fn ($ad) => $ad && filled($ad['title']) && filled($ad['url']))
         ->values();
     $client = config('sidebar_ads.adsense_client');
     $slot = config('sidebar_ads.adsense_slot');
@@ -30,15 +43,15 @@
             <div class="sidebar-ad-viewport" data-sidebar-ad-viewport>
             @if ($campaigns->isEmpty())
                 @foreach ([
-                    ['title' => 'Affiliate products', 'description' => 'Products related to this page'],
-                    ['title' => 'Our projects', 'description' => 'Discover our other websites'],
-                    ['title' => 'Recommended products', 'description' => 'Useful picks for visitors'],
-                    ['title' => 'Our books', 'description' => 'Explore upcoming releases'],
+                    ['title' => __('Affiliate products'), 'description' => __('Products related to this page')],
+                    ['title' => __('Our projects'), 'description' => __('Discover our other websites')],
+                    ['title' => __('Recommended products'), 'description' => __('Useful picks for visitors')],
+                    ['title' => __('Our books'), 'description' => __('Explore upcoming releases')],
                 ] as $index => $demo)
                     <div class="sidebar-ad-campaign sidebar-ad-placeholder" @if ($index !== $column) hidden @endif>
                         <strong>{{ $demo['title'] }}</strong>
                         <span>{{ $demo['description'] }}</span>
-                        <small>Demo · {{ $index + 1 }}/4</small>
+                        <small>{{ __('Demo') }} · {{ $index + 1 }}/4</small>
                     </div>
                 @endforeach
             @else

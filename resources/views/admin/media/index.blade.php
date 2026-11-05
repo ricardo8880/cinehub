@@ -30,7 +30,7 @@
                         @if ($medium->is_primary)<span class="badge text-bg-danger">{{ __('Primary') }}</span>@endif
                     </div>
                     <div class="small text-body-secondary mb-2">
-                        {{ $medium->locale ? strtoupper($medium->locale) : __('All regions') }}
+                        {{ $medium->locale ? strtoupper($medium->locale) : __('All languages') }}
                         @if ($medium->provider) · {{ ucfirst($medium->provider) }} @endif
                     </div>
                     @if ($medium->alt_text)<div class="small">{{ $medium->alt_text }}</div>@endif

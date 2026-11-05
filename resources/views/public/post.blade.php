@@ -4,7 +4,8 @@
     $isBlog = $isBlog ?? ($post->publication_type === 'blog');
     $publicAuthorName = 'Dear Mr. R.';
     $pageTitle = $localization->seo_title ?: $localization->title;
-    $pageDescription = $localization->seo_description ?: (\App\Support\RichTextHtml::plainText($localization->excerpt) ?: config('site.description'));
+    $descriptionSource = \App\Support\RichTextHtml::plainText($localization->excerpt ?: $localization->synopsis ?: $localization->article_body);
+    $pageDescription = \App\Support\SeoDescription::resolve($localization->seo_description, $descriptionSource, __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'));
     $canonicalUrl = $isBlog
         ? route('blog.show', [
             'locale' => $localization->locale,
@@ -15,35 +16,76 @@
             'category' => $primaryCategoryLocalization->slug,
             'slug' => $localization->slug,
         ]);
+    $seoImageUrl = str_starts_with($imageUrl, 'http://') || str_starts_with($imageUrl, 'https://')
+        ? $imageUrl
+        : url($imageUrl);
+    $seoLanguage = \App\Support\Seo::language($localization->locale);
+    $hasSeoImage = ($image && $image->thumbnail_path) || ($trailer && $trailer->provider === 'youtube' && $trailer->provider_id);
+    $seoImageAlt = $image?->alt_text ?: $localization->title;
+    $modifiedAt = $localization->updated_at && $localization->updated_at->greaterThan($post->updated_at)
+        ? $localization->updated_at
+        : $post->updated_at;
+    $trail = [
+        [
+            '@type' => 'ListItem',
+            'position' => 1,
+            'name' => __('Home'),
+            'item' => route('home', ['locale' => $localization->locale]),
+        ],
+        [
+            '@type' => 'ListItem',
+            'position' => 2,
+            'name' => $isBlog ? __('Blog') : $primaryCategoryLocalization->name,
+            'item' => $isBlog
+                ? route('blog.index', ['locale' => $localization->locale])
+                : route('categories.show', ['locale' => $localization->locale, 'category' => $primaryCategoryLocalization->slug]),
+        ],
+        [
+            '@type' => 'ListItem',
+            'position' => 3,
+            'name' => $localization->title,
+            'item' => $canonicalUrl,
+        ],
+    ];
     $structuredData = [
         '@context' => 'https://schema.org',
-        '@type' => $isBlog ? 'BlogPosting' : 'Article',
-        'headline' => $localization->title,
-        'description' => $pageDescription,
-        'image' => [$imageUrl],
-        'datePublished' => optional($post->published_at)?->toIso8601String(),
-        'dateModified' => optional($post->updated_at)?->toIso8601String(),
-        'url' => $canonicalUrl,
-        'mainEntityOfPage' => $canonicalUrl,
-        'author' => [
-            '@type' => 'Person',
-            'name' => $publicAuthorName,
-        ],
-        'publisher' => [
-            '@type' => 'Organization',
-            'name' => config('site.name'),
-        ],
-        'commentCount' => (int) $post->approved_comments_count,
-        'interactionStatistic' => [
+        '@graph' => [
             [
-                '@type' => 'InteractionCounter',
-                'interactionType' => 'https://schema.org/LikeAction',
-                'userInteractionCount' => (int) $post->likes_count,
+                '@type' => $isBlog ? 'BlogPosting' : 'Article',
+                'headline' => $localization->title,
+                'description' => $pageDescription,
+                'inLanguage' => $seoLanguage,
+                ...($hasSeoImage ? ['image' => [$seoImageUrl]] : []),
+                'datePublished' => optional($post->published_at)?->toIso8601String(),
+                'dateModified' => $modifiedAt?->toIso8601String(),
+                'url' => $canonicalUrl,
+                'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonicalUrl],
+                'author' => [
+                    '@type' => 'Person',
+                    'name' => $publicAuthorName,
+                ],
+                'publisher' => [
+                    '@type' => 'Organization',
+                    'name' => config('site.name'),
+                    'url' => route('home', ['locale' => $localization->locale]),
+                ],
+                'commentCount' => (int) $post->approved_comments_count,
+                'interactionStatistic' => [
+                    [
+                        '@type' => 'InteractionCounter',
+                        'interactionType' => 'https://schema.org/LikeAction',
+                        'userInteractionCount' => (int) $post->likes_count,
+                    ],
+                    [
+                        '@type' => 'InteractionCounter',
+                        'interactionType' => 'https://schema.org/ViewAction',
+                        'userInteractionCount' => (int) $post->views_count,
+                    ],
+                ],
             ],
             [
-                '@type' => 'InteractionCounter',
-                'interactionType' => 'https://schema.org/ViewAction',
-                'userInteractionCount' => (int) $post->views_count,
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => $trail,
             ],
         ],
     ];
@@ -56,12 +98,18 @@
 @section('og_description', $pageDescription)
 @section('og_url', $canonicalUrl)
 @section('og_type', 'article')
+@section('twitter_card', $hasSeoImage ? 'summary_large_image' : 'summary')
 
 @push('seo')
-<meta property="og:image" content="{{ $imageUrl }}">
+@if ($hasSeoImage)
+<meta property="og:image" content="{{ $seoImageUrl }}">
+<meta property="og:image:alt" content="{{ $seoImageAlt }}">
+<meta name="twitter:image" content="{{ $seoImageUrl }}">
+<meta name="twitter:image:alt" content="{{ $seoImageAlt }}">
+@endif
 <meta property="article:published_time" content="{{ optional($post->published_at)?->toIso8601String() }}">
-<meta property="article:modified_time" content="{{ optional($post->updated_at)?->toIso8601String() }}">
-<script type="application/ld+json">{!! json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+<meta property="article:modified_time" content="{{ $modifiedAt?->toIso8601String() }}">
+<script type="application/ld+json">{!! json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) !!}</script>
 @endpush
 
 @section('public-content')
@@ -98,7 +146,7 @@
         @endif
         <div class="d-flex flex-wrap gap-3 small text-body-secondary">
             @if ($post->published_at)
-                <span><i class="bi bi-calendar3"></i> {{ $post->published_at->format('M j, Y') }}</span>
+                <span><i class="bi bi-calendar3" aria-hidden="true"></i> <time datetime="{{ $post->published_at->toIso8601String() }}">{{ $post->published_at->locale(app()->getLocale())->translatedFormat('j F Y') }}</time></span>
             @endif
             <span><i class="bi bi-person"></i> {{ $publicAuthorName }}</span>
             @guest
@@ -124,7 +172,7 @@
     @elseif ($imageUrl)
         <figure class="mb-4 public-article__media-wrap">
             <div class="public-article__image-frame rounded">
-                <img class="img-fluid rounded public-article__cover" src="{{ $imageUrl }}" alt="{{ $image?->alt_text ?: $localization->title }}">
+                <img class="img-fluid rounded public-article__cover" src="{{ $imageUrl }}" alt="{{ $image?->alt_text ?: $localization->title }}" loading="eager" fetchpriority="high" decoding="async">
             </div>
             @if ($image?->caption)
                 <figcaption class="small text-body-secondary mt-2">{{ $image->caption }}</figcaption>
@@ -184,7 +232,7 @@
                     </button>
                 </div>
                 <div class="collapse" id="{{ $spoilerId }}" data-spoiler-content>
-                    <div class="public-article__spoiler-content public-article__text mt-4 pt-4">{!! nl2br(e($localization->spoilers)) !!}</div>
+                    <div class="public-article__spoiler-content public-article__text mt-4 pt-4">{!! \App\Support\RichTextHtml::normalizeSpoilers($localization->spoilers) !!}</div>
                 </div>
             </div>
         </section>

@@ -3,7 +3,7 @@
     <div class="card-body p-3 p-md-4">
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
             <strong>{{ $comment->author_name ?: $comment->user?->name ?: __('Member') }}</strong>
-            <time class="small text-body-secondary" datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('M j, Y') }}</time>
+            <time class="small text-body-secondary" datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->locale(app()->getLocale())->translatedFormat('j F Y') }}</time>
         </div>
         <div class="text-break">{!! nl2br(e($comment->body)) !!}</div>
         <div class="d-flex flex-wrap align-items-center gap-3 mt-3">

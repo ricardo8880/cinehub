@@ -309,7 +309,7 @@ class PostController extends Controller
 
             if (! $uploadedImage && ! $existingImagePath) {
                 throw ValidationException::withMessages([
-                    "media.$locale.image" => __('Choose an image file for this country.'),
+                    "media.$locale.image" => __('Choose an image file for this language.'),
                 ]);
             }
 

@@ -52,6 +52,15 @@ return [
 
     'channels' => [
 
+        // Administrator login/2FA attempts are retained separately for incident review.
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security.log'),
+            'level' => 'notice',
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),

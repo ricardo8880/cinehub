@@ -3,7 +3,7 @@
 @php
     $genreLocalization = $selectedGenre?->localization(request()->route('locale'));
     $baseSeoTitle = $categoryLocalization->seo_title ?: $categoryLocalization->name;
-    $baseSeoDescription = $categoryLocalization->seo_description ?: ($categoryLocalization->description ?: __('Explore :category content on CineHub.', ['category' => $categoryLocalization->name]));
+    $baseSeoDescription = \App\Support\SeoDescription::resolve($categoryLocalization->seo_description, $categoryLocalization->description, __('Explore :category content on CineHub.', ['category' => $categoryLocalization->name]));
     $seoTitle = $genreLocalization ? $genreLocalization->name.' · '.$baseSeoTitle : $baseSeoTitle;
     $seoDescription = $genreLocalization ? $genreLocalization->name.' — '.$baseSeoDescription : $baseSeoDescription;
 
@@ -17,9 +17,51 @@
 @section('title', $seoTitle.' | '.config('site.name'))
 @section('meta_description', $seoDescription)
 @section('canonical', $canonicalUrl)
+@section('robots', $posts->total() > 0 ? 'index, follow' : 'noindex, follow')
 @section('og_title', $seoTitle)
 @section('og_description', $seoDescription)
 @section('og_url', $canonicalUrl)
+
+@push('seo')
+@if ($posts->total() > 0)
+@php
+    $archiveBreadcrumbs = [
+        ['@type' => 'ListItem', 'position' => 1, 'name' => __('Home'), 'item' => route('home', ['locale' => request()->route('locale')])],
+        ['@type' => 'ListItem', 'position' => 2, 'name' => $categoryLocalization->name, 'item' => route('categories.show', ['locale' => request()->route('locale'), 'category' => $categoryLocalization->slug])],
+    ];
+    if ($genreLocalization) {
+        $archiveBreadcrumbs[] = ['@type' => 'ListItem', 'position' => 3, 'name' => $genreLocalization->name, 'item' => $canonicalUrl];
+    }
+    $archiveSchema = [
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'CollectionPage',
+                'name' => $seoTitle,
+                'description' => $seoDescription,
+                'url' => $canonicalUrl,
+                'inLanguage' => \App\Support\Seo::language(request()->route('locale')),
+                'mainEntity' => [
+                    '@type' => 'ItemList',
+                    'itemListElement' => $posts->getCollection()->values()->map(fn (array $item, int $index) => [
+                        '@type' => 'ListItem',
+                        'position' => ($posts->currentPage() - 1) * $posts->perPage() + $index + 1,
+                        'url' => $item['url'],
+                        'name' => $item['title'],
+                    ])->all(),
+                ],
+            ],
+            [
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => $archiveBreadcrumbs,
+            ],
+        ],
+    ];
+@endphp
+<script type="application/ld+json">{!! json_encode($archiveSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) !!}</script>
+@endif
+@endpush
+
 
 @section('public-content')
 <nav aria-label="{{ __('Breadcrumb') }}" class="mb-3">

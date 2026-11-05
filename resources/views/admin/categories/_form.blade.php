@@ -25,8 +25,8 @@
 
 <hr class="my-4">
 <div class="mb-3">
-    <h2 class="h5 mb-1">{{ __('Country content and SEO') }}</h2>
-    <p class="small text-body-secondary mb-0">{{ __('The default country is required. Other countries are optional. Fill a country to create its version.') }}</p>
+    <h2 class="h5 mb-1">{{ __('Language content and SEO') }}</h2>
+    <p class="small text-body-secondary mb-0">{{ __('English is required. French and German are optional. Fill in a language to publish its version.') }}</p>
 </div>
 
 <ul class="nav nav-tabs" role="tablist">
@@ -70,6 +70,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    @php
+        $seoExplorePrefixesByLocale = [];
+        foreach ($locales as $locale => $config) {
+            $seoExplorePrefixesByLocale[$locale] = trans('Explore :category on :site.', ['category' => '__CATEGORY__', 'site' => config('site.name')], $config['locale']);
+        }
+    @endphp
+    const seoExplorePrefixes = @json($seoExplorePrefixesByLocale);
+    const seoDescriptionPreview = (source) => {
+        const characters = [...String(source || '').replace(/\s+/gu, ' ').trim()];
+        if (characters.length <= 160) return characters.join('');
+        const prefix = characters.slice(0, 160).join('');
+        if (/\s/u.test(characters[160])) return prefix.trim();
+        return (prefix.replace(/\s+\S*$/u, '').trim() || prefix);
+    };
+
     document.querySelectorAll('[data-category-name]').forEach((nameInput) => {
         const locale = nameInput.dataset.categoryName;
         const descriptionInput = document.querySelector(`[data-category-description="${locale}"]`);
@@ -79,13 +94,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!seoTitleInput || !seoDescriptionInput) return;
 
         let seoTitleAutomatic = seoTitleInput.value.trim() === '';
-        let seoDescriptionAutomatic = seoDescriptionInput.value.trim() === '';
+        const originalDescription = descriptionInput?.value.trim() || '';
+        const storedSeo = seoDescriptionInput.value.trim();
+        let seoDescriptionAutomatic = storedSeo === ''
+            || (storedSeo.length >= 160 && storedSeo.length <= 170
+                && originalDescription.length > storedSeo.length && originalDescription.startsWith(storedSeo));
 
         const updateSeo = () => {
             const name = nameInput.value.trim();
             const description = descriptionInput?.value.trim() || '';
             if (seoTitleAutomatic) seoTitleInput.value = name.slice(0, 70);
-            if (seoDescriptionAutomatic) seoDescriptionInput.value = (description || (name ? `Explore ${name} on {{ config('site.name') }}.` : '')).slice(0, 170);
+            if (seoDescriptionAutomatic) seoDescriptionInput.value = seoDescriptionPreview(description || (name ? (seoExplorePrefixes[locale] || '').replace('__CATEGORY__', name) : ''));
         };
 
         seoTitleInput.addEventListener('input', () => { seoTitleAutomatic = seoTitleInput.value.trim() === ''; });

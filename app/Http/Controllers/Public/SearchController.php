@@ -18,6 +18,7 @@ class SearchController extends Controller
 {
     public function __invoke(Request $request, string $locale, PublicPostPresenter $presenter): View
     {
+        $request->validate(['q' => ['nullable', 'string', 'max:120']]);
         $query = trim((string) $request->query('q', ''));
         $navigationCategories = Category::query()
             ->where('is_active', true)
@@ -39,6 +40,7 @@ class SearchController extends Controller
 
     public function suggestions(Request $request, string $locale, PublicPostPresenter $presenter): JsonResponse
     {
+        $request->validate(['q' => ['nullable', 'string', 'max:120']]);
         $query = trim((string) $request->query('q', ''));
 
         $normalizedQuery = Str::lower($query);
@@ -117,13 +119,23 @@ class SearchController extends Controller
                 });
         });
     }
+
     private function basePostQuery(string $locale): Builder
     {
         return Post::query()
             ->published()
+            ->whereHas('localizations', fn (Builder $localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true))
             ->where(function (Builder $query) use ($locale): void {
-                $query->where('publication_type', 'blog')
-                    ->orWhereHas('media', fn (Builder $mediaQuery) => $mediaQuery->where('locale', $locale)->whereIn('type', ['image', 'trailer']));
+                $query->where(function (Builder $blog) use ($locale): void {
+                    $blog->where('publication_type', 'blog')
+                        ->whereHas('blogCategory', fn (Builder $category) => $category->where('is_active', true)
+                            ->whereHas('localizations', fn (Builder $localization) => $localization->where('locale', $locale)->where('is_active', true)));
+                })->orWhere(function (Builder $standard) use ($locale): void {
+                    $standard->where('publication_type', 'standard')
+                        ->whereHas('categories', fn (Builder $category) => $category->where('is_active', true)
+                            ->whereHas('localizations', fn (Builder $localization) => $localization->where('locale', $locale)->where('is_active', true)))
+                        ->whereHas('media', fn (Builder $media) => $media->where('locale', $locale)->whereIn('type', ['image', 'trailer']));
+                });
             })
             ->with([
                 'categories' => fn ($q) => $q->where('is_active', true)->with(['localizations' => fn ($lq) => $lq->where('locale', $locale)->where('is_active', true)])->orderBy('sort_order'),
@@ -136,5 +148,4 @@ class SearchController extends Controller
                 'views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)),
             ]);
     }
-
 }

@@ -28,7 +28,7 @@
             <thead>
                 <tr>
                     <th>{{ __('Category') }}</th>
-                    <th>{{ __('Countries') }}</th>
+                    <th>{{ __('Languages') }}</th>
                     <th class="text-center">{{ __('Posts') }}</th>
                     <th class="text-end">{{ __('Actions') }}</th>
                 </tr>

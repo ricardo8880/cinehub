@@ -35,6 +35,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'admin_two_factor_secret',
     ];
 
     /**
@@ -68,6 +69,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'admin_two_factor_secret' => 'encrypted',
+            'admin_two_factor_last_step' => 'integer',
         ];
     }
 }

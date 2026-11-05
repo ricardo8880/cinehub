@@ -4,7 +4,7 @@
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
     <div>
         <h1 class="h3 mb-1">{{ __('Metrics') }}</h1>
-        <div class="text-body-secondary small">{{ __('Audience interest and editorial performance by content country/locale.') }}</div>
+        <div class="text-body-secondary small">{{ __('Audience interest and editorial performance by content language (not visitor country).') }}</div>
     </div>
 
     <form class="row g-2 align-items-end" method="GET" action="{{ route('admin.metrics') }}">
@@ -18,9 +18,9 @@
         </div>
 
         <div class="col-12 col-sm-auto">
-            <label class="form-label small mb-1" for="metrics-locale">{{ __('Country') }}</label>
+            <label class="form-label small mb-1" for="metrics-locale">{{ __('Language') }}</label>
             <select class="form-select form-select-sm" id="metrics-locale" name="locale">
-                <option value="">{{ __('All countries') }}</option>
+                <option value="">{{ __('All languages') }}</option>
                 @foreach ($locales as $routeLocale => $settings)
                     <option value="{{ $routeLocale }}" @if ($locale == $routeLocale) selected @endif>
                         {{ $localeLabels[$routeLocale] ?? strtoupper($routeLocale) }} · {{ strtoupper(\App\Support\EnglishGroup::publicLocale($routeLocale)) }}
@@ -201,14 +201,14 @@
 
 <div class="card border-secondary-subtle mb-4">
     <div class="card-header d-flex justify-content-between align-items-center gap-2">
-        <span>{{ __('Performance by country') }}</span>
+        <span>{{ __('Performance by language') }}</span>
         <span class="text-body-secondary small">{{ $period }} {{ __('days') }}</span>
     </div>
     <div class="table-responsive">
         <table class="table table-dark table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>{{ __('Country') }}</th>
+                    <th>{{ __('Language') }}</th>
                     <th>{{ __('Views') }}</th>
                     <th>{{ __('Share') }}</th>
                     <th>{{ __('Likes') }}</th>
@@ -258,7 +258,7 @@
             @if ($locale)
                 {{ $localeLabels[$locale] ?? strtoupper($locale) }} · {{ strtoupper(\App\Support\EnglishGroup::publicLocale($locale)) }}
             @else
-                {{ __('All countries') }}
+                {{ __('All languages') }}
             @endif
         </span>
     </div>
@@ -593,7 +593,7 @@
             @if ($locale)
                 {{ $localeLabels[$locale] ?? strtoupper($locale) }} · {{ strtoupper(\App\Support\EnglishGroup::publicLocale($locale)) }}
             @else
-                {{ __('All countries') }}
+                {{ __('All languages') }}
             @endif
             · {{ $period }} {{ __('days') }}
         </span>

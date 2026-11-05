@@ -4,6 +4,43 @@
 @section('meta_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'))
 @section('og_title', __('CineHub | Movies, TV Shows, Games & Reviews'))
 @section('og_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'))
+@section('twitter_card', ! empty($featuredItem['image_url']) ? 'summary_large_image' : 'summary')
+
+@push('seo')
+@php
+    $homeUrl = route('home', ['locale' => request()->route('locale')]);
+    $homeSchema = [
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'WebSite',
+                '@id' => $homeUrl.'#website',
+                'name' => config('site.name'),
+                'url' => $homeUrl,
+                'description' => __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'),
+                'inLanguage' => \App\Support\Seo::language(request()->route('locale')),
+            ],
+            [
+                '@type' => 'Organization',
+                '@id' => $homeUrl.'#organization',
+                'name' => config('site.name'),
+                'url' => $homeUrl,
+            ],
+        ],
+    ];
+@endphp
+@if (! empty($featuredItem['image_url']))
+@php
+    $featuredImageUrl = str_starts_with($featuredItem['image_url'], 'http')
+        ? $featuredItem['image_url']
+        : url($featuredItem['image_url']);
+@endphp
+<meta property="og:image" content="{{ $featuredImageUrl }}">
+<meta property="og:image:alt" content="{{ $featuredItem['image_alt'] ?? $featuredItem['title'] }}">
+<meta name="twitter:image" content="{{ $featuredImageUrl }}">
+@endif
+<script type="application/ld+json">{!! json_encode($homeSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) !!}</script>
+@endpush
 
 @section('body')
 @php
@@ -63,11 +100,11 @@
                         <i class="bi bi-person-fill" aria-hidden="true"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end locale-menu">
-                        <li><h6 class="dropdown-header">{{ __('Language / Region') }}</h6></li>
+                        <li><h6 class="dropdown-header">{{ __('Language') }}</h6></li>
                         @foreach ($supportedLocales as $routeLocale => $locale)
                             <li>
                                 <a class="dropdown-item {{ $currentLocale === $routeLocale ? 'active' : '' }}" href="{{ route('home', ['locale' => $routeLocale]) }}">
-                                    {{ strtoupper($locale['language']) }} · {{ $locale['region'] }}
+                                    {{ $locale['label'] ?? (strtoupper($locale['language']).' · '.$locale['region']) }}
                                 </a>
                             </li>
                         @endforeach
@@ -137,7 +174,7 @@
                                     allowfullscreen
                                 ></iframe>
                             @else
-                                <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" class="w-100 h-100 object-fit-cover" fetchpriority="high">
+                                <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" class="w-100 h-100 object-fit-cover" fetchpriority="high" decoding="async" loading="eager">
                             @endif
                         </div>
                         <div class="featured-card__content">
@@ -218,12 +255,12 @@
                                 <span class="trending-item__rank">{{ $loop->iteration }}</span>
                                 @if (! empty($item['video_embed_url']))
                                     <button class="trending-item__thumb btn" type="button" data-bs-toggle="modal" data-bs-target="#videoModal" data-video-url="{{ $item['video_embed_url'] }}" data-video-title="{{ $item['title'] }}">
-                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}">
+                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}" loading="lazy" decoding="async">
                                         <span><i class="bi bi-play-fill"></i></span>
                                     </button>
                                 @elseif (! empty($item['url']))
                                     <a class="trending-item__thumb btn" href="{{ $item['url'] }}">
-                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}">
+                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['title'] }}" loading="lazy" decoding="async">
                                         <span><i class="bi bi-arrow-right"></i></span>
                                     </a>
                                 @endif

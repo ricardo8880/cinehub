@@ -26,7 +26,7 @@
     data-card-id="{{ $cardId }}"
 >
     <div class="media-card__visual">
-        <img src="{{ $imageUrl }}" alt="{{ $imageAlt }}" class="media-card__image" loading="lazy">
+        <img src="{{ $imageUrl }}" alt="{{ $imageAlt }}" class="media-card__image" loading="lazy" decoding="async">
 
         <span class="badge media-card__badge">{{ $typeLabel }}</span>
 

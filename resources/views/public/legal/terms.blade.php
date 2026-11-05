@@ -1,5 +1,6 @@
 @extends('layouts.public')
 @section('title', __('Terms of Use').' · '.config('site.name'))
+@section('meta_description', __('The terms for using CineHub, including editorial content, comments and promotional media.'))
 @section('public-content')
 <article class="col-12 col-lg-8 mx-auto">
     <h1 class="h2 mb-4">{{ __('Terms of Use') }}</h1>

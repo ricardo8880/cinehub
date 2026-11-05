@@ -22,7 +22,8 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $locales['en-us']['region'] = 'EN';
-            $locales['en-us']['country'] = 'English (US, UK, Canada, Australia)';
+            $locales['en-us']['country'] = 'English (US, UK, CA, AU)';
+            $locales['en-us']['label'] = 'English';
             config()->set('localization.locales', $locales);
         }
     }

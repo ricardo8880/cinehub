@@ -32,11 +32,6 @@
                         <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
                     </div>
 
-                    <div class="form-check mb-4">
-                        <input class="form-check-input" id="remember" name="remember" type="checkbox" value="1" @checked(old('remember'))>
-                        <label class="form-check-label" for="remember">{{ __('Remember me') }}</label>
-                    </div>
-
                     <button class="btn btn-danger w-100" type="submit">
                         <i class="bi bi-box-arrow-in-right me-1"></i>{{ __('Sign in') }}
                     </button>

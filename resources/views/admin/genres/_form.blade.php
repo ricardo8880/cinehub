@@ -65,7 +65,7 @@
     @endforelse
 </div>
 
-<h2 class="h5 mb-3">{{ __('Names by country') }}</h2>
+<h2 class="h5 mb-3">{{ __('Names by language') }}</h2>
 <ul class="nav nav-tabs" role="tablist">
     @foreach ($locales as $locale => $settings)
         <li class="nav-item" role="presentation">

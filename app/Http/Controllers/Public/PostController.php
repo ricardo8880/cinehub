@@ -27,11 +27,15 @@ class PostController extends Controller
             ->with('category')
             ->firstOrFail();
 
+        abort_unless($categoryLocalization->category?->is_active, 404);
+
         $localization = PostLocalization::query()
             ->where('locale', $locale)
             ->where('slug', $slug)
             ->where('is_active', true)
-            ->whereHas('post', fn ($q) => $q->published()->where('publication_type', 'standard')->whereHas('categories', fn ($cq) => $cq->whereKey($categoryLocalization->category_id)))
+            ->whereHas('post', fn ($q) => $q->published()->where('publication_type', 'standard')
+                ->whereHas('categories', fn ($cq) => $cq->whereKey($categoryLocalization->category_id))
+                ->whereHas('media', fn ($mq) => $mq->where('locale', $locale)->whereIn('type', ['image', 'trailer'])))
             ->firstOrFail();
 
         $post = $localization->post()
@@ -128,16 +132,21 @@ class PostController extends Controller
         $localeLinks = [];
         $alternateUrls = [];
         $post->loadMissing('localizations');
-        $primaryCategory->loadMissing('localizations');
+        $availableMediaLocales = $post->media()->whereIn('type', ['image', 'trailer'])->pluck('locale')->all();
 
-        foreach (array_keys(config('localization.locales')) as $routeLocale) {
+        foreach (array_keys(config('localization.locales', [])) as $routeLocale) {
             $postVersion = $post->localizations->first(fn ($item) => $item->locale === $routeLocale && $item->is_active);
-            $categoryVersion = $primaryCategory->localization($routeLocale);
-            $url = ($postVersion && $categoryVersion)
+            $categoryVersion = $post->categories
+                ->first(fn ($item) => $item->is_active && $item->localization($routeLocale))
+                ?->localization($routeLocale);
+            $hasLocalizedMedia = in_array($routeLocale, $availableMediaLocales, true);
+            $url = ($postVersion && $categoryVersion && $hasLocalizedMedia)
                 ? route('posts.show', ['locale' => $routeLocale, 'category' => $categoryVersion->slug, 'slug' => $postVersion->slug])
                 : null;
             $localeLinks[$routeLocale] = $url;
-            if ($url) $alternateUrls[$routeLocale] = $url;
+            if ($url && \App\Support\Seo::indexable($routeLocale)) {
+                $alternateUrls[$routeLocale] = $url;
+            }
         }
 
         $isBlog = false;

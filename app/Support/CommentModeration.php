@@ -16,13 +16,21 @@ class CommentModeration
             return 'safe';
         }
 
-        foreach (config('comment_moderation.blocked', []) as $pattern) {
+        $locale ??= (string) request()->route('locale');
+        // General safeguards apply to every language, with additional rules
+        // for each supported audience. Admin terms stay language-specific.
+        $language = (string) config("localization.locales.{$locale}.language", 'en');
+        $blockedPatterns = array_merge(
+            config('comment_moderation.blocked', []),
+            config("comment_moderation.localized.{$language}.blocked", []),
+        );
+
+        foreach ($blockedPatterns as $pattern) {
             if (@preg_match('~'.$pattern.'~iu', $text)) {
                 return 'blocked';
             }
         }
 
-        $locale ??= (string) request()->route('locale');
         if (isset(config('localization.locales')[$locale])) {
             $custom = Cache::remember('cinehub:moderation:'.$locale, now()->addMinutes(5),
                 fn () => ModerationTerm::query()->where('is_active', true)->whereIn('locale', array_merge(['*'], EnglishGroup::history($locale)))->get(['phrase', 'classification']));
@@ -37,7 +45,12 @@ class CommentModeration
             if ($review) return 'review';
         }
 
-        foreach (config('comment_moderation.review', []) as $pattern) {
+        $reviewPatterns = array_merge(
+            config('comment_moderation.review', []),
+            config("comment_moderation.localized.{$language}.review", []),
+        );
+
+        foreach ($reviewPatterns as $pattern) {
             if (@preg_match('~'.$pattern.'~iu', $text)) {
                 return 'review';
             }

@@ -8,4 +8,5 @@ return [
     'google_site_verification' => env('GOOGLE_SITE_VERIFICATION'),
     'google_analytics_id' => env('GOOGLE_ANALYTICS_ID'),
     'backup_enabled' => env('BACKUP_ENABLED', false),
+    'backup_retention_days' => env('BACKUP_RETENTION_DAYS', 14),
 ];

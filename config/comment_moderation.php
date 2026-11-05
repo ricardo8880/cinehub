@@ -30,4 +30,26 @@ return [
         // US/UK/AU/CA informal insults; positive exclamations remain allowed.
         '\\b(?:wanker|tosser|dickhead|fuckwit|bellend|arsehole|asshole|dropkick|drongo|douchebag)\\b',
     ],
+    // These lists supplement the English safeguards; they are not a substitute
+    // for human review or custom locale-specific moderation terms in the admin.
+    'localized' => [
+        'fr' => [
+            'blocked' => [
+                '\\b(?:je\\s+vais\\s+(?:te|vous)\\s+(?:tuer|frapper|violer)|tue[-\\s]toi|crève|je\\s+sais\\s+où\\s+tu\\s+habites)\\b',
+                '\\b(?:tu\\s+es\\s+(?:un|une)\\s+(?:putain\\s+de\\s+)?(?:idiot|imbécile|connard|salope))\\b',
+            ],
+            'review' => [
+                '\\b(?:ferme\\s+ta\\s+gueule|va\\s+te\\s+faire\\s+foutre|arnaque|argent\\s+facile|cliquez\\s+ici)\\b',
+            ],
+        ],
+        'de' => [
+            'blocked' => [
+                '\\b(?:ich\\s+werde\\s+dich\\s+(?:töten|umbringen|vergewaltigen)|bring\\s+dich\\s+um|ich\\s+weiß\\s+wo\\s+du\\s+wohnst)\\b',
+                '\\b(?:du\\s+bist\\s+(?:ein|eine)\\s+(?:verdammter?\\s+)?(?:idiot|arschloch))\\b',
+            ],
+            'review' => [
+                '\\b(?:halt\\s+die\\s+fresse|verpiss\\s+dich|betrug|schnelles\\s+geld|klick\\s+hier)\\b',
+            ],
+        ],
+    ],
 ];

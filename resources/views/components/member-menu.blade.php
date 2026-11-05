@@ -3,7 +3,7 @@
     <li><a class="dropdown-item" href="{{ route('member.favorites') }}"><i class="bi bi-bookmark me-2"></i>{{ __('Favorites') }}</a></li>
     <li><a class="dropdown-item" href="{{ route('member.interests') }}"><i class="bi bi-sliders me-2"></i>{{ __('My interests') }}</a></li>
     @if (auth()->user()->is_admin)
-        <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}">{{ __('Admin') }}</a></li>
+        <li><a class="dropdown-item" href="{{ route('admin.login') }}">{{ __('Admin') }}</a></li>
     @endif
     <li><hr class="dropdown-divider"></li>
     <li><form method="post" action="{{ route('member.logout') }}">@csrf<button type="submit" class="dropdown-item">{{ __('Logout') }}</button></form></li>

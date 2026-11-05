@@ -1,5 +1,6 @@
 @extends('layouts.public')
 @section('title', __('Privacy Policy').' · '.config('site.name'))
+@section('meta_description', __('How CineHub handles visitor information, comments, messages and optional analytics.'))
 @section('public-content')
 <article class="col-12 col-lg-8 mx-auto">
     <h1 class="h2 mb-4">{{ __('Privacy Policy') }}</h1>

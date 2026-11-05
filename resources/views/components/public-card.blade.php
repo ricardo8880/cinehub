@@ -2,7 +2,7 @@
 
 <article class="card h-100 public-content-card border-0">
     <a href="{{ $item['url'] }}" class="ratio ratio-16x9 overflow-hidden rounded-top bg-dark">
-        <img src="{{ $item['image_url'] }}" alt="{{ $item['image_alt'] ?? $item['title'] }}" class="public-content-card__image" loading="lazy">
+        <img src="{{ $item['image_url'] }}" alt="{{ $item['image_alt'] ?? $item['title'] }}" class="public-content-card__image" loading="lazy" decoding="async">
     </a>
     <div class="card-body d-flex flex-column">
         <div class="d-flex align-items-center gap-2 flex-wrap mb-2">

@@ -11,7 +11,7 @@ class LogAdminActivity
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $user = $request->user('admin');
         $response = $next($request);
 
         if ($user?->is_admin && ! in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {

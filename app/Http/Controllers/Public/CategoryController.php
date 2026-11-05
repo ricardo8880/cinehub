@@ -71,6 +71,8 @@ class CategoryController extends Controller
             ])
             ->latest('published_at')->paginate(12)->withQueryString();
 
+        abort_if($posts->currentPage() > max(1, $posts->lastPage()), 404);
+
         $posts->setCollection($posts->getCollection()->map(fn (Post $post) => $presenter->card($post, $locale))->filter()->values());
 
         $currentPage = $posts->currentPage();
@@ -93,11 +95,25 @@ class CategoryController extends Controller
         $alternateUrls = [];
         $categoryModel->loadMissing('localizations');
 
-        foreach (array_keys(config('localization.locales')) as $routeLocale) {
+        foreach (array_keys(config('localization.locales', [])) as $routeLocale) {
+            // Filtered or paginated archives can represent a different set of
+            // posts in every language; don't publish misleading hreflang pairs.
+            if ($currentPage > 1) {
+                break;
+            }
+
             $version = $categoryModel->localization($routeLocale);
             $genreVersion = $selectedGenre?->localization($routeLocale);
 
-            if (! $version || ($selectedGenre && ! $genreVersion)) {
+            $hasVisiblePosts = $categoryModel->posts()
+                ->published()
+                ->where('publication_type', 'standard')
+                ->whereHas('localizations', fn (Builder $query) => $query->where('locale', $routeLocale)->where('is_active', true))
+                ->whereHas('media', fn (Builder $query) => $query->where('locale', $routeLocale)->whereIn('type', ['image', 'trailer']))
+                ->when($selectedGenre, fn (Builder $query) => $query->whereHas('genres', fn (Builder $genreQuery) => $genreQuery->whereKey($selectedGenre->id)))
+                ->exists();
+
+            if (! $version || ($selectedGenre && ! $genreVersion) || ! $hasVisiblePosts) {
                 $localeLinks[$routeLocale] = null;
                 continue;
             }
@@ -117,7 +133,9 @@ class CategoryController extends Controller
 
             $url = route('categories.show', $parameters);
             $localeLinks[$routeLocale] = $url;
-            $alternateUrls[$routeLocale] = $url;
+            if (\App\Support\Seo::indexable($routeLocale)) {
+                $alternateUrls[$routeLocale] = $url;
+            }
         }
 
         return view('public.category', [

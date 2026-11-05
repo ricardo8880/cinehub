@@ -11,7 +11,7 @@ class ExampleTest extends TestCase
      */
     public function test_the_application_returns_a_successful_response(): void
     {
-        $response = $this->get('/en-us');
+        $response = $this->get('/en');
 
         $response->assertStatus(200);
     }

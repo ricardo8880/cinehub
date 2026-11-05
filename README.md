@@ -22,11 +22,12 @@ O projeto será internacional, começando por:
 - Reino Unido: `/en/` — GBP (£)
 - Austrália: `/en/` — AUD (A$)
 - Canadá: `/en/` — CAD (C$)
-- Japão: `/ja-jp/` — JPY (¥), mantido atualmente como locale de teste visual de regionalização.
+- Francês: `/fr/` — França (EUR), Bélgica (EUR), Suíça (CHF), Canadá (CAD), Luxemburgo (EUR) e Mônaco (EUR).
+- Alemão: `/de/` — Alemanha (EUR), Áustria (EUR), Suíça (CHF) e Liechtenstein (CHF).
 
-Os quatro países de língua inglesa compartilham **uma única versão editorial em inglês** e **uma única URL pública `/en`**. Os caminhos anteriores `/en-us/`, `/en-gb/`, `/en-au/` e `/en-ca/` são redirecionados para `/en/` (inclusive páginas internas e parâmetros de busca). As moedas acima identificam os mercados de interesse; a URL compartilhada não determina o país geográfico de quem acessa.
+Cada idioma possui **uma única versão editorial e uma única URL**, compartilhada entre seus mercados: inglês `/en`, francês `/fr` e alemão `/de`. Os quatro países de língua inglesa compartilham **uma única versão editorial em inglês** e **uma única URL pública `/en`**. Os caminhos anteriores `/en-us/`, `/en-gb/`, `/en-au/` e `/en-ca/` são redirecionados para `/en/` (inclusive páginas internas e parâmetros de busca). As moedas acima identificam os mercados de interesse; a URL compartilhada não determina o país geográfico de quem acessa.
 
-É um único projeto, um único código-base e um único domínio. Não devem ser criados sites separados por região. A estrutura de localizações continua disponível para idiomas e mercados futuros.
+É um único projeto, um único código-base e um único domínio. Não devem ser criados sites separados por região. As três versões linguísticas compartilham código, domínio e banco. O conteúdo **não é traduzido automaticamente**: o administrador preenche manualmente as versões francesas e alemãs; não se cria um post separado por país. A estratégia de idiomas não identifica a localização física do usuário nem garante a moeda de pagamento de anúncios. A estrutura de localizações continua disponível para evolução futura.
 
 ## 2. Stack atual
 
@@ -119,7 +120,7 @@ Pode conter:
 - SEO title;
 - SEO description.
 
-Isso evita duplicar completamente uma publicação para cada país. Um registro em `posts` continua podendo ter localizações independentes, como `en-us` e `ja-jp`. Na estratégia atual, `en-us` é a **chave interna compartilhada** para o conteúdo em inglês exibido em `/en` nos Estados Unidos, Reino Unido, Austrália e Canadá. As versões antigas `en-gb`, `en-au` e `en-ca` permanecem armazenadas para compatibilidade e histórico, sem exigir novos cadastros separados. Outros idiomas podem ter localização própria futuramente.
+Isso evita duplicar completamente uma publicação para cada país. Um registro em `posts` continua podendo ter localizações independentes, como `en-us`, `fr` e `de`. Na estratégia atual, `en-us` é a **chave interna compartilhada** para o conteúdo em inglês exibido em `/en` nos Estados Unidos, Reino Unido, Austrália e Canadá. As versões antigas `en-gb`, `en-au` e `en-ca` permanecem armazenadas para compatibilidade e histórico, sem exigir novos cadastros separados. `fr` e `de` são chaves internas compartilhadas para seus respectivos países-alvo, sem variantes `fr-ca`, `fr-be`, `de-at` ou `de-ch` desnecessárias.
 
 ### `categories`
 Registro base das categorias editoriais.
@@ -164,7 +165,8 @@ Configuração central em `config/localization.php`.
 Atualmente, os endereços públicos e as chaves internas são:
 
 - `/en` — inglês compartilhado entre Estados Unidos, Reino Unido, Austrália e Canadá; utiliza `en-us` / `en_US` internamente.
-- `/ja-jp` — japonês, com `ja-jp` / `ja_JP` independente, atualmente em teste.
+- `/fr` — francês compartilhado (França, Bélgica francófona, Suíça francófona, Quebec/Canadá francófono, Luxemburgo e Mônaco), com `fr` / `fr_FR` internamente.
+- `/de` — alemão compartilhado (Alemanha, Áustria, Suíça germanófona e Liechtenstein), com `de` / `de_DE` internamente.
 - `en-gb`, `en-au` e `en-ca` — códigos históricos preservados no banco e na configuração para compatibilidade. Suas URLs antigas redirecionam para `/en`.
 
 Regras:
@@ -174,8 +176,8 @@ Regras:
 3. Manter URL pública, idioma e localização técnica coerentes, usando `/en` para o grupo inglês.
 4. Usar `hreflang` apenas entre versões públicas distintas e equivalentes.
 5. Não obrigar troca de região apenas por IP.
-6. Uma versão de outro idioma só recebe URL indexável quando sua localização estiver ativa.
-7. Não existe fallback público automático entre **idiomas independentes**: sem versão `ja-jp`, por exemplo, a publicação não aparece em `/ja-jp`. O inglês compartilhado não é considerado fallback entre países.
+6. Uma versão de outro idioma só recebe URL indexável quando a localização editorial estiver ativa **e o idioma for liberado para indexação no `.env`** (`SEO_INDEX_FRENCH` ou `SEO_INDEX_GERMAN`).
+7. Não existe fallback público automático entre **idiomas independentes**: sem versão `fr` ou `de`, a publicação não aparece em `/fr` ou `/de`. O inglês compartilhado não é considerado fallback entre países.
 8. Imagem e vídeo do grupo `/en` usam a mídia da localização interna `en-us`; não usar mídia de outro idioma como fallback.
 9. Categorias do grupo `/en` usam a localização interna em inglês; outros idiomas exigem sua versão ativa.
 
@@ -188,7 +190,7 @@ Regras:
 - acesso somente autenticado;
 - acesso administrativo somente para usuários com `is_admin = true`;
 - sessão regenerada no login;
-- logout invalida a sessão;
+- logout encerra apenas a sessão administrativa;
 - não expor criação pública de conta administrativa;
 - usuários administrativos devem ser criados de forma controlada.
 
@@ -251,7 +253,7 @@ Evitar lógica complexa diretamente nas views.
 ## 14. O que já está construído
 
 - Home responsiva aprovada visualmente e preservada;
-- navegação principal, dark/light e URL pública compartilhada `/en` para US/UK/AU/CA, com `/ja-jp` independente e redirecionamentos das URLs inglesas antigas;
+- navegação principal, dark/light e URLs por idioma `/en`, `/fr`, `/de`, com redirecionamentos das URLs inglesas antigas;
 - SEO base, sitemap, canonical e `hreflang`, com canonical próprio para paginação e filtros de gênero;
 - autenticação e proteção do painel administrativo;
 - CRUD de categorias, posts e mídia;
@@ -265,7 +267,7 @@ Evitar lógica complexa diretamente nas views.
 - páginas públicas de categorias, busca, post e relacionados;
 - busca pública global com sugestões em tempo real, resultados agrupados e navegação por teclado, inclusive na Home desktop e mobile;
 - tema escuro como padrão e tema claro com contraste próprio para todos os componentes principais;
-- seção de spoilers por localização, recolhida por padrão e aberta somente por escolha do visitante;
+- seção de spoilers por idioma, recolhida por padrão e aberta somente por escolha do visitante;
 - comentários com moderação;
 - curtidas persistentes e visualizações deduplicadas;
 - **Most Liked** e **Trending** por métricas reais;
@@ -283,7 +285,7 @@ Evitar lógica complexa diretamente nas views.
 - logs de alterações administrativas;
 - cabeçalhos básicos de segurança;
 - rate limiting e honeypot em formulários públicos sensíveis;
-- comando de backup local para SQLite e agendamento opcional;
+- comando de backup criptografado para SQLite e MySQL/MariaDB, com agendamento opcional;
 - testes estruturais de acesso administrativo, páginas públicas e cabeçalhos de segurança.
 
 ## 15. O que não faz parte desta etapa
@@ -318,7 +320,7 @@ GOOGLE_ANALYTICS_ID=
 BACKUP_ENABLED=false
 ```
 
-Backup manual em SQLite:
+Backup manual em SQLite ou MySQL/MariaDB:
 
 ```bash
 php artisan cinehub:backup
@@ -358,7 +360,7 @@ Antes de alterar o projeto:
 - Bots conhecidos não devem aumentar visualizações.
 - Rotas públicas de comentário e curtida usam rate limiting.
 - Interações e métricas continuam registrando o `locale` técnico. Novos acessos em `/en` usam `en-us`; dados históricos em `en-us`, `en-gb`, `en-au` e `en-ca` são agregados no grupo público `en`, sem apagar os registros originais.
-- **Trending Now** usa atividade recente do grupo de idioma; **Popular This Week** usa atividade dos últimos 7 dias do grupo. Outros idiomas, como `ja-jp`, mantêm indicadores próprios.
+- **Trending Now** usa atividade recente do grupo de idioma; **Popular This Week** usa atividade dos últimos 7 dias do grupo. Os idiomas francês e alemão têm indicadores próprios.
 - Uma URL `/en` não identifica o país físico do visitante. Métricas geográficas individuais dos quatro países exigiriam coleta de localização adicional, que não faz parte desta unificação.
 
 
@@ -382,7 +384,7 @@ Antes de alterar o projeto:
 
 ### Ajuste administrativo — SEO automático
 - Categorias são sempre ativas; o controle manual de ativo/inativo foi removido do formulário.
-- SEO de postagens é preenchido automaticamente por região: título SEO usa o título da postagem e descrição SEO usa resumo, sinopse ou fallback.
+- SEO de postagens é preenchido automaticamente por idioma: título SEO usa o título da postagem e descrição SEO usa resumo, sinopse ou fallback.
 - Os campos SEO continuam editáveis manualmente.
 - A geração automática também ocorre no backend para não depender de JavaScript.
 
@@ -390,7 +392,7 @@ Antes de alterar o projeto:
 - Estados Unidos, Reino Unido, Austrália e Canadá compartilham uma única versão editorial em inglês, acessível por `/en`. Não criar quatro conteúdos ingleses equivalentes.
 - A chave técnica principal de conteúdo em inglês continua `en-us`; o formulário e o fluxo editorial devem trabalhar com essa versão compartilhada para os quatro mercados.
 - O controle “Use a specific version for this region” permanece removido.
-- A localização padrão em inglês continua obrigatória; localizações de outros idiomas, como `ja-jp`, são opcionais e independentes.
+- A localização padrão em inglês continua obrigatória; `fr` e `de` são opcionais e independentes.
 - Uma localização adicional passa a ter versão ativa quando seu título é preenchido; se ficar sem título, permanece inativa.
 - Existe apenas um registro principal em `posts`; `post_localizations` preserva título, slug, resumo, sinopse, review e SEO por idioma/localização, sem duplicar a postagem inteira.
 - Localizações antigas `en-gb`, `en-au` e `en-ca` são mantidas no banco para compatibilidade e histórico, mas não precisam ser preenchidas para novos conteúdos do grupo `/en`.
@@ -401,7 +403,7 @@ Antes de alterar o projeto:
 ## 22. Regionalização da Home por idioma
 
 - A Home continua sendo um único arquivo e mantém exatamente o mesmo layout visual.
-- A URL pública `/en` representa a Home compartilhada de Estados Unidos, Reino Unido, Austrália e Canadá; `/ja-jp` permanece independente para japonês.
+- A URL pública `/en` representa a Home compartilhada de Estados Unidos, Reino Unido, Austrália e Canadá; `/fr` e `/de` oferecem as duas outras versões linguísticas, cada uma para múltiplos países.
 - `SetLocale` associa `/en` à chave interna `en-us` e aplica o locale correspondente; textos fixos continuam resolvidos pelos arquivos JSON em `lang/`.
 - Títulos de seções, busca, categorias padrão, descrições de categorias e SEO da Home são compartilhados em inglês no grupo `/en`; outras localizações podem ter textos próprios.
 - As seis categorias padrão continuam regionalizadas pelo `slug`, evitando depender de um único nome global salvo em `categories`.
@@ -413,7 +415,7 @@ Antes de alterar o projeto:
 
 - A mídia principal continua sendo cadastrada no fluxo da respectiva localização da postagem.
 - A versão inglesa compartilhada `/en` usa a mídia da chave interna `en-us` para Estados Unidos, Reino Unido, Austrália e Canadá.
-- Outros idiomas/localizações, como `ja-jp`, podem escolher independentemente entre `Image` e `YouTube video`.
+- Francês (`fr`) e alemão (`de`) podem escolher independentemente entre `Image` e `YouTube video`.
 - Para YouTube, o admin recebe apenas a URL normal do vídeo; o sistema extrai o ID e monta o embed automaticamente.
 - Não é necessário cadastrar quatro trailers ou imagens diferentes para o mesmo conteúdo em inglês. Mídias históricas de `en-gb`, `en-au` e `en-ca` permanecem armazenadas, sem uso como fallback público do grupo `/en`.
 - Imagens continuam armazenadas no disco `public`, dentro da pasta da postagem/locale.
@@ -422,17 +424,13 @@ Antes de alterar o projeto:
 - Se não houver vídeo, a Home mostra a imagem sem alterar o layout aprovado.
 - Se houver vídeo do YouTube e não houver imagem própria, os cards podem usar a thumbnail pública do vídeo como capa.
 
-## 24. Locale japonês para auditoria visual
+## 24. Japonês de teste desativado (histórico)
 
-- `ja-jp` foi adicionado como locale de teste para facilitar a identificação de textos fixos que ainda não estejam regionalizados.
-- A URL de teste é `/ja-jp` e o locale interno do Laravel é `ja_JP`.
-- País: Japan; moeda: JPY (`¥`).
-- Os textos já cobertos pelo sistema de tradução aparecem em japonês; textos que permanecerem em inglês ficam visualmente evidentes e devem ser revisados.
-- O layout visual da Home não foi alterado.
-- O conteúdo vindo do banco continua dependendo da versão `post_localizations` cadastrada para `ja-jp`.
-- Se o Japão não fizer parte do lançamento, remover `ja-jp` antes da publicação definitiva para não expor uma versão regional de teste ao Google.
+- O antigo locale de teste `ja-jp` foi **desativado** da configuração de idiomas disponíveis, pois o projeto terá somente inglês, francês e alemão.
+- `/ja-jp` deixa de ser uma URL pública suportada (404); o arquivo histórico `lang/ja_JP.json` e os registros existentes do banco **não são apagados**.
+- A auditoria de traduções deve agora utilizar as telas `/fr` e `/de`, sem alterar o layout visual aprovado.
 
-## 22. Regras estritas por idioma/localização
+## 25. Regras estritas por idioma/localização
 
 - Categorias seguem o mesmo modelo das postagens: uma categoria base e localizações em `category_localizations`.
 - Nome, slug, descrição e SEO de categoria do grupo `/en` usam a versão inglesa compartilhada (`en-us`); outros idiomas podem ter localizações independentes.
@@ -447,7 +445,7 @@ Antes de alterar o projeto:
 - `Popular This Week`: atividade dos últimos 7 dias do idioma/grupo, ponderando visualizações, curtidas e comentários.
 - Sitemap só deve incluir categorias e postagens que realmente tenham versão pública ativa; os quatro países ingleses usam a URL `/en`.
 
-## 25. Publicidade direta para anunciantes — planejamento futuro
+## 26. Publicidade direta para anunciantes — planejamento futuro
 
 Além do Google AdSense, o CineHub poderá vender espaços publicitários diretamente para empresas e anunciantes.
 
@@ -469,7 +467,7 @@ Direção planejada:
 Esta funcionalidade não faz parte da etapa atual e deverá ser detalhada e melhorada antes da implementação.
 
 
-## 26. Análise editorial assistida pelas métricas
+## 27. Análise editorial assistida pelas métricas
 
 O download JSON do painel de métricas deve ser suficiente para orientar uma IA sobre o que o CineHub deve publicar em seguida, sem depender de explicações adicionais fora do arquivo.
 
@@ -498,7 +496,7 @@ Exemplo de raciocínio esperado: se um conteúdo de **Middle-earth: Shadow of Mo
 
 O objetivo final não é apenas resumir métricas, mas transformá-las em um plano editorial claro sobre **o que publicar, o que testar e o que reduzir**.
 
-## 27. Exportação de comentários para análise de audiência por IA
+## 28. Exportação de comentários para análise de audiência por IA
 
 O painel de métricas possui um segundo download JSON dedicado aos comentários do público.
 
@@ -528,29 +526,137 @@ A saída esperada da análise deve priorizar:
 6. pontos que devem ser reduzidos, investigados ou corrigidos.
 
 
-## 28. Contas de membros, moderação contextual e personalização
+## 29. Contas de membros, moderação contextual e personalização
 
 - O público pode ler o portal sem cadastro. Para curtir postagens/comentários, comentar, responder, salvar ou personalizar a experiência, exige-se somente conta autenticada. Não há verificação de e-mail no cadastro.
 - Cadastro/login por e-mail e senha libera acesso imediatamente após criar a conta, sem mensagem de confirmação nem envio de e-mail de verificação. A recuperação de senha por e-mail continua opcional, somente quando solicitada pelo usuário, e precisa de `MAIL_*` configurado. Login Google é opcional via OAuth e só aparece com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` definidos. No Google Cloud, configurar URI de retorno `https://DOMINIO/{locale}/account/google/callback` para cada locale público habilitado (incluindo `/en`); nunca enviar segredos ao frontend.
-- O login administrativo anterior é preservado. Cadastro público jamais concede `is_admin`. A Home aprovada visualmente só ganhou links funcionais no menu já existente.
+- O painel administrativo usa sessão independente da área pública. Com `APP_ENV=local`, o login administrativo exige somente e-mail e senha; nos demais ambientes, também exige aplicativo autenticador (TOTP). Cadastro público jamais concede `is_admin`. A Home aprovada visualmente não mudou.
 - Comentários e respostas utilizam a mesma moderação gratuita, pelo inglês compartilhado entre US/UK/AU/CA. Expressões informais e críticas a filmes/games não são bloqueadas só por conter palavrões. Regras levam em conta padrões de ataques, ameaças, pornografia, spam e disfarces, com limitações sem IA.
 - No formulário, o navegador consulta a classificação enquanto o usuário digita: `blocked` desabilita o envio e mostra aviso abaixo do texto; após a correção, libera. O servidor reclassifica obrigatoriamente cada envio. `safe` vira `approved`; `review` vira `pending`, visível só ao próprio autor e à equipe administrativa no painel; `blocked` não é salvo. Aplicável a respostas também.
 - Comentários públicos incluem respostas em um nível visual de profundidade; respostas a respostas entram no mesmo tópico. O admin aprova ou rejeita suspeitos em `/admin/comments`.
 - Membros possuem favoritos por postagem e interesses por categorias, gêneros, temas de Blog e gêneros de Blog. A área `/for-you` reordena posts recentes conforme interesses explícitos e assuntos associados a likes e favoritos, sem tradução/fallback entre idiomas independentes; `/en` é compartilhado pelos quatro mercados ingleses. Não há envio de notificações push ou e-mails editoriais nesta etapa.
 - As páginas da conta não são indexáveis (`noindex`), e comentários pendentes não contam para rankings públicos ou dados estruturados. Comentários antigos sem `user_id` continuam visíveis se já aprovados, mas não permitem login retroativo do autor.
-- Antes de ativar em produção: executar as migrations novas; configurar credenciais OAuth opcionais, domínio/cookies HTTPS e validar o fluxo de cadastro imediato e moderação em staging. Configurar `MAIL_*` somente se a recuperação de senha por e-mail for utilizada. Como não há confirmação de e-mail, considerar proteções contra cadastros abusivos e e-mails de terceiros. A estrutura anterior de anúncios, o locale `ja-jp` de testes e os embeds do YouTube permanecem inalterados.
+- Antes de ativar em produção: executar as migrations novas; configurar credenciais OAuth opcionais, domínio/cookies HTTPS e validar o fluxo de cadastro imediato e moderação em staging. Configurar `MAIL_*` somente se a recuperação de senha por e-mail for utilizada. Como não há confirmação de e-mail, considerar proteções contra cadastros abusivos e e-mails de terceiros. A estrutura anterior de anúncios e os embeds do YouTube permanecem inalterados; o `ja-jp` de testes foi desativado posteriormente.
 
 - O painel `/admin/moderation` permite manter termos ou expressões adicionais (`review` / `blocked`, todas as regiões ou uma região específica). Regras embutidas continuam protegendo as categorias principais, e termos isolados não devem ser confundidos com intenção.
 
-## 29. Interações assíncronas sem recarga
+## 30. Interações assíncronas sem recarga
 
 - Curtidas em postagens (Home e página interna), curtidas em comentários, favoritos, comentários e respostas usam `fetch` e respostas JSON quando JavaScript está ativo, atualizando apenas os controles e comentários afetados. Preferências de interesses também são salvas sem sair da tela.
 - O botão e os contadores mudam sem rolar a página ao topo, e os novos comentários/respostas aparecem na conversa atual. O comentário em revisão continua visível só para seu autor até a moderação; apenas comentários aprovados incrementam o contador público.
 - Os endpoints mantêm redirecionamento tradicional para navegadores sem JavaScript, preservam autenticação/CSRF, e a moderação de texto permanece obrigatória no servidor. Erros de requisição devem ser exibidos sem reenviar automaticamente a ação e sem duplicar curtidas. O visual e os embeds aprovados não mudam.
 
-## 30. Ações de visitantes e retorno após autenticação
+## 31. Ações de visitantes e retorno após autenticação
 
 - Na Home e nas postagens, ícones de curtir e comentar continuam visíveis para visitantes não autenticados, sem alterar o layout da Home. Ao tentar interagir, o visitante é direcionado ao login; ícones e contadores de comentários existentes seguem visíveis.
 - Na postagem, curtidas, comentários, respostas e favoritos também mostram controles para visitantes, indicando necessidade de login. A leitura do conteúdo e dos comentários permanece pública.
 - Após login por e-mail, criação de conta ou login Google, o visitante pode retornar à postagem e à seção de onde iniciou a interação; a ação não é executada automaticamente (o usuário precisa confirmar o clique novamente).
 - O destino de retorno do login é validado no servidor: só é aceito um endereço do mesmo domínio, protocolo e locale público (incluindo o grupo `/en`). Destinos externos não podem ser usados para redirecionamentos abertos.
+
+
+## 32. Reforços de segurança (novembro de 2026)
+
+**Obrigatório ao atualizar:** execute `php artisan migrate --force` e
+`php artisan optimize:clear` antes de entrar em `/admin` (se as migrações da
+atualização de segurança ainda não tiverem sido executadas). Com `APP_ENV=local`,
+o login administrativo exige somente e-mail e senha, sem 2FA. Nos demais
+ambientes, o primeiro login do administrador solicitará o cadastro de um
+aplicativo autenticador (TOTP, padrão RFC 6238): copie a chave apresentada para
+o aplicativo e confirme o código de seis dígitos. A chave de TOTP fica
+criptografada no banco via `APP_KEY`. **Não desative 2FA em produção:** mantenha
+`APP_ENV=production`. Se o celular for perdido, um administrador com acesso ao
+banco e ao servidor deve realizar recuperação manual de forma segura; não há
+envio de códigos por e-mail.
+
+- Guardas `web` (membros) e `admin` independentes: entrar como membro, mesmo com
+  `is_admin=true`, não autoriza `/admin`. Sessões do admin expiram após 20 minutos
+  sem atividade e não têm a opção *lembrar-me*; códigos TOTP não são reutilizáveis.
+- Lembrar-me da área de membros tem prazo de 30 dias em novos logins, inclusive
+  Google. Sessões anteriores não são automaticamente revogadas.
+- As buscas públicas aceitam termos de até 120 caracteres, com limites de
+  requisições; texto JSON-LD usa caracteres escapados para impedir XSS.
+- Em **produção**, CSP restringe recursos externos sem alterar os scripts inline
+  já existentes; HSTS é enviado somente em HTTPS. A política CSP permite
+  scripts inline por compatibilidade com o editor e anúncios, portanto é uma
+  camada adicional, não uma proteção completa contra XSS. Validar anúncios,
+  YouTube e Analytics no ambiente de homologação antes da publicação.
+- Em produção, use HTTPS e configure `APP_ENV=production`, `APP_DEBUG=false`,
+  `APP_URL=https://...`, `SESSION_SECURE_COOKIE=true` e `SESSION_ENCRYPT=true`;
+  configure proxies confiáveis corretamente quando houver proxy reverso.
+  Essas configurações **não são alteradas automaticamente no `.env` existente**.
+- Tentativas de senha/código e bloqueios do administrador ficam em
+  `storage/logs/security-AAAA-MM-DD.log` (30 dias). Monitore especialmente os
+  eventos `admin.password_lockout` e `admin.two_factor_lockout`.
+
+### Backups criptografados
+
+O comando `php artisan cinehub:backup` agora suporta SQLite (snapshot
+consistente) e MySQL/MariaDB (requer `mysqldump` no PATH). Os arquivos
+criptografados `.chbk` são criados em `storage/app/private/backups` (fora de
+`public`), com permissões restritas. O prazo padrão de retenção local é de
+14 dias. O conteúdo é autenticado com AES-256-GCM em blocos; para restaurar,
+é necessário manter uma cópia segura do **mesmo** `APP_KEY` usado no backup.
+
+Para executar automaticamente:
+
+```env
+BACKUP_ENABLED=true
+BACKUP_RETENTION_DAYS=14
+```
+
+O agendador Laravel já executa o backup diariamente às 03:30, **desde que** o
+servidor execute o cron `php artisan schedule:run` a cada minuto. Para
+restauração manual (sem sobrescrever o banco automaticamente):
+
+```bash
+php artisan cinehub:backup:decrypt CAMINHO/database.sql.chbk CAMINHO/restore.sql
+```
+
+Use um caminho de saída novo e seguro. O SQL restaurado fica **sem criptografia**:
+importe-o com o cliente do banco, valide os dados e apague-o de forma segura.
+Para SQLite, use destino `.sqlite` e restaure com a aplicação desativada.
+Além do backup local, mantenha cópias externas protegidas, teste restaurações
+e monitore falhas do agendamento. Nunca exponha o diretório de backups na web.
+
+
+## Auditoria SEO técnica — novembro de 2026
+
+- **URLs públicas:** o idioma inglês utiliza exclusivamente `/en` (armazenamento interno `en-us`). `/en-us`, `/en-gb`, `/en-ca` e `/en-au` permanecem com redirecionamento permanente. Não criar versões inglesas duplicadas.
+- **Canonical:** as páginas publicadas possuem URL canônica absoluta; filtros de gênero e páginas numeradas válidas mantêm o próprio canonical. Parâmetros sem valor editorial não entram no canonical. Paginação além do último resultado retorna 404.
+- **Hreflang:** somente versões publicadas, indexáveis e realmente correspondentes são anunciadas, com códigos genéricos `en`, `fr`, `de` (não `fr-FR` / `de-DE`, pois o conteúdo é compartilhado por países). O sistema não anuncia páginas alternativas que seriam 404, páginas de busca ou listas paginadas diferentes entre idiomas. As versões recíprocas também podem aparecer no sitemap.
+- **Sitemap:** `/sitemap.xml` contém somente URLs canônicas de idiomas indexáveis e publicações ativas, respeitando categorias e localizações válidas. Arquivos antigos `/en-us` não aparecem. O sitemap usa `lastmod` para publicações quando há data de atualização confiável, sem `priority` e `changefreq` ignorados pelo Google.
+- **Páginas vazias e privadas:** arquivos sem postagens, pesquisas e páginas de conta recebem `noindex`; os artigos publicados mantêm dados estruturados `Article`/`BlogPosting` e breadcrumbs. Páginas administrativas continuam protegidas e fora da indexação.
+- **Lançamento gradual:** as rotas `/fr` e `/de` funcionam inicialmente com `noindex, follow` e ficam fora do sitemap e do `hreflang` até que **o conteúdo real, metadados, mídias, categorias e textos legais estejam revisados**. Então configure `SEO_INDEX_FRENCH=true` e/ou `SEO_INDEX_GERMAN=true` no `.env` e execute `php artisan optimize:clear`. Essa liberação é independente para cada idioma. O antigo `/ja-jp` não é suportado.
+- **robots.txt:** em produção, configure `APP_URL=https://seu-dominio-real` e execute `php artisan cinehub:publish-robots`. O comando inclui automaticamente a linha `Sitemap: https://seu-dominio-real/sitemap.xml` em `public/robots.txt` e recusa domínios locais. Repita se trocar o domínio. Bloqueio de robôs não substitui autenticação nem `noindex`.
+- **Dependências externas:** confirmar domínio e HTTPS, enviar `/sitemap.xml` ao Google Search Console e configurar Google Analytics são atividades de implantação, não funcionalidades automáticas do código.
+- **Desempenho:** foram adicionados atributos de carregamento/decodificação de imagens sem alterar o layout. Aferição real de Core Web Vitals deve ocorrer depois de publicar o site.
+- **Capacidade do sitemap:** caso o site ultrapasse 50.000 URLs ou 50 MB de XML, deve-se dividir o sitemap em vários arquivos/índice antes de alcançar o limite.
+
+
+## Expansão editorial — inglês, francês e alemão (novembro de 2026)
+
+- Idiomas públicos: **inglês `/en`** (armazenado como `en-us`), **francês `/fr`** (`fr`) e **alemão `/de`** (`de`). Não criar duplicações por países que compartilham o mesmo idioma.
+- Os arquivos `lang/en_US.json`, `lang/fr_FR.json` e `lang/de_DE.json` traduzem **a interface**. As versões localizadas de posts, categorias, gêneros, tópicos de Blog, SEO e mídia devem ser editadas manualmente no admin. Não publicar versões com texto/slug inglês disfarçado de tradução.
+- Formulários do admin têm abas por idioma, sem novos CRUDs e sem mudanças de layout. Inglês permanece obrigatório, francês e alemão são opcionais. Cada idioma exige título, slug e dados editoriais próprios; conteúdo incompleto fica invisível em outros idiomas.
+- As moedas dos mercados são indicativas, não um preço do conteúdo nem garantia de RPM ou receita: o país e o lance do anunciante/afiliado determinam a monetização real. O CineHub não detecta automaticamente o país do visitante.
+- As tags de idioma no HTML e SEO são **`en`, `fr`, `de`**, nunca `en-US`, `fr-FR` ou `de-DE` para as páginas compartilhadas. Sitemap e `hreflang` só listam idiomas liberados para indexação e páginas correspondentes publicadas. URLs `/en-us`, `/en-gb`, `/en-ca` e `/en-au` seguem com redirecionamento permanente para `/en`.
+- **Primeira publicação:** cadastrar localizações das categorias e gêneros usados, versões de post e mídias em francês/alemão; revisar home, blog, navegação, busca, autenticação e páginas legais; confirmar que os textos não são fallback do inglês. Depois ativar `SEO_INDEX_FRENCH` e `SEO_INDEX_GERMAN` separadamente, limpar cache, verificar `/sitemap.xml`, canonical e `hreflang`, e enviar sitemap ao Search Console.
+- **Área do livro independente por idioma:** o painel de configurações possui abas EN, FR e DE. Os campos antigos `book_*` continuam sendo exclusivamente do inglês. Francês (`book_*_fr`) e alemão (`book_*_de`) só aparecem quando seus próprios títulos forem cadastrados manualmente; sem título, a URL `/fr/book` ou `/de/book` devolve 404 e não aparece no rodapé nem no sitemap. O `hreflang` de livros só conecta as edições realmente publicadas e indexáveis.
+- **Publicidade/afiliados por idioma:** a configuração `config/sidebar_ads.php` aceita `localizations.en-us`, `localizations.fr` e `localizations.de` com títulos, descrições e URLs próprios. Anúncios antigos de texto único são exibidos somente em inglês; não reutilizar textos ou links de produtos destinados a outro país sem revisão editorial. Os cards demonstrativos são traduzidos na interface.
+- **JavaScript e mensagens:** autocomplete da busca, estados de carregamento, avisos de erro e interações usam as traduções oficiais do idioma atual; paginação, validação, autenticação e redefinição de senha possuem arquivos de idioma. Números são formatados pelo idioma do documento.
+- **SEO automático editorial:** quando o administrador não preenche descrição, o título da publicação ou da categoria gera um texto padrão no idioma daquela versão, sem copiar nem traduzir automaticamente o texto de outra versão. O SEO do layout usa descrição padrão localizada.
+- **Conteúdo:** três versões manuais, em idiomas próprios, com título, slug, texto, mídia, taxonomia e metadados distintos. Uma versão sem localização ativa jamais reutiliza conteúdo de outra língua. O painel continua exigindo inglês no cadastro principal, sem exigir publicação dos outros dois idiomas.
+- **Verificação de lançamento:** antes de mudar `SEO_INDEX_FRENCH` ou `SEO_INDEX_GERMAN` para `true`, conferir conteúdo real, textos legais, mídia, anúncios, links de afiliados e SEO do idioma correspondente.
+- Moderação de comentários mantém regras gerais e acrescenta verificações básicas por idioma `fr`/`de`, complementáveis pelas regras do painel; revisão humana continua necessária. Métricas do painel agrupadas por `locale` representam **idioma**, não localização geográfica do visitante.
+- O japonês de teste foi retirado dos idiomas ativos, preservando os dados históricos. Não fazer migração destrutiva e não apagar conteúdos antigos ao atualizar.
+
+
+## Padrão editorial e semântico — postagens e Blog (novembro de 2026)
+
+- **Sem alterar o layout:** um H1 automático e único para o título da publicação. Postagens normais possuem H2 para Synopsis, Review e Spoilers quando preenchidos; H3 são subseções reais dentro da Review, não negritos usados como título. No Blog, o conteúdo editorial pode organizar tópicos com H2/H3. Parágrafos reais usam `<p>` e `strong` serve somente para ênfase.
+- **Editor de Spoilers:** mesmo Quill dos campos de texto, com parágrafos, listas, H3, formatação e modo HTML; não inserir H1/H2 nessa seção. O público continua vendo a seção recolhida até clicar em Mostrar spoilers. O PHP sanitiza o HTML. Spoilers antigos em texto simples são exibidos como parágrafos sem exigir migração de banco.
+- **SEO automático:** descrições de posts e categorias geradas a partir do idioma de cada versão terminam antes de cortar uma palavra, com referência de 160 caracteres e máximo de 170. Metadados antigos que comprovadamente eram prefixos automáticos de textos maiores são reparados na apresentação, preservando descrições escritas manualmente. A mesma descrição é usada na meta description, Open Graph, Twitter e JSON-LD.
+- **Datas:** a data visível da publicação utiliza `<time datetime="...">` e preserva a apresentação localizada. As datas ISO de publicação e atualização permanecem nos metadados Article/BlogPosting.
+- **Imagens sociais:** Open Graph/Twitter e os dados estruturados usam imagens realmente disponíveis da versão no idioma correspondente (imagem cadastrada ou miniatura de YouTube); não publicar o pôster demonstrativo como imagem original de uma publicação sem mídia. Os atributos alternativos de imagem são fornecidos aos dois formatos. Preferir fotos/capas próprias de alta resolução quando disponíveis; miniaturas externas não têm resolução garantida.
+- **Links entre idiomas:** o `hreflang` continua somente para páginas publicadas, indexáveis e com versões correspondentes, sem incluir versões FR/DE incompletas. Usar domínio público HTTPS no `APP_URL` em produção, não `localhost`.
+- **Padrão narrativo:** Title curto e natural; Excerpt 150–300 caracteres (máximo 500); Synopsis cerca de 50–90 palavras; Review em geral 500–900; Spoilers cerca de 50–100. Todos com a voz autoral *Dear Mr. R.*; editor humano revisa conteúdo por idioma sem tradução automática.

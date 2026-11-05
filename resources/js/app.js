@@ -3,6 +3,8 @@ import 'bootstrap';
 import { Offcanvas, Collapse } from 'bootstrap';
 
 const root = document.documentElement;
+const messages = window.cinehubMessages || {};
+const message = (key, english) => messages[key] || english;
 const themeButton = document.querySelector('[data-theme-toggle]');
 const themeIcon = document.querySelector('[data-theme-icon]');
 const searchInputs = [...document.querySelectorAll('[data-site-search]')];
@@ -77,7 +79,7 @@ const setActiveSearchResult = (panel, index) => {
 
 const renderSearchResults = (form, panel, query, results) => {
     if (!results.length) {
-        panel.innerHTML = `<div class="site-search-results__empty"><i class="bi bi-search"></i><span>No results for “${escapeHtml(query)}”</span></div>`;
+        panel.innerHTML = `<div class="site-search-results__empty"><i class="bi bi-search"></i><span>${escapeHtml(message('noResultsFor', 'No results for'))} “${escapeHtml(query)}”</span></div>`;
         panel.dataset.activeIndex = '-1';
         panel.hidden = false;
         hideSearchResults(panel);
@@ -86,7 +88,7 @@ const renderSearchResults = (form, panel, query, results) => {
 
     const groups = new Map();
     results.forEach((result) => {
-        const group = result.type || 'Content';
+        const group = result.type || message('content', 'Content');
         if (!groups.has(group)) groups.set(group, []);
         groups.get(group).push(result);
     });
@@ -110,7 +112,7 @@ const renderSearchResults = (form, panel, query, results) => {
     const allResultsUrl = new URL(form.action, window.location.origin);
     allResultsUrl.searchParams.set('q', query);
 
-    panel.innerHTML = `${groupHtml}<a class="site-search-results__all" href="${escapeHtml(allResultsUrl.toString())}"><i class="bi bi-search me-2"></i>See all results for “${escapeHtml(query)}”</a>`;
+    panel.innerHTML = `${groupHtml}<a class="site-search-results__all" href="${escapeHtml(allResultsUrl.toString())}"><i class="bi bi-search me-2"></i>${escapeHtml(message('seeAllResultsFor', 'See all results for'))} “${escapeHtml(query)}”</a>`;
     panel.dataset.activeIndex = '-1';
     panel.hidden = false;
     hideSearchResults(panel);
@@ -129,7 +131,7 @@ const loadSearchSuggestions = async (input) => {
     searchSuggestionController?.abort();
     searchSuggestionController = new AbortController();
 
-    panel.innerHTML = `<div class="site-search-results__loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${query === '' ? 'Loading recent content…' : 'Searching…'}</span></div>`;
+    panel.innerHTML = `<div class="site-search-results__loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${query === '' ? message('loadingRecent', 'Loading recent content…') : message('searching', 'Searching…')}</span></div>`;
     panel.hidden = false;
     hideSearchResults(panel);
 
@@ -342,12 +344,12 @@ document.querySelectorAll('[data-spoiler-content]').forEach((content) => {
     const icon = button?.querySelector('i');
 
     content.addEventListener('shown.bs.collapse', () => {
-        if (label) label.textContent = button.dataset.hideLabel || 'Hide spoilers';
+        if (label) label.textContent = button.dataset.hideLabel || message('hideSpoilers', 'Hide spoilers');
         if (icon) icon.className = 'bi bi-eye-slash me-1';
     });
 
     content.addEventListener('hidden.bs.collapse', () => {
-        if (label) label.textContent = button.dataset.showLabel || 'Show spoilers';
+        if (label) label.textContent = button.dataset.showLabel || message('showSpoilers', 'Show spoilers');
         if (icon) icon.className = 'bi bi-eye me-1';
     });
 });
@@ -359,7 +361,7 @@ applyContentFilters();
 // The server always validates authentication, CSRF, and moderation. Forms keep their
 // ordinary POST action as a no-JavaScript fallback; with JS they never navigate.
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-const numberFormat = new Intl.NumberFormat('en-US');
+const numberFormat = new Intl.NumberFormat(root.lang || 'en');
 
 const submitJson = async (form) => {
     const response = await fetch(form.action, {
@@ -373,7 +375,7 @@ const submitJson = async (form) => {
         body: new FormData(form),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.message || 'Could not complete this action. Please try again.');
+    if (!response.ok) throw new Error(result.message || message('actionError', 'Could not complete this action. Please try again.'));
     return result;
 };
 
@@ -409,7 +411,7 @@ document.addEventListener('submit', async (event) => {
     try {
         const result = await submitJson(form);
         if (form.matches('[data-home-like], [data-ajax-post-like]')) {
-            if (typeof result.liked !== 'boolean' || typeof result.likes_count !== 'number') throw new Error('Unexpected server response. Please try again.');
+            if (typeof result.liked !== 'boolean' || typeof result.likes_count !== 'number') throw new Error(message('serverError', 'Unexpected server response. Please try again.'));
             document.querySelectorAll('form[data-home-like], form[data-ajax-post-like]').forEach((other) => {
                 if (other.action !== form.action) return;
                 const otherButton = other.querySelector('button');
@@ -433,7 +435,7 @@ document.addEventListener('submit', async (event) => {
                 count.textContent = numberFormat.format(result.likes_count);
             });
         } else if (form.matches('[data-ajax-comment-like]')) {
-            if (typeof result.liked !== 'boolean' || typeof result.likes_count !== 'number') throw new Error('Unexpected server response. Please try again.');
+            if (typeof result.liked !== 'boolean' || typeof result.likes_count !== 'number') throw new Error(message('serverError', 'Unexpected server response. Please try again.'));
             button?.setAttribute('aria-pressed', String(result.liked));
             const count = button?.querySelector('[data-comment-like-count]');
             if (count) count.textContent = numberFormat.format(result.likes_count);
@@ -442,7 +444,7 @@ document.addEventListener('submit', async (event) => {
             icon?.classList.toggle('text-danger', result.liked);
             icon?.classList.toggle('bi-heart', !result.liked);
         } else if (form.matches('[data-ajax-favorite]')) {
-            if (typeof result.saved !== 'boolean') throw new Error('Unexpected server response. Please try again.');
+            if (typeof result.saved !== 'boolean') throw new Error(message('serverError', 'Unexpected server response. Please try again.'));
             button?.setAttribute('aria-pressed', String(result.saved));
             button?.classList.toggle('btn-secondary', result.saved);
             button?.classList.toggle('btn-outline-secondary', !result.saved);
@@ -452,7 +454,7 @@ document.addEventListener('submit', async (event) => {
             const label = button?.querySelector('[data-favorite-label]');
             if (label) label.textContent = result.saved ? form.dataset.onLabel : form.dataset.offLabel;
         } else if (isInterests) {
-            if (typeof result.message !== 'string') throw new Error('Unexpected server response. Please try again.');
+            if (typeof result.message !== 'string') throw new Error(message('serverError', 'Unexpected server response. Please try again.'));
             const status = form.querySelector('[data-interests-status]');
             if (status) {
                 status.textContent = result.message;
@@ -464,12 +466,12 @@ document.addEventListener('submit', async (event) => {
         if (isInterests) {
             const status = form.querySelector('[data-interests-status]');
             if (status) {
-                status.textContent = error.message || 'Unable to save your interests.';
+                status.textContent = error.message || message('interestsError', 'Unable to save your interests.');
                 status.className = 'small mt-2 text-danger';
                 status.hidden = false;
             }
         } else {
-            showActionError(error.message || 'Could not complete this action. Please try again.');
+            showActionError(error.message || message('actionError', 'Could not complete this action. Please try again.'));
         }
     } finally {
         form.dataset.busy = '0';
@@ -479,7 +481,7 @@ document.addEventListener('submit', async (event) => {
 
 const addCommentToPage = (result) => {
     if (typeof result.html !== 'string' || !result.html || !Number.isInteger(result.comment_id)) {
-        throw new Error('Unexpected server response. Please try again.');
+        throw new Error(message('serverError', 'Unexpected server response. Please try again.'));
     }
     const list = document.querySelector('[data-comment-list]');
     if (!list) return;
@@ -589,7 +591,7 @@ const setupModeratedComment = (form) => {
         const originalText = input.value;
         try {
             const result = await submitJson(form);
-            if (typeof result.html !== 'string' || !result.html) throw new Error('Unexpected server response. Please try again.');
+            if (typeof result.html !== 'string' || !result.html) throw new Error(message('serverError', 'Unexpected server response. Please try again.'));
             addCommentToPage(result);
             if (input.value === originalText) {
                 form.reset();

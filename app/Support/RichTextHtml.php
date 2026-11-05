@@ -64,9 +64,34 @@ final class RichTextHtml
         return self::hasMeaningfulContent($clean) ? $clean : null;
     }
 
+    public static function normalizeSpoilers(?string $content): ?string
+    {
+        $content = trim((string) $content);
+        if ($content === '') {
+            return null;
+        }
+
+        if ($content === strip_tags($content)) {
+            // Legacy spoilers were multiline plain text. Each nonempty line is
+            // a paragraph; existing HTML content goes through the sanitizer.
+            $lines = preg_split('/\r\n|\r|\n/', $content) ?: [];
+            $paragraphs = [];
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line !== '') {
+                    $paragraphs[] = '<p>'.htmlspecialchars($line, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</p>';
+                }
+            }
+
+            return $paragraphs !== [] ? implode('', $paragraphs) : null;
+        }
+
+        return self::normalize($content);
+    }
+
     public static function plainText(?string $html): string
     {
-        $value = str_ireplace(['<br>', '<br/>', '<br />', '</p>', '</li>', '</h2>', '</h3>'], ' ', (string) $html);
+        $value = str_ireplace(['<br>', '<br/>', '<br />', '</p>', '</li>', '</h2>', '</h3>', '</blockquote>'], ' ', (string) $html);
         $value = html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $value = self::normalizeWhitespace($value);
         $value = preg_replace('/\s+/u', ' ', $value) ?? '';

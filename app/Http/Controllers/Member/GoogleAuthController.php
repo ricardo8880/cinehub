@@ -73,6 +73,7 @@ class GoogleAuthController extends Controller
         }
         // Public Google login must never become an alternative admin authentication path.
         if ($user->is_admin) throw ValidationException::withMessages(['email' => __('Use the administrator login for this account.')]);
+        Auth::guard('web')->setRememberDuration(60 * 24 * 30);
         Auth::login($user, true);
         $request->session()->regenerate();
         return redirect()->intended(route('member.for-you', ['locale' => $locale]));

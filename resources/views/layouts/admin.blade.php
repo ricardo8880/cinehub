@@ -17,7 +17,7 @@
 <nav class="navbar navbar-expand-xl border-bottom border-secondary-subtle bg-dark sticky-top">
     <div class="container-fluid px-3 px-lg-4">
         <a class="navbar-brand fw-bold" href="{{ route('admin.dashboard') }}"><i class="bi bi-play-btn-fill text-danger me-2"></i>{{ config('site.name') }} Admin</a>
-        @auth
+        @auth('admin')
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav"><span class="navbar-toggler-icon"></span></button>
         <div class="collapse navbar-collapse" id="adminNav">
             <ul class="navbar-nav me-auto mb-2 mb-xl-0">

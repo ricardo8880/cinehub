@@ -19,9 +19,9 @@
         </select>
     </div>
     <div class="col-md-4">
-        <label class="form-label" for="locale">{{ __('Country') }}</label>
+        <label class="form-label" for="locale">{{ __('Language') }}</label>
         <select class="form-select" id="locale" name="locale">
-            <option value="">{{ __('All countries') }}</option>
+            <option value="">{{ __('All languages') }}</option>
             @foreach ($locales as $locale => $settings)
                 <option value="{{ $locale }}" @selected(old('locale', $currentMedia?->locale) === $locale)>{{ $settings['country'] ?? strtoupper($settings['region']) }} · {{ $locale }}</option>
             @endforeach

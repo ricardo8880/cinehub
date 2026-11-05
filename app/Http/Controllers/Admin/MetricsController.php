@@ -151,7 +151,7 @@ class MetricsController extends Controller
                 'locale_filter' => $data['locale'] ? EnglishGroup::publicLocale($data['locale']) : 'all',
                 'country_filter' => $data['locale']
                     ? ($data['localeLabels'][$data['locale']] ?? strtoupper($data['locale']))
-                    : 'All countries',
+                    : 'All languages',
                 'purpose' => 'Structured data for editorial analysis and AI-assisted content decisions.',
             ],
             'definitions' => [
@@ -161,7 +161,7 @@ class MetricsController extends Controller
                 'comment_rate' => 'approved comments / views * 100',
                 'growth_rate' => '(current period views - previous period views) / previous period views * 100',
                 'unique_visitors' => 'Approximation using distinct visitor identifiers stored by CineHub.',
-                'english_region' => 'The /en group combines US, UK, Canada and Australia. Historical regional interactions are aggregated without altering their original records. New activity is stored under en-us.',
+                'english_region' => 'The /en group is shared by the US, UK, Canada and Australia. French and German each share one language locale across multiple countries. Locale identifies content language, not visitor geography. Historical English regional activity is grouped without altering source records.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category assigned to the post, such as Games, Movies, Series or Curiosities.',
                 'genres' => 'Genres explicitly assigned to each post and restricted by its selected categories.',
@@ -174,7 +174,7 @@ class MetricsController extends Controller
                 'goal' => 'Use these metrics to decide what CineHub should publish next. The main priority is actionable editorial recommendations, supported by a short diagnosis of what is working and what is losing audience.',
                 'analysis_strategy' => [
                     'Start with a concise diagnosis of what is growing, declining and generating the strongest reach, engagement and audience response.',
-                    'Identify the strongest and weakest content types, genres, Blog genres, publication formats and countries/locales.',
+                    'Identify the strongest and weakest content types, genres, Blog genres, publication formats and language groups.',
                     'Separate high-reach content from high-satisfaction content and consider both before recommending what to publish.',
                     'Compare current-period performance with the previous period instead of judging only by total views.',
                     'Use editorial_score as a ranking aid, but always inspect views, engagement, growth, sample confidence and number of posts behind the score.',
@@ -185,7 +185,7 @@ class MetricsController extends Controller
                     'Explain the connection between each successful content pattern and each recommended related title or subject.',
                     'For Blog articles, compare Blog genres and editorial angles to determine which themes deserve more long-form analysis.',
                     'Compare standard posts versus Blog articles and recommend the format that best fits each suggested subject when the data supports that distinction.',
-                    'Compare countries/locales when data exists. If a country has little or zero activity, explicitly say there is not enough evidence for a reliable recommendation there.',
+                    'Compare language groups when data exists. If a language has little or zero activity, explicitly say there is not enough evidence for reliable recommendations. Never infer visitor country from content language.',
                     'Identify declining or weak content patterns that should receive less editorial effort, without treating one small sample as definitive.',
                 ],
                 'required_output' => [
@@ -194,9 +194,9 @@ class MetricsController extends Controller
                     'Suggest specific games, movies, series, curiosities or other subjects, not only broad categories.',
                     'For strong-performing titles, recommend related titles or themes that could appeal to the same audience and explain why the audience overlap is plausible.',
                     'For each recommendation, state whether it should preferably be a standard post or a Blog article when the data supports that choice.',
-                    'Briefly cite the metric pattern that supports each recommendation, such as views, engagement, growth, category, genre, Blog genre or country performance.',
+                    'Briefly cite metrics such as views, engagement, growth, category, genre, Blog genre or language performance.',
                     'Separate recommendations into: publish more, test next and reduce/deprioritize.',
-                    'When useful, include country-specific opportunities, but do not invent conclusions for locales with insufficient data.',
+                    'When useful, include language-specific opportunities, but do not invent geographic conclusions or overinterpret sparse data.',
                     'Do not stop at summarizing the report. Turn the metrics into an editorial action plan.',
                 ],
             ],
@@ -424,7 +424,7 @@ class MetricsController extends Controller
                 'locale_filter' => $locale ? EnglishGroup::publicLocale($locale) : 'all',
                 'country_filter' => $locale
                     ? $this->localeLabel($locale, $locales[$locale] ?? [])
-                    : 'All countries',
+                    : 'All languages',
                 'purpose' => 'Structured audience comments for AI-assisted sentiment, interest and editorial analysis.',
                 'privacy' => 'Author email and other direct visitor identifiers are intentionally excluded from this export.',
             ],
@@ -436,12 +436,12 @@ class MetricsController extends Controller
             ],
             'definitions' => [
                 'comment' => 'The text written by the visitor.',
-                'source_locale' => 'Original stored regional code, retained for historical context; locale is the shared English group when applicable.',
+                'source_locale' => 'Original stored locale code, retained for historical context; locale is the shared English group when applicable.',
                 'status' => 'Moderation status at export time. Approved comments are public; pending comments may still be under review; spam should not be treated as reliable audience opinion.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category associated with the post, such as Games, Movies or TV & Series.',
                 'genres' => 'Genres associated with the post and useful for identifying recurring audience interests.',
-                'locale' => 'Public language group; the four legacy English regions map to en. Original region is available in source_locale.',
+                'locale' => 'Public content language group; en-us, en-gb, en-ca and en-au map to en. fr and de each represent a language across multiple countries. Original locale is available in source_locale.',
                 'is_reply' => 'Whether the comment is a reply to another comment.',
             ],
             'ai_analysis_instructions' => [
@@ -454,7 +454,7 @@ class MetricsController extends Controller
                     'Identify titles, franchises, genres, themes or related works that commenters explicitly ask for or show interest in.',
                     'When the audience reacts positively to a title or theme, infer adjacent content opportunities from the same audience pattern and recommend specific related games, movies, series or subjects when the connection is reasonable.',
                     'Example: if comments on Middle-earth: Shadow of Mordor praise fantasy, medieval atmosphere, combat and exploration, consider related opportunities such as The Witcher 3, Skyrim, Elden Ring, Dragon Age or similar subjects.',
-                    'Compare countries/locales only when there are enough comments to support a meaningful pattern.',
+                    'Compare language groups only when there are enough comments to support a meaningful pattern; the country of the visitor is unknown.',
                     'Consider negative feedback as an editorial signal: distinguish criticism of the work itself from criticism of the CineHub article, presentation or coverage.',
                     'Treat sarcasm, jokes and ambiguous comments cautiously and state uncertainty when sentiment is unclear.',
                 ],
@@ -464,7 +464,7 @@ class MetricsController extends Controller
                     'Recommend specific content to publish next based on audience comments, not only on broad categories.',
                     'For each recommendation, explain which audience comment pattern supports it and why the related title or subject may appeal to the same people.',
                     'Highlight explicit audience requests for games, movies, series, franchises, comparisons, reviews or follow-up articles.',
-                    'When useful, separate opportunities by locale/country, but do not invent country-level conclusions from a very small sample.',
+                    'When useful, separate opportunities by language locale, not by inferred visitor country, and avoid conclusions from small samples.',
                     'Separate the final action plan into: publish more, test next, investigate/answer audience questions, and reduce or fix.',
                     'Do not only summarize comments. Convert them into a practical editorial plan for CineHub.',
                 ],

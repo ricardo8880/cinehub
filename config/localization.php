@@ -57,13 +57,25 @@ return [
             'currency' => 'CAD',
             'currency_symbol' => 'C$',
         ],
-        'ja-jp' => [
-            'locale' => 'ja_JP',
-            'language' => 'ja',
-            'region' => 'JP',
-            'country' => 'Japan',
-            'currency' => 'JPY',
-            'currency_symbol' => '¥',
+        // One editorial version per language, shared across all target markets.
+        // Never infer the visitor's country or advertising currency from the URL.
+        'fr' => [
+            'locale' => 'fr_FR',
+            'language' => 'fr',
+            'region' => 'FR',
+            'country' => 'French (FR, BE, CH, CA, LU, MC)',
+            'label' => 'Français',
+            'currency' => 'EUR',
+            'currency_symbol' => '€',
+        ],
+        'de' => [
+            'locale' => 'de_DE',
+            'language' => 'de',
+            'region' => 'DE',
+            'country' => 'German (DE, AT, CH, LI)',
+            'label' => 'Deutsch',
+            'currency' => 'EUR',
+            'currency_symbol' => '€',
         ],
     ],
 ];
