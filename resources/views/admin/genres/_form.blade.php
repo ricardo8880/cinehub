@@ -25,7 +25,7 @@
 
 <hr class="my-4">
 <h2 class="h5 mb-1">{{ __('Available in categories') }}</h2>
-<p class="text-body-secondary small">{{ __('Choose the category where this genre can be used.') }}</p>
+<p class="text-body-secondary small">{{ __('Select one or more categories where this genre can be used.') }}</p>
 <div class="row g-2 mb-4">
     @forelse ($categories as $category)
         @php
@@ -35,7 +35,7 @@
         @endphp
         <div class="col-12 col-md-6 col-xl-4">
             <div class="form-check border border-secondary-subtle rounded p-3 ps-5 h-100">
-                <input class="form-check-input" id="genre-category-{{ $category->id }}" type="radio" name="categories[]" value="{{ $category->id }}" @checked(in_array($category->id, $selectedCategories, true))>
+                <input class="form-check-input" id="genre-category-{{ $category->id }}" type="checkbox" name="categories[]" value="{{ $category->id }}" @checked(in_array($category->id, $selectedCategories, true))>
                 <label class="form-check-label w-100" for="genre-category-{{ $category->id }}">
                     <div class="fw-semibold mb-2">
                         <i class="bi {{ $category->icon ?: 'bi-folder' }} me-1"></i>{{ __('Category') }}

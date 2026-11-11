@@ -16,7 +16,7 @@ class GenreRequest extends FormRequest
     {
         $genre = $this->route('genre');
         $rules = [
-            'categories' => ['required', 'array', 'size:1'],
+            'categories' => ['required', 'array', 'min:1'],
             'categories.*' => ['integer', 'distinct', 'exists:categories,id'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],

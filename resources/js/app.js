@@ -24,6 +24,24 @@ let searchQuery = searchInputs.find((input) => input.value.trim() !== '')?.value
 let searchSuggestionTimer = null;
 let searchSuggestionController = null;
 
+// A search is an explicit submission or a chosen autocomplete result, never a keystroke.
+const newSearchEvent = () => (window.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`).replaceAll('-', '');
+
+const trackSelectedSuggestion = (form) => {
+    const term = form?.querySelector('[data-site-search]')?.value.trim() ?? '';
+    const endpoint = form?.dataset.searchSelectionUrl;
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!term || !endpoint || !token) return;
+
+    const data = new FormData();
+    data.set('_token', token);
+    data.set('q', term);
+    data.set('search_event', newSearchEvent());
+    if (navigator.sendBeacon?.(endpoint, data)) return;
+    // Keep the request alive while the browser opens the selected result.
+    fetch(endpoint, { method: 'POST', body: data, credentials: 'same-origin', keepalive: true }).catch(() => {});
+};
+
 const setTheme = (theme) => {
     root.setAttribute('data-bs-theme', theme);
     window.localStorage.setItem(themeStorageKey, theme);
@@ -79,10 +97,11 @@ const setActiveSearchResult = (panel, index) => {
 
 const renderSearchResults = (form, panel, query, results) => {
     if (!results.length) {
-        panel.innerHTML = `<div class="site-search-results__empty"><i class="bi bi-search"></i><span>${escapeHtml(message('noResultsFor', 'No results for'))} “${escapeHtml(query)}”</span></div>`;
+        // No matches: hide the autocomplete, but leave the form ready for Enter.
+        // The submitted search is recorded even when the results page is empty.
+        panel.innerHTML = '';
         panel.dataset.activeIndex = '-1';
-        panel.hidden = false;
-        hideSearchResults(panel);
+        panel.hidden = true;
         return;
     }
 
@@ -111,6 +130,7 @@ const renderSearchResults = (form, panel, query, results) => {
 
     const allResultsUrl = new URL(form.action, window.location.origin);
     allResultsUrl.searchParams.set('q', query);
+    allResultsUrl.searchParams.set('search_event', newSearchEvent());
 
     panel.innerHTML = `${groupHtml}<a class="site-search-results__all" href="${escapeHtml(allResultsUrl.toString())}"><i class="bi bi-search me-2"></i>${escapeHtml(message('seeAllResultsFor', 'See all results for'))} “${escapeHtml(query)}”</a>`;
     panel.dataset.activeIndex = '-1';
@@ -210,6 +230,7 @@ searchInputs.forEach((input) => {
             setActiveSearchResult(panel, activeIndex <= 0 ? items.length - 1 : activeIndex - 1);
         } else if (event.key === 'Enter' && activeIndex >= 0 && items[activeIndex]) {
             event.preventDefault();
+            trackSelectedSuggestion(input.closest('[data-search-form]'));
             window.location.href = items[activeIndex].href;
         } else if (event.key === 'Escape') {
             panel.hidden = true;
@@ -219,8 +240,24 @@ searchInputs.forEach((input) => {
 });
 
 searchForms.forEach((form) => {
+    form.querySelector('[data-search-results]')?.addEventListener('click', (event) => {
+        if (event.target.closest('[data-search-result-item]')) {
+            trackSelectedSuggestion(form);
+        }
+    });
+
     form.addEventListener('submit', (event) => {
         if (form.dataset.searchMode === 'global') {
+            // This event id stays in the URL on refresh/pagination but changes
+            // when the visitor deliberately submits a new search.
+            let eventInput = form.querySelector('input[name="search_event"]');
+            if (!eventInput) {
+                eventInput = document.createElement('input');
+                eventInput.type = 'hidden';
+                eventInput.name = 'search_event';
+                form.appendChild(eventInput);
+            }
+            eventInput.value = newSearchEvent();
             return;
         }
 

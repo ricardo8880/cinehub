@@ -20,10 +20,14 @@
     $slot = config('sidebar_ads.adsense_slot');
     $hasAdsense = filled($client) && filled($slot);
     $seconds = max(8, (int) config('sidebar_ads.rotation_seconds', 12));
+    $showDemoAds = (bool) config('sidebar_demo_ads.enabled', false);
+    $adLanguage = $locale === 'fr' ? 'fr' : ($locale === 'de' ? 'de' : 'en');
+    $demoCopy = $showDemoAds ? config("sidebar_demo_ads.localizations.{$adLanguage}", []) : [];
+    $demoCards = $demoCopy['campaigns'] ?? [];
 @endphp
 <div class="sidebar-ad-stack" aria-label="{{ __('Advertisements') }}">
-    <section class="sidebar-ad-unit" aria-label="Google AdSense">
-        <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · Google</div>
+    <section class="sidebar-ad-unit" aria-label="{{ $hasAdsense ? 'Google AdSense' : ($showDemoAds ? ($demoCopy['preview_label'] ?? 'Demo') : __('Advertisements')) }}">
+        <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ $hasAdsense ? 'Google' : ($showDemoAds ? ($demoCopy['preview_label'] ?? 'Demo') : 'Google') }}</div>
         @if ($hasAdsense)
             <ins class="adsbygoogle" style="display:block" data-ad-client="{{ $client }}" data-ad-slot="{{ $slot }}" data-ad-format="auto" data-full-width-responsive="true"></ins>
             @once
@@ -32,6 +36,17 @@
                 @endpush
             @endonce
             <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        @elseif ($showDemoAds && ! empty($demoCopy['top']))
+            @php($ad = $demoCopy['top'])
+            <div class="sidebar-ad-demo sidebar-ad-demo--{{ $ad['tone'] }} sidebar-ad-demo--display" aria-label="{{ $demoCopy['preview_label'] }}">
+                <div class="sidebar-ad-demo__brand"><span class="sidebar-ad-demo__brand-mark"></span>{{ $ad['brand'] }}</div>
+                <div class="sidebar-ad-demo__art" aria-hidden="true"><i class="bi {{ $ad['icon'] }}"></i></div>
+                <div class="sidebar-ad-demo__eyebrow">{{ $ad['eyebrow'] }}</div>
+                <strong class="sidebar-ad-demo__title">{{ $ad['title'] }}</strong>
+                <p class="sidebar-ad-demo__description">{{ $ad['description'] }}</p>
+                <span class="sidebar-ad-demo__cta">{{ $ad['cta'] }} <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+            </div>
+            <small class="sidebar-ad-demo__note">{{ $demoCopy['preview_note'] }}</small>
         @else
             <div class="sidebar-ad-placeholder">{{ __('Google AdSense space') }}</div>
         @endif
@@ -39,9 +54,21 @@
 
     @for ($column = 0; $column < 2; $column++)
         <section class="sidebar-ad-unit" data-sidebar-rotation="{{ $column }}" data-interval="{{ $seconds * 1000 }}" aria-label="{{ __('Promotions') }}">
-            <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ __('Partner / Our projects') }}</div>
+            <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ $showDemoAds && $campaigns->isEmpty() ? ($demoCopy['preview_label'] ?? 'Demo') : __('Partner / Our projects') }}</div>
             <div class="sidebar-ad-viewport" data-sidebar-ad-viewport>
-            @if ($campaigns->isEmpty())
+            @if ($campaigns->isEmpty() && $showDemoAds && count($demoCards) > 0)
+                @foreach ($demoCards as $index => $ad)
+                    <div class="sidebar-ad-campaign sidebar-ad-demo sidebar-ad-demo--{{ $ad['tone'] }}" @if ($index !== $column) hidden @endif aria-label="{{ $demoCopy['preview_label'] }}">
+                        <div class="sidebar-ad-demo__brand"><span class="sidebar-ad-demo__brand-mark"></span>{{ $ad['brand'] }}</div>
+                        <div class="sidebar-ad-demo__art" aria-hidden="true"><i class="bi {{ $ad['icon'] }}"></i></div>
+                        <div class="sidebar-ad-demo__eyebrow">{{ $ad['eyebrow'] }}</div>
+                        <strong class="sidebar-ad-demo__title">{{ $ad['title'] }}</strong>
+                        <p class="sidebar-ad-demo__description">{{ $ad['description'] }}</p>
+                        <span class="sidebar-ad-demo__cta">{{ $ad['cta'] }} <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                        <small class="sidebar-ad-demo__note">{{ $demoCopy['preview_note'] }}</small>
+                    </div>
+                @endforeach
+            @elseif ($campaigns->isEmpty())
                 @foreach ([
                     ['title' => __('Affiliate products'), 'description' => __('Products related to this page')],
                     ['title' => __('Our projects'), 'description' => __('Discover our other websites')],

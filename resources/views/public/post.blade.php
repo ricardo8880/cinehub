@@ -2,7 +2,6 @@
 
 @php
     $isBlog = $isBlog ?? ($post->publication_type === 'blog');
-    $publicAuthorName = 'Dear Mr. R.';
     $pageTitle = $localization->seo_title ?: $localization->title;
     $descriptionSource = \App\Support\RichTextHtml::plainText($localization->excerpt ?: $localization->synopsis ?: $localization->article_body);
     $pageDescription = \App\Support\SeoDescription::resolve($localization->seo_description, $descriptionSource, __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'));
@@ -20,6 +19,11 @@
         ? $imageUrl
         : url($imageUrl);
     $seoLanguage = \App\Support\Seo::language($localization->locale);
+    $signatureName = match ($seoLanguage) {
+        'fr' => 'Cher M. R.',
+        'de' => 'Werter Herr R.',
+        default => 'Dear Mr. R.',
+    };
     $hasSeoImage = ($image && $image->thumbnail_path) || ($trailer && $trailer->provider === 'youtube' && $trailer->provider_id);
     $seoImageAlt = $image?->alt_text ?: $localization->title;
     $modifiedAt = $localization->updated_at && $localization->updated_at->greaterThan($post->updated_at)
@@ -62,7 +66,7 @@
                 'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonicalUrl],
                 'author' => [
                     '@type' => 'Person',
-                    'name' => $publicAuthorName,
+                    'name' => $signatureName,
                 ],
                 'publisher' => [
                     '@type' => 'Organization',
@@ -148,7 +152,7 @@
             @if ($post->published_at)
                 <span><i class="bi bi-calendar3" aria-hidden="true"></i> <time datetime="{{ $post->published_at->toIso8601String() }}">{{ $post->published_at->locale(app()->getLocale())->translatedFormat('j F Y') }}</time></span>
             @endif
-            <span><i class="bi bi-person"></i> {{ $publicAuthorName }}</span>
+            <span><i class="bi bi-person"></i> {{ $signatureName }}</span>
             @guest
                 <a class="text-body-secondary text-decoration-none" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#interactions']) }}" aria-label="{{ __('Sign in to like') }}" title="{{ __('Sign in to like') }}"><i class="bi bi-heart-fill text-danger"></i> <span data-post-like-count>{{ $post->likes_count }}</span></a>
                 <a class="text-body-secondary text-decoration-none" href="{{ route('member.login', ['locale' => $localization->locale, 'return_to' => $canonicalUrl.'#comments']) }}" aria-label="{{ __('Sign in to comment') }}" title="{{ __('Sign in to comment') }}"><i class="bi bi-chat"></i> <span data-public-comment-count>{{ $post->approved_comments_count }}</span></a>
@@ -185,6 +189,7 @@
             <section class="card public-article__section border-0 mb-4">
                 <div class="card-body p-4 p-lg-5">
                     <div class="public-article__text">{!! \App\Support\RichTextHtml::normalize($localization->article_body) !!}</div>
+                    <p class="mt-4 mb-0 text-end">— <strong>{{ $signatureName }}</strong></p>
                 </div>
             </section>
         @endif
@@ -203,6 +208,7 @@
             <div class="card-body p-4">
                 <h2 class="h4 fw-bold mb-3">{{ __('Review') }}</h2>
                 <div class="public-article__text">{!! \App\Support\RichTextHtml::normalize($localization->review) !!}</div>
+                <p class="mt-4 mb-0 text-end">— <strong>{{ $signatureName }}</strong></p>
             </div>
         </section>
     @endif

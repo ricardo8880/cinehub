@@ -2237,3 +2237,140 @@ input {
 .sidebar-ad-campaign img{width:100%;max-height:150px;object-fit:contain;border-radius:6px}
 .sidebar-ad-campaign span,.sidebar-ad-disclosure{font-size:11px;color:var(--site-muted)}
 @media(prefers-reduced-motion:reduce){.sidebar-ad-campaign{transition:none}}
+
+/* Sidebar ad samples: fictional campaigns for visual testing only. */
+.sidebar-ad-demo {
+    --ad-bg-1: #0d2a50;
+    --ad-bg-2: #1664b8;
+    --ad-glow: rgba(80, 185, 255, .6);
+    display: flex;
+    position: relative;
+    flex-direction: column;
+    justify-content: flex-end;
+    isolation: isolate;
+    min-height: 276px;
+    overflow: hidden;
+    padding: 17px;
+    border-radius: 7px;
+    background: linear-gradient(145deg, var(--ad-bg-1), var(--ad-bg-2));
+    color: #fff;
+    font-family: inherit;
+}
+.sidebar-ad-demo::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 220px;
+    height: 220px;
+    top: -75px;
+    right: -75px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 50%;
+    box-shadow: 0 0 0 35px rgba(255, 255, 255, .04), 0 0 0 80px rgba(255, 255, 255, .025);
+}
+.sidebar-ad-demo--violet { --ad-bg-1: #271344; --ad-bg-2: #7345b8; --ad-glow: rgba(191, 150, 255, .55); }
+.sidebar-ad-demo--amber { --ad-bg-1: #422517; --ad-bg-2: #a64e2e; --ad-glow: rgba(255, 177, 94, .55); }
+.sidebar-ad-demo--teal { --ad-bg-1: #103c44; --ad-bg-2: #147f84; --ad-glow: rgba(91, 242, 219, .5); }
+.sidebar-ad-demo--rose { --ad-bg-1: #4a1931; --ad-bg-2: #bd4261; --ad-glow: rgba(255, 134, 185, .6); }
+.sidebar-ad-demo--display { min-height: 310px; }
+.sidebar-ad-demo__brand {
+    position: absolute;
+    top: 15px;
+    left: 16px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .11em;
+    line-height: 1.2;
+}
+.sidebar-ad-demo__brand-mark {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.16);
+}
+.sidebar-ad-demo__art {
+    position: absolute;
+    top: 32px;
+    right: 17px;
+    display: grid;
+    width: 122px;
+    height: 122px;
+    place-items: center;
+    transform: rotate(-13deg);
+    border-radius: 32px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.19), transparent 65%);
+    color: #fff;
+    filter: drop-shadow(0 13px 16px rgba(0,0,0,.25));
+    pointer-events: none;
+}
+.sidebar-ad-demo__art .bi {
+    display: inline-block;
+    font-size: 88px;
+    line-height: 1;
+    text-shadow: 0 0 24px var(--ad-glow);
+}
+.sidebar-ad-demo__eyebrow {
+    position: relative;
+    margin-bottom: 7px;
+    color: rgba(255,255,255,.78);
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: .11em;
+}
+.sidebar-ad-demo__title {
+    position: relative;
+    max-width: 97%;
+    color: #fff;
+    font-size: 23px;
+    font-weight: 850;
+    letter-spacing: -.045em;
+    line-height: 1.08;
+}
+.sidebar-ad-demo__description {
+    position: relative;
+    margin: 8px 0 13px;
+    color: rgba(255,255,255,.9);
+    font-size: 11px;
+    line-height: 1.45;
+}
+.sidebar-ad-demo__cta {
+    display: inline-flex;
+    position: relative;
+    align-items: center;
+    justify-content: space-between;
+    align-self: flex-start;
+    gap: 8px;
+    min-height: 29px;
+    padding: 7px 11px;
+    border-radius: 5px;
+    background: #fff;
+    color: #132137;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+.sidebar-ad-demo__note {
+    margin-top: 14px;
+    color: rgba(255,255,255,.69);
+    font-size: 9px;
+    line-height: 1.3;
+}
+.sidebar-ad-unit > .sidebar-ad-demo__note {
+    display: block;
+    margin: 8px 0 0;
+    color: var(--site-muted);
+}
+@media (max-width: 575.98px) {
+    .sidebar-ad-demo { min-height: 252px; }
+    .sidebar-ad-demo--display { min-height: 280px; }
+}
+
+/* Preserve legibility when the sample card is also a rotating campaign. */
+.sidebar-ad-campaign .sidebar-ad-demo__cta { color: #132137; font-size: 10px; }
+.sidebar-ad-campaign .sidebar-ad-demo__brand-mark { color: #fff; }

@@ -2,23 +2,27 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Support\EnglishGroup;
-
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Post;
 use App\Support\PublicPostPresenter;
+use App\Support\PublicSearchQuery;
+use App\Support\SearchHistoryRecorder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SearchController extends Controller
 {
-    public function __invoke(Request $request, string $locale, PublicPostPresenter $presenter): View
+    public function __invoke(Request $request, string $locale, PublicPostPresenter $presenter, PublicSearchQuery $search, SearchHistoryRecorder $history): View
     {
-        $request->validate(['q' => ['nullable', 'string', 'max:120']]);
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'search_event' => ['nullable', 'string', 'max:64', 'regex:/^[a-zA-Z0-9_-]+$/'],
+        ]);
         $query = trim((string) $request->query('q', ''));
         $navigationCategories = Category::query()
             ->where('is_active', true)
@@ -26,10 +30,15 @@ class SearchController extends Controller
             ->with(['localizations' => fn ($q) => $q->where('locale', $locale)->where('is_active', true)])
             ->orderBy('sort_order')->orderBy('id')->get();
 
-        $posts = $this->searchPosts($locale, $query)
+        $posts = $search->searchPosts($locale, $query)
             ->latest('published_at')
             ->paginate(12)
             ->withQueryString();
+
+        // Pagination, empty queries, bots and repeat page loads must not inflate demand.
+        if ($query !== '' && ! $request->query->has('page')) {
+            $history->record($request, $locale, $query, (int) $posts->total(), $request->query('search_event'));
+        }
 
         $posts->setCollection($posts->getCollection()->map(fn (Post $post) => $presenter->card($post, $locale))->filter()->values());
 
@@ -38,7 +47,24 @@ class SearchController extends Controller
         return view('public.search', compact('query', 'posts', 'navigationCategories', 'localeLinks'))->with('disableRegionalAlternates', true);
     }
 
-    public function suggestions(Request $request, string $locale, PublicPostPresenter $presenter): JsonResponse
+    /** Count a suggestion chosen by the visitor without counting every typed character. */
+    public function selection(Request $request, string $locale, PublicSearchQuery $search, SearchHistoryRecorder $history): Response
+    {
+        $data = $request->validate([
+            'q' => ['required', 'string', 'max:120'],
+            'search_event' => ['nullable', 'string', 'max:64', 'regex:/^[a-zA-Z0-9_-]+$/'],
+        ]);
+
+        $term = trim($data['q']);
+        if ($term !== '') {
+            $hasResults = $search->searchPosts($locale, $term)->exists();
+            $history->record($request, $locale, $term, $hasResults ? 1 : 0, $data['search_event'] ?? null);
+        }
+
+        return response()->noContent();
+    }
+
+    public function suggestions(Request $request, string $locale, PublicPostPresenter $presenter, PublicSearchQuery $search): JsonResponse
     {
         $request->validate(['q' => ['nullable', 'string', 'max:120']]);
         $query = trim((string) $request->query('q', ''));
@@ -46,8 +72,8 @@ class SearchController extends Controller
         $normalizedQuery = Str::lower($query);
 
         $resultsQuery = $query === ''
-            ? $this->basePostQuery($locale)
-            : $this->searchPosts($locale, $query);
+            ? $search->basePostQuery($locale)
+            : $search->searchPosts($locale, $query);
 
         $results = $resultsQuery
             ->latest('published_at')
@@ -84,68 +110,5 @@ class SearchController extends Controller
             ]);
 
         return response()->json(['results' => $results]);
-    }
-
-    private function searchPosts(string $locale, string $query): Builder
-    {
-        $postQuery = $this->basePostQuery($locale);
-
-        if ($query === '') {
-            return $postQuery->whereRaw('1 = 0');
-        }
-
-        $like = '%'.$query.'%';
-
-        return $postQuery->where(function (Builder $queryBuilder) use ($locale, $like): void {
-            $queryBuilder
-                ->whereHas('localizations', function (Builder $localizationQuery) use ($locale, $like): void {
-                    $localizationQuery
-                        ->where('locale', $locale)
-                        ->where('is_active', true)
-                        ->where(function (Builder $textQuery) use ($like): void {
-                            $textQuery
-                                ->where('title', 'like', $like)
-                                ->orWhere('excerpt', 'like', $like)
-                                ->orWhere('synopsis', 'like', $like)
-                                ->orWhere('review', 'like', $like)
-                                ->orWhere('article_body', 'like', $like);
-                        });
-                })
-                ->orWhereHas('categories.localizations', function (Builder $categoryQuery) use ($locale, $like): void {
-                    $categoryQuery
-                        ->where('locale', $locale)
-                        ->where('is_active', true)
-                        ->where('name', 'like', $like);
-                });
-        });
-    }
-
-    private function basePostQuery(string $locale): Builder
-    {
-        return Post::query()
-            ->published()
-            ->whereHas('localizations', fn (Builder $localizationQuery) => $localizationQuery->where('locale', $locale)->where('is_active', true))
-            ->where(function (Builder $query) use ($locale): void {
-                $query->where(function (Builder $blog) use ($locale): void {
-                    $blog->where('publication_type', 'blog')
-                        ->whereHas('blogCategory', fn (Builder $category) => $category->where('is_active', true)
-                            ->whereHas('localizations', fn (Builder $localization) => $localization->where('locale', $locale)->where('is_active', true)));
-                })->orWhere(function (Builder $standard) use ($locale): void {
-                    $standard->where('publication_type', 'standard')
-                        ->whereHas('categories', fn (Builder $category) => $category->where('is_active', true)
-                            ->whereHas('localizations', fn (Builder $localization) => $localization->where('locale', $locale)->where('is_active', true)))
-                        ->whereHas('media', fn (Builder $media) => $media->where('locale', $locale)->whereIn('type', ['image', 'trailer']));
-                });
-            })
-            ->with([
-                'categories' => fn ($q) => $q->where('is_active', true)->with(['localizations' => fn ($lq) => $lq->where('locale', $locale)->where('is_active', true)])->orderBy('sort_order'),
-                'localizations' => fn ($q) => $q->where('locale', $locale)->where('is_active', true),
-                'media' => fn ($q) => $q->where('locale', $locale),
-            ])
-            ->withCount([
-                'reactions as likes_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
-                'comments as approved_comments_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
-                'views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)),
-            ]);
     }
 }

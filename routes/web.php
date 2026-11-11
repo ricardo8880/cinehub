@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ModerationTermController as AdminModerationTermCo
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\SiteSettingController as AdminSiteSettingController;
 use App\Http\Controllers\Admin\SuggestionController as AdminSuggestionController;
+use App\Http\Controllers\Admin\SearchTermController as AdminSearchTermController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\BookController;
@@ -74,6 +75,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('comments', AdminCommentController::class)->only(['index', 'update', 'destroy']);
         Route::resource('moderation', AdminModerationTermController::class)->parameters(['moderation' => 'moderationTerm'])->only(['index', 'store', 'update', 'destroy']);
         Route::resource('suggestions', AdminSuggestionController::class)->only(['index', 'update', 'destroy']);
+        Route::get('/search-terms', [AdminSearchTermController::class, 'index'])->name('search-terms.index');
+        Route::delete('/search-terms/{searchTerm}', [AdminSearchTermController::class, 'destroy'])->name('search-terms.destroy');
         Route::resource('contacts', AdminContactMessageController::class)->only(['index', 'update', 'destroy']);
         Route::resource('posts.media', AdminMediaController::class)->except('show');
         Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('logout');
@@ -126,6 +129,7 @@ Route::prefix('{locale}')
         Route::post('/comments/{comment}/like', CommentReactionController::class)
             ->middleware(['auth', 'throttle:30,1'])->name('comments.like');
         Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->middleware('throttle:60,1')->name('search.suggestions');
+        Route::post('/search/selection', [SearchController::class, 'selection'])->middleware('throttle:30,1')->name('search.selection');
         Route::get('/contact', [ContactController::class, 'create'])->name('contact');
         Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:3,10')->name('contact.store');
         Route::get('/suggest', [SuggestionController::class, 'create'])->name('suggestions.create');

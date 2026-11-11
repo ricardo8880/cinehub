@@ -40,9 +40,10 @@
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.comments*') ? 'active' : '' }}" href="{{ route('admin.comments.index') }}"><i class="bi bi-chat-left-text me-1"></i>{{ __('Comments') }}</a></li>
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.moderation*') ? 'active' : '' }}" href="{{ route('admin.moderation.index') }}"><i class="bi bi-shield-check me-1"></i>{{ __('Moderation') }}</a></li>
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.suggestions*','admin.contacts*','admin.metrics','admin.logs','admin.settings*','admin.ad-slots*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown">{{ __('More') }}</a>
+                    <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.search-terms*','admin.suggestions*','admin.contacts*','admin.metrics','admin.logs','admin.settings*','admin.ad-slots*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown">{{ __('More') }}</a>
                     <ul class="dropdown-menu dropdown-menu-dark">
                         <li><a class="dropdown-item" href="{{ route('admin.suggestions.index') }}"><i class="bi bi-lightbulb me-2"></i>{{ __('Suggestions') }}</a></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.search-terms.index') }}"><i class="bi bi-search me-2"></i>Visitor searches</a></li>
                         <li><a class="dropdown-item" href="{{ route('admin.contacts.index') }}"><i class="bi bi-envelope me-2"></i>{{ __('Contact') }}</a></li>
                         <li><a class="dropdown-item" href="{{ route('admin.metrics') }}"><i class="bi bi-graph-up me-2"></i>{{ __('Metrics') }}</a></li>
                         <li><hr class="dropdown-divider"></li>
