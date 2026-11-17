@@ -1145,7 +1145,7 @@ input {
 
 .category-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -1251,10 +1251,6 @@ input {
         overflow-y: visible;
     }
 
-    .categories-section {
-        width: calc(100% + var(--site-sidebar-width) - 3px);
-        margin-left: calc(3px - var(--site-sidebar-width));
-    }
 }
 
 @media (max-width: 1399.98px) {
@@ -1268,6 +1264,10 @@ input {
 
     .content-grid {
         grid-template-columns: minmax(0, 1fr) 292px;
+    }
+
+    .category-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .trending-item {
@@ -1851,6 +1851,8 @@ input {
 
 .public-article {
     max-width: 980px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .public-article__media,
@@ -2374,3 +2376,54 @@ input {
 /* Preserve legibility when the sample card is also a rotating campaign. */
 .sidebar-ad-campaign .sidebar-ad-demo__cta { color: #132137; font-size: 10px; }
 .sidebar-ad-campaign .sidebar-ad-demo__brand-mark { color: #fff; }
+
+
+/* Public pages: fluid centered layout, capped on large desktop monitors. */
+.public-layout-container {
+    width: calc(100% - 24px);
+    max-width: 1700px;
+    margin-inline: auto;
+}
+.public-column-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 22px;
+}
+.public-column-layout__content,
+.public-ad-rail {
+    min-width: 0;
+}
+/* Only the right-hand advertising stack remains on tablets and phones. */
+.public-ad-rail--left {
+    display: none;
+}
+.public-ad-rail--right {
+    width: 100%;
+    max-width: 320px;
+    justify-self: center;
+}
+@media (min-width: 1200px) {
+    .public-layout-container {
+        width: 96%;
+    }
+    .public-column-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(210px, 250px);
+        gap: clamp(16px, 1.5vw, 24px);
+    }
+    .public-column-layout--three-rails {
+        grid-template-columns: minmax(210px, 250px) minmax(0, 1fr) minmax(210px, 250px);
+    }
+    .public-ad-rail--left {
+        display: block;
+    }
+    .public-ad-rail--right {
+        max-width: none;
+    }
+}
+/* Four category cards in a row are too narrow when both ad rails fit. */
+@media (min-width: 1200px) and (max-width: 1599.98px) {
+    .public-column-layout--category .public-column-layout__content .row > .col-xl-3 {
+        width: 33.33333333%;
+    }
+}

@@ -1,5 +1,7 @@
 @php
     $context = $context ?? 'default';
+    $adsenseOnly = (bool) ($adsenseOnly ?? false);
+    $deferAdsenseUntilVisible = (bool) ($deferAdsenseUntilVisible ?? $adsenseOnly);
     $locale = (string) request()->route('locale', config('localization.default'));
     $campaigns = collect(config('sidebar_ads.campaigns', []))
         ->filter(fn ($ad) => in_array($context, $ad['contexts'] ?? ['default'], true))
@@ -35,7 +37,29 @@
                     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ $client }}" crossorigin="anonymous"></script>
                 @endpush
             @endonce
-            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            @if ($deferAdsenseUntilVisible)
+                {{-- Never initialize hidden left-rail AdSense placements on mobile. --}}
+                <script>
+                    (() => {
+                        const ad = document.currentScript.previousElementSibling;
+                        let initialized = false;
+                        const showAd = () => {
+                            if (initialized || !ad || !ad.getClientRects().length || ad.offsetWidth === 0) return;
+                            initialized = true;
+                            (window.adsbygoogle = window.adsbygoogle || []).push({});
+                            window.removeEventListener('resize', showAd);
+                        };
+                        window.addEventListener('resize', showAd, { passive: true });
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', showAd, { once: true });
+                        } else {
+                            showAd();
+                        }
+                    })();
+                </script>
+            @else
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            @endif
         @elseif ($showDemoAds && ! empty($demoCopy['top']))
             @php($ad = $demoCopy['top'])
             <div class="sidebar-ad-demo sidebar-ad-demo--{{ $ad['tone'] }} sidebar-ad-demo--display" aria-label="{{ $demoCopy['preview_label'] }}">
@@ -52,6 +76,7 @@
         @endif
     </section>
 
+    @unless ($adsenseOnly)
     @for ($column = 0; $column < 2; $column++)
         <section class="sidebar-ad-unit" data-sidebar-rotation="{{ $column }}" data-interval="{{ $seconds * 1000 }}" aria-label="{{ __('Promotions') }}">
             <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ $showDemoAds && $campaigns->isEmpty() ? ($demoCopy['preview_label'] ?? 'Demo') : __('Partner / Our projects') }}</div>
@@ -98,6 +123,7 @@
     @if ($campaigns->contains(fn ($ad) => ($ad['kind'] ?? '') === 'affiliate'))
         <small class="sidebar-ad-disclosure">{{ __('As an Amazon Associate, we earn from qualifying purchases.') }}</small>
     @endif
+    @endunless
 </div>
 @once
     <style>

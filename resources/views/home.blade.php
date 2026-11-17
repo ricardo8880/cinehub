@@ -155,6 +155,12 @@
                 <p>{{ __('Help keep the project online with a small donation.') }}</p>
                 <button class="btn support-card__button" type="button"><i class="bi bi-heart-fill"></i> {{ __('Make a Donation') }}</button>
             </section>
+
+            {{-- Single Google AdSense placement in the left rail (desktop only). --}}
+            <div class="sidebar-divider d-none d-xl-block"></div>
+            <div class="d-none d-xl-block" aria-label="{{ __('Advertisements') }}">
+                @include('components.sidebar-ads', ['context' => 'home', 'adsenseOnly' => true])
+            </div>
         </div>
     </aside>
 
@@ -240,6 +246,19 @@
                         @endforeach
                     </div>
                 </section>
+
+                <section class="categories-section" id="categories">
+                    <div class="section-heading"><h2>{{ __('Explore by Category') }}</h2></div>
+                    <div class="category-grid">
+                        @foreach ($categories as $category)
+                            <a class="category-card category-card--{{ $category['tone'] }}" href="{{ $category['url'] }}">
+                                <span class="category-card__icon"><i class="bi {{ $category['icon'] }}"></i></span>
+                                <span class="category-card__copy"><strong>{{ $category['label'] }}</strong><small>{{ $category['description'] }}</small></span>
+                                <i class="bi bi-arrow-right category-card__arrow"></i>
+                            </a>
+                        @endforeach
+                    </div>
+                </section>
             </div>
 
             <aside class="right-rail" aria-label="{{ __('Secondary content') }}">
@@ -278,18 +297,6 @@
             </aside>
         </div>
 
-        <section class="categories-section" id="categories">
-            <div class="section-heading"><h2>{{ __('Explore by Category') }}</h2></div>
-            <div class="category-grid">
-                @foreach ($categories as $category)
-                    <a class="category-card category-card--{{ $category['tone'] }}" href="{{ $category['url'] }}">
-                        <span class="category-card__icon"><i class="bi {{ $category['icon'] }}"></i></span>
-                        <span class="category-card__copy"><strong>{{ $category['label'] }}</strong><small>{{ $category['description'] }}</small></span>
-                        <i class="bi bi-arrow-right category-card__arrow"></i>
-                    </a>
-                @endforeach
-            </div>
-        </section>
     </main>
 </div>
 

@@ -7,6 +7,10 @@
     $navigationCategories = $navigationCategories ?? collect();
     $localeLinks = $localeLinks ?? collect($supportedLocales)->mapWithKeys(fn ($config, $routeLocale) => [$routeLocale => route('home', ['locale' => $routeLocale])])->all();
     $searchValue = $query ?? request()->query('q', '');
+    $isPostPage = request()->routeIs('posts.show', 'blog.show');
+    $isCategoryListing = request()->routeIs('categories.show');
+    $showLeftAdRail = $isPostPage || $isCategoryListing || request()->routeIs('blog.index');
+    $sidebarAdContext = $isPostPage ? 'post' : (request()->routeIs('blog.*') ? 'blog' : (request()->routeIs('categories.*') ? 'category' : (request()->routeIs('search*') ? 'search' : (request()->routeIs('book') ? 'book' : 'default'))));
 @endphp
 
 <div class="public-shell">
@@ -85,17 +89,23 @@
     </header>
 
     <main class="public-main">
-        <div class="container-xxl py-4">
-            <div class="row g-4 align-items-start">
-                <div class="col-12 col-xl-9">@yield('public-content')</div>
-                <aside class="col-12 col-xl-3" aria-label="{{ __('Advertisements') }}">
-                    @include('components.sidebar-ads', ['context' => request()->routeIs('posts.show', 'blog.show') ? 'post' : (request()->routeIs('blog.*') ? 'blog' : (request()->routeIs('categories.*') ? 'category' : (request()->routeIs('search*') ? 'search' : (request()->routeIs('book') ? 'book' : 'default'))))])
+        <div class="public-layout-container py-4">
+            <div class="public-column-layout {{ $showLeftAdRail ? 'public-column-layout--three-rails' : '' }} {{ $isCategoryListing ? 'public-column-layout--category' : '' }}">
+                @if ($showLeftAdRail)
+                    {{-- Same advertising component as the right, hidden below desktop widths. --}}
+                    <aside class="public-ad-rail public-ad-rail--left" aria-label="{{ __('Advertisements') }}">
+                        @include('components.sidebar-ads', ['context' => $sidebarAdContext, 'deferAdsenseUntilVisible' => true])
+                    </aside>
+                @endif
+                <div class="public-column-layout__content">@yield('public-content')</div>
+                <aside class="public-ad-rail public-ad-rail--right" aria-label="{{ __('Advertisements') }}">
+                    @include('components.sidebar-ads', ['context' => $sidebarAdContext])
                 </aside>
             </div>
         </div>
 
         <footer class="border-top border-secondary-subtle mt-4">
-            <div class="container-xxl py-4 d-flex flex-wrap gap-3 small text-body-secondary">
+            <div class="public-layout-container py-4 d-flex flex-wrap gap-3 small text-body-secondary">
                 <a href="{{ route('contact', ['locale' => $currentLocale]) }}">{{ __('Contact') }}</a>
                 <a href="{{ route('suggestions.create', ['locale' => $currentLocale]) }}">{{ __('Suggest a topic') }}</a>
                 <a href="{{ route('blog.index', ['locale' => $currentLocale]) }}">{{ __('Blog') }}</a>
