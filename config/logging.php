@@ -67,10 +67,13 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        // Existing installations may have LOG_STACK=single in .env.
+        // Rotate that channel as well, to prevent an indefinitely growing log.
         'single' => [
-            'driver' => 'single',
+            'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
         ],
 

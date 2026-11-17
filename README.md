@@ -141,10 +141,19 @@ Comentários e moderação.
 Curtidas e futuras reações.
 
 ### `post_views`
-Visualizações usadas para métricas e tendências.
+Visualizações editoriais usadas em métricas e tendências. A contagem é deduplicada por visitante/postagem/idioma em janelas de seis horas e pode ser agregada por dia, preservando os dados históricos.
 
 ### `page_engagements`
-Coleta de duração da visita à página, tempo ativo de engajamento e sinal de sessão engajada para calcular a taxa de rejeição. A tabela é criada pela migration específica `2026_11_04_000100_create_page_engagements_table.php`; seus dados começam a existir após a implantação e não são inventados retroativamente.
+Tabela histórica de duração, tempo ativo e rejeição da página, criada pela migration `2026_11_04_000100_create_page_engagements_table.php`. Seus registros antigos permanecem disponíveis para os relatórios.
+
+### `page_engagement_daily`
+Agregado diário por publicação, idioma técnico e identificador do visitante, com quantidade de visitas medidas, duração acumulada, tempo ativo, rejeições e etapas de leitura atingidas (`read_start`, `read_middle`, `read_end`). Evita criar uma linha no banco a cada envio de engajamento; os envios periódicos ocorrem a cada 60 segundos quando a aba está visível, com tentativa de envio ao ocultar/sair.
+
+### `visitor_activity_daily`
+Atividade agregada por identificador técnico e dia, contendo primeira/última atividade e a primeira ocorrência de retorno do dia. Um **retorno** exige ao menos 30 minutos sem atividade identificada; navegar entre páginas ou idiomas na mesma visita não cria um retorno. A identificação começa a partir da implantação da respectiva coleta.
+
+### `site_page_views_daily`
+Visualizações das páginas públicas agregadas por dia, idioma técnico e tipo de página (`home`, `category`, `blog`, `post`, `search`, `book`, `other`). Cada carregamento contabilizado é independente da deduplicação de seis horas das postagens. O registro exige consentimento de Analytics e exclui bots conhecidos; não engloba acessos administrativos nem reconstrói visitas anteriores à implantação.
 
 ### `suggestions`
 Sugestões de pauta enviadas futuramente pelos visitantes.
@@ -274,7 +283,9 @@ Evitar lógica complexa diretamente nas views.
 - **Trending Now** e **Popular This Week** usam cache curto de 2 minutos por locale para reduzir consultas sem deixar rankings longamente desatualizados;
 - sugestões públicas de pauta e moderação administrativa;
 - formulário de contato e caixa administrativa;
-- painel interno de métricas, incluindo tempo médio na página, tempo médio de engajamento e taxa de rejeição, com exportação JSON para IA;
+- painel interno de métricas, incluindo tempo médio na página, tempo médio de engajamento, taxa de rejeição, visitantes únicos aproximados e visitantes recorrentes, com exportação JSON para IA;
+- indicador separado de visualizações de **todas as páginas públicas monitoradas**, com filtro próprio de últimos 30 dias, últimos 365 dias, histórico disponível ou intervalo de datas personalizado;
+- indicadores de alcance do **início, meio e fim** do conteúdo em postagens normais e artigos de Blog, também incluídos no **Download AI report** por postagem e idioma, com perdas de progressão estimadas;
 - páginas de privacidade, termos e cookies;
 - preferência de Analytics armazenada por cookie;
 - integração estrutural com Google Analytics, ativada apenas com ID configurado e consentimento concedido;
@@ -334,6 +345,8 @@ Nunca versionar senha real, chaves ou segredos.
 - **Lote 2:** Área pública, busca, categorias, posts, relacionados e regiões — concluído.
 - **Lote 3:** Comentários, moderação, curtidas, visualizações e Trending — concluído.
 - **Lote 4:** Sugestões, métricas, legais, contato, segurança, logs, backups, integrações e finalização estrutural — concluído.
+- **Otimização posterior de métricas (Fases 1 e 2):** retenção/agregação de dados, deduplicação de visualizações, consentimento de Analytics, menor frequência de gravações e identificação de retornos — implementadas.
+- **Complementos das métricas:** visualizações públicas com filtro de datas independente, progressão de leitura e detalhamento de perda estimada por postagem no relatório para IA — implementados no código; exigem as migrations correspondentes ao instalar a atualização.
 
 A Home permanece visualmente idêntica ao layout aprovado.
 
@@ -349,9 +362,10 @@ Antes de alterar o projeto:
 6. manter apenas `resources/css/app.css` como CSS principal;
 7. considerar SEO, performance, segurança e regionalização em cada nova funcionalidade;
 8. atualizar este README quando uma decisão arquitetural, regra ou etapa relevante mudar.
+
 ## 19. Regras de interação pública
 
-- Apenas usuários autenticados com e-mail verificado podem comentar, responder, curtir e favoritar. Visitas e leitura continuam livres.
+- Apenas usuários autenticados podem comentar, responder, curtir e favoritar; **a verificação de e-mail não é exigida** no fluxo atual, conforme a seção 29. Visitas e leitura continuam livres.
 - A identificação técnica de visitante usa hash e não armazena IP puro no banco de reações/visualizações.
 - Curtidas são vinculadas ao `user_id`, com alternância curtir/descurtir e limite de uma reação por usuário/post/locale; comentários também podem receber curtidas.
 - Comentários classificados como seguros são aprovados automaticamente; suspeitos ficam `pending`, visíveis somente ao autor logado até revisão do administrador; graves são recusados no servidor.
@@ -471,12 +485,17 @@ Esta funcionalidade não faz parte da etapa atual e deverá ser detalhada e melh
 
 O download JSON do painel de métricas deve ser suficiente para orientar uma IA sobre o que o CineHub deve publicar em seguida, sem depender de explicações adicionais fora do arquivo.
 
-O painel e o JSON incluem, além de visualizações, visitantes únicos aproximados, curtidas e comentários aprovados:
+O painel e o JSON incluem, além de visualizações editoriais, visitantes únicos aproximados, curtidas e comentários aprovados:
 
 - **Tempo médio na página:** média do tempo decorrido nas visitas medidas (`average_page_seconds`).
 - **Tempo médio de engajamento:** média do tempo em que a página esteve ativa/em primeiro plano (`average_engaged_seconds`).
 - **Taxa de rejeição:** porcentagem de visitas medidas sem ao menos 10 segundos ativos nem interação (`bounce_rate_percent`).
-- Essas informações vêm de `page_engagements` e são apresentadas nos indicadores gerais e por conteúdo, respeitando os filtros de período e de idioma/grupo. Dados anteriores à coleta não devem ser preenchidos artificialmente.
+- **Visitantes recorrentes:** identificadores técnicos distintos que tiveram retorno registrado após pelo menos 30 minutos de inatividade. É um indicador separado, não uma quantidade adicional a somar aos visitantes únicos; duas postagens abertas na mesma visita não caracterizam retorno.
+- **Visualizações de todas as páginas públicas monitoradas:** total de carregamentos (`all_public_page_views`) e distribuição por tipo (`page_views_by_type`), sem a deduplicação das views editoriais. O filtro de datas desse total é **independente** do período de desempenho das postagens: 30 dias, 365 dias, todo o histórico coletado ou datas escolhidas pelo administrador.
+- **Profundidade de leitura:** quantidade de visitas medidas que alcançaram início, meio e fim do conteúdo editorial de postagens padrão e artigos de Blog (`read_start`, `read_middle`, `read_end`); não representa necessariamente a localização exata do abandono.
+- **Perda estimada de progressão por página:** `reading_dropoff_by_page` identifica postagem, formato e idioma, com visitas medidas, etapas alcançadas, percentuais de progressão e maior intervalo sem avanço observado. O campo `reading_progress` também fica disponível em `all_posts_performance`.
+- As séries históricas de tempo e rejeição vêm de `page_engagements` (legado) e `page_engagement_daily` (agregado novo); a profundidade de leitura vem do agregado novo. Visualizações totais e recorrência usam, respectivamente, `site_page_views_daily` e `visitor_activity_daily`.
+- Os filtros de período e idioma/grupo continuam controlando os indicadores editoriais, enquanto as visualizações públicas possuem intervalo próprio. Nenhuma métrica iniciada posteriormente deve ser preenchida artificialmente para datas anteriores à coleta.
 - O grupo `/en` agrega registros das quatro antigas regiões inglesas. Essa agregação não deve ser apresentada como localização geográfica real dos visitantes.
 
 A análise esperada deve:
@@ -490,7 +509,9 @@ A análise esperada deve:
 - recomendar, quando os dados permitirem, se a pauta deve ser post padrão ou artigo de Blog;
 - separar sugestões entre publicar mais, testar em seguida e reduzir/despriorizar;
 - não tirar conclusões confiáveis para idiomas/grupos com pouca ou nenhuma amostra, nem inferir o país real do visitante a partir da URL `/en`;
-- usar `editorial_score` como apoio, sempre conferindo também views, engajamento, crescimento, confiança da amostra e quantidade de posts.
+- usar `editorial_score` como apoio, sempre conferindo também views, engajamento, crescimento, confiança da amostra e quantidade de posts;
+- analisar `reading_dropoff_by_page` e `reading_progress` por postagem e idioma, identificando os intervalos com maior **perda estimada de progressão** (antes do início, início→meio ou meio→fim), e sugerir ajustes de introdução, ritmo, subtítulos, extensão e organização do texto;
+- diferenciar **não atingir um marco** de **abandonar comprovadamente naquele ponto**. Considerar o número de visitas medidas, os percentuais e o tamanho da amostra antes de atribuir causas ou recomendar mudanças.
 
 Exemplo de raciocínio esperado: se um conteúdo de **Middle-earth: Shadow of Mordor** ou **Shadow of War** tiver desempenho forte, a análise pode identificar afinidade com fantasia, atmosfera medieval, ação em mundo aberto e progressão de personagem e, a partir disso, sugerir conteúdos sobre **The Witcher 3**, **Skyrim**, **Elden Ring**, **Dragon Age** ou obras semelhantes.
 
@@ -671,3 +692,42 @@ e monitore falhas do agendamento. Nunca exponha o diretório de backups na web.
 - O envio do termo escolhido via autocomplete utiliza POST com CSRF e `sendBeacon`/`fetch` com `keepalive`; entradas com `search_event` usam identificação de evento para não contar recargas do mesmo formulário. Links externos/sem JavaScript têm deduplicação breve por sessão.
 - A área pública não recebeu alteração visual; o JavaScript permanece em `resources/js/app.js` e o estilo principal em `resources/css/app.css`.
 - **Após copiar os arquivos:** executar `php artisan migrate --force`, `php artisan optimize:clear` e `npm run build`. Publicações existentes e tabelas anteriores não são modificadas pela migration.
+
+## 34. Métricas complementares e leitura editorial (novembro de 2026)
+
+As funcionalidades abaixo complementam a Fase 2 de otimização, sem modificar o layout aprovado da Home nem criar serviços externos obrigatórios.
+
+### Visualizações totais das páginas públicas
+
+- O indicador **All public page views** representa carregamentos das páginas públicas monitoradas, não apenas postagens e não apenas visualizações únicas. Abrange Home, categorias/listagens, Blog, páginas de post, busca, livro e outras páginas públicas que utilizam o rastreamento.
+- O filtro próprio aceita **últimos 30 dias**, **últimos 365 dias**, **todo o histórico disponível** e **intervalo personalizado** (data inicial e final, inclusive). O total pode ser detalhado por tipo de página; o filtro de idioma/grupo permanece aplicável.
+- A tabela `site_page_views_daily` armazena somatórios por data, locale técnico e tipo, em vez de manter uma linha individual para cada carregamento. A coleta só ocorre após consentimento de Analytics e não considera bots conhecidos.
+- **Não confundir** esta métrica com `post_views`: a última mantém a deduplicação de seis horas para indicadores editoriais e Trending. A métrica geral não recupera dados anteriores à sua ativação e não cobre o painel administrativo.
+
+### Leitura: início, meio e fim
+
+- Em postagens **standard** e artigos **blog**, o navegador mede o maior marco alcançado na área editorial. São considerados início, ponto médio e fim do conteúdo; a área de comentários/interações não integra o fim da leitura.
+- A cada visita medida, cada marco é contabilizado no máximo uma vez. Os totais são acumulados nos campos `read_start`, `read_middle` e `read_end` de `page_engagement_daily`, separados por postagem, locale e visitante/dia.
+- Os envios acumulados de engajamento ocorrem a cada **60 segundos** com a página visível e também ao ocultar ou sair, evitando requisições periódicas com a aba oculta e reenvios de estados idênticos já confirmados.
+- A leitura é uma **aproximação pela posição visível na tela**: chegar ao fim não comprova que o texto inteiro foi lido; não chegar ao meio/fim não prova saída exata naquele local. A análise deve falar em *perda de progressão estimada*.
+
+### Visitantes únicos, retornos e privacidade
+
+- **Visitantes únicos aproximados:** identificadores técnicos distintos observados nas visualizações editoriais do período; cookies, dispositivos e alterações de identidade podem afetar a precisão.
+- **Visitantes recorrentes:** identificadores distintos com ao menos um retorno registrado no período, caracterizado por **30 minutos ou mais sem atividade rastreada**. Navegar entre páginas ou idiomas durante a mesma visita não aumenta essa métrica. O registro é agregado por visitante/dia em `visitor_activity_daily`, com atualização controlada da última atividade.
+- Os indicadores são **separados e não aditivos**: recorrentes podem estar incluídos nos únicos. Não chamar essa contagem de total de visitas ou de número exato de pessoas físicas.
+- A coleta exige consentimento `cinehub_analytics_consent=granted`; bots conhecidos são ignorados e não se armazena IP puro nessas métricas. Revogar o consentimento impede a continuidade da coleta. Os retornos anteriores à criação do rastreamento não podem ser reconstruídos de modo confiável.
+
+### Download AI report
+
+- O botão **Download AI report** exporta JSON para análise editorial, conservando os filtros de período e idioma/grupo das métricas editoriais e incluindo os totais gerais que utilizam seu filtro próprio de datas.
+- Além de desempenho, gêneros, categorias, formato, crescimento e engajamento, o JSON disponibiliza `reading_dropoff_by_page` e `all_posts_performance[].reading_progress` com os marcos de leitura por postagem e idioma.
+- Os cálculos distinguem visitas medidas, leitores que chegaram ao início/meio/fim, percentuais de avanço, **não progressão antes do início**, **entre início e meio** e **entre meio e fim**. O relatório deve explicar que esses intervalos são estimativas, não pontos exatos de abandono.
+- A análise por IA deve nomear as postagens afetadas, distinguir perdas absolutas de percentuais com amostras pequenas e propor correções editoriais concretas, sem inferir localização geográfica a partir de `/en`, `/fr` ou `/de`.
+- Nenhum identificador técnico individual de visitante precisa ser exposto no JSON para analisar esses resultados.
+
+### Implantação e manutenção
+
+- As estruturas novas foram introduzidas pelas migrations `2026_11_16_000300_aggregate_repeat_post_views.php`, `2026_11_16_000400_create_page_engagement_daily_table.php`, `2026_11_16_000600_create_visitor_activity_daily_table.php` e `2026_11_16_000700_site_views_and_reading_depth.php`, além dos demais ajustes de suporte da Fase 2.
+- Após aplicar **os arquivos de código correspondentes** em uma instalação ainda não atualizada, realizar backup do banco e executar `php artisan migrate`, `php artisan optimize:clear` e os testes pertinentes à Fase 2 e às métricas complementares. Somente atualizar este README **não** exige migration, build ou alteração do banco.
+- Migrations de analytics que já contenham dados possuem proteção contra rollback destrutivo. Não apagar tabelas históricas para simplificar os relatórios.

@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
-use App\Http\Controllers\Admin\ArticleImageController as AdminArticleImageController;
 use App\Http\Controllers\Admin\BlogCategoryController as AdminBlogCategoryController;
 use App\Http\Controllers\Admin\BlogGenreController as AdminBlogGenreController;
 use App\Http\Controllers\Admin\AdSlotController as AdminAdSlotController;
@@ -32,6 +31,7 @@ use App\Http\Controllers\Public\PostController as PublicPostController;
 use App\Http\Controllers\Public\PageEngagementController;
 use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SuggestionController;
+use App\Http\Controllers\Public\SitePageViewController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\Member\AuthController as MemberAuthController;
 use App\Http\Controllers\Member\GoogleAuthController;
@@ -70,7 +70,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('genres', AdminGenreController::class)->except('show');
         Route::resource('blog-categories', AdminBlogCategoryController::class)->parameters(['blog-categories' => 'blog_category'])->except('show');
         Route::resource('blog-genres', AdminBlogGenreController::class)->parameters(['blog-genres' => 'blog_genre'])->except('show');
-        Route::post('/posts/article-images', [AdminArticleImageController::class, 'store'])->name('posts.article-images.store');
         Route::resource('posts', AdminPostController::class)->except('show');
         Route::resource('comments', AdminCommentController::class)->only(['index', 'update', 'destroy']);
         Route::resource('moderation', AdminModerationTermController::class)->parameters(['moderation' => 'moderationTerm'])->only(['index', 'store', 'update', 'destroy']);
@@ -137,7 +136,8 @@ Route::prefix('{locale}')
         Route::get('/legal/{page}', [LegalController::class, 'show'])->where('page', 'privacy|terms|cookies')->name('legal.show');
         Route::post('/privacy/consent', [CookieConsentController::class, 'update'])->middleware('throttle:10,1')->name('privacy.consent');
         Route::get('/book', BookController::class)->name('book');
-        Route::post('/page-engagement', PageEngagementController::class)->middleware('throttle:120,1')->name('page-engagement.store');
+        Route::post('/site-page-view', SitePageViewController::class)->middleware('throttle:120,1')->name('site-page-view.store');
+        Route::post('/page-engagement', PageEngagementController::class)->middleware('throttle:120,1')->block(5, 5)->name('page-engagement.store');
         Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
         Route::post('/blog/{slug}/comments', [PublicCommentController::class, 'storeBlog'])
             ->middleware(['auth', 'throttle:5,1'])

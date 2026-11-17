@@ -35,8 +35,8 @@ class HomeController extends Controller
             ->withCount([
                 'reactions as likes_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
                 'comments as approved_comments_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
-                'views as views_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale)),
-            ]);
+            ])
+            ->withSum(['views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))], 'view_count');
 
         $featuredPost = $baseQuery()
             ->whereHas('localizations', fn (Builder $q) => $q->where('locale', $locale)->where('is_active', true)->where('is_featured', true))

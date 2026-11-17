@@ -84,6 +84,8 @@ class PostRequest extends FormRequest
             'blog_genres.*' => ['integer', 'distinct', 'exists:blog_genres,id'],
             'localizations' => ['required', 'array'],
             'media' => ['nullable', 'array'],
+            'article_uploads' => ['nullable', 'array'],
+            'article_uploads.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:6144', 'dimensions:max_width=6000,max_height=6000'],
         ];
 
         foreach (array_keys(config('localization.locales')) as $locale) {
@@ -120,7 +122,9 @@ class PostRequest extends FormRequest
             $rules["localizations.$locale.spoilers"] = ['nullable', 'string'];
             $rules["localizations.$locale.seo_title"] = ['nullable', 'string', 'max:70'];
             $rules["localizations.$locale.seo_description"] = ['nullable', 'string', 'max:170'];
-            $rules["media.$locale.type"] = ['nullable', Rule::in(['image', 'youtube'])];
+            $rules["media.$locale.id"] = ['nullable', 'integer', Rule::exists('media', 'id')
+                ->where('post_id', $post?->id ?? 0)->where('locale', $locale)];
+            $rules["media.$locale.type"] = ['nullable', Rule::in(['image', 'youtube', 'keep'])];
             $rules["media.$locale.image"] = ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120', 'dimensions:max_width=6000,max_height=6000'];
             $rules["media.$locale.youtube_url"] = ['nullable', 'url', 'max:2000'];
             $rules["media.$locale.alt_text"] = ['nullable', 'string', 'max:180'];

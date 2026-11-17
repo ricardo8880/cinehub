@@ -182,7 +182,7 @@
                 </div>
                 <div class="col-12" data-blog-post-fields>
                     <label class="form-label" for="article-body-{{ $locale }}">{{ __('Article content') }}</label>
-                    <div data-rich-text-wrapper data-rich-images data-rich-locale="{{ $locale }}" data-rich-image-upload-url="{{ route('admin.posts.article-images.store') }}">
+                    <div data-rich-text-wrapper data-rich-images data-rich-locale="{{ $locale }}">
                         <textarea class="form-control" id="article-body-{{ $locale }}" data-rich-text-input data-post-article-body="{{ $locale }}" name="localizations[{{ $locale }}][article_body]" rows="14">{{ old("localizations.$locale.article_body", $localization?->article_body) }}</textarea>
                         <div data-rich-text-editor></div>
                         <button class="btn btn-outline-secondary btn-sm mt-2 d-none" type="button" data-rich-text-source-toggle><i class="bi bi-code-slash me-1"></i>{{ __('HTML') }}</button>
@@ -224,7 +224,7 @@
                 $countryMedia = $currentPost?->media?->where('locale', $locale)->sortByDesc('is_primary')->first();
                 $savedMediaType = match ($countryMedia?->type) {
                     'image' => 'image',
-                    'trailer' => $countryMedia?->provider === 'youtube' ? 'youtube' : '',
+                    'trailer' => $countryMedia?->provider === 'youtube' ? 'youtube' : 'keep',
                     default => '',
                 };
                 $selectedMediaType = old("media.$locale.type", $savedMediaType);
@@ -237,12 +237,17 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
+                            <input type="hidden" name="media[{{ $locale }}][id]" value="{{ $countryMedia?->id }}">
                             <label class="form-label" for="media-type-{{ $locale }}">{{ __('Media type') }}</label>
                             <select class="form-select" id="media-type-{{ $locale }}" name="media[{{ $locale }}][type]" data-country-media-type="{{ $locale }}">
-                                <option value="" @selected($selectedMediaType === '')>{{ __('No media') }}</option>
+                                <option value="" @selected($selectedMediaType === '')>{{ $countryMedia ? __('Remove selected media') : __('No media') }}</option>
+                                @if ($countryMedia?->type === 'trailer' && $countryMedia?->provider !== 'youtube')
+                                    <option value="keep" @selected($selectedMediaType === 'keep')>{{ __('Keep current media') }} ({{ ucfirst($countryMedia->provider ?: 'video') }})</option>
+                                @endif
                                 <option value="image" @selected($selectedMediaType === 'image')>{{ __('Image') }}</option>
                                 <option value="youtube" @selected($selectedMediaType === 'youtube')>{{ __('YouTube video') }}</option>
                             </select>
+                            <div class="form-text">{{ __('Other media entries are managed separately and will not be removed.') }}</div>
                         </div>
 
                         <div class="col-12 {{ $selectedMediaType === 'image' ? '' : 'd-none' }}" data-country-image-fields="{{ $locale }}">
@@ -402,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const count = wrapper.querySelector('[data-rich-text-count]');
         const maxLength = Number(input?.dataset.richMaxlength || 0);
         const allowImages = wrapper.hasAttribute('data-rich-images');
-        const imageUploadUrl = wrapper.dataset.richImageUploadUrl || '';
+        const pendingEditorImages = new Map();
         const richLocale = wrapper.dataset.richLocale || '';
 
         if (!input || !editor || !source || !toggle || typeof Quill === 'undefined') {
@@ -426,55 +431,38 @@ document.addEventListener('DOMContentLoaded', () => {
             modules: { toolbar: toolbarOptions },
         });
 
-        if (allowImages && imageUploadUrl) {
+        // Images remain in browser memory until the post form is submitted.
+        // Cancelling the edit never creates files on the server.
+        if (allowImages) {
             quill.getModule('toolbar')?.addHandler('image', () => {
                 const picker = document.createElement('input');
                 picker.type = 'file';
                 picker.accept = 'image/jpeg,image/png,image/webp,image/gif';
-                picker.className = 'd-none';
-                document.body.appendChild(picker);
-
                 picker.addEventListener('change', async () => {
                     const file = picker.files?.[0];
-                    if (!file) {
-                        picker.remove();
+                    if (!file) return;
+                    if (file.size > 6 * 1024 * 1024) {
+                        window.alert('{{ __('The image may not be greater than 6 MB.') }}');
                         return;
                     }
-
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    formData.append('locale', richLocale);
-
-                    try {
-                        const response = await fetch(imageUploadUrl, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                                'Accept': 'application/json',
-                            },
-                            body: formData,
-                        });
-                        const payload = await response.json();
-
-                        if (!response.ok || !payload.url) {
-                            throw new Error(payload.message || '{{ __('Could not upload the image.') }}');
-                        }
-
-                        const altText = window.prompt('{{ __('Image description (alt text)') }}', '') ?? '';
-                        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
-                        quill.insertEmbed(range.index, 'image', payload.url, 'user');
-                        quill.insertText(range.index + 1, '\n', 'silent');
-                        const insertedImage = [...editor.querySelectorAll('img')].find((image) => image.getAttribute('src') === payload.url);
-                        if (insertedImage) insertedImage.setAttribute('alt', altText.trim());
-                        quill.setSelection(range.index + 2, 0, 'silent');
-                        syncFromEditor();
-                    } catch (error) {
-                        window.alert(error?.message || '{{ __('Could not upload the image.') }}');
-                    } finally {
-                        picker.remove();
-                    }
+                    const token = [...crypto.getRandomValues(new Uint8Array(16))]
+                        .map((byte) => byte.toString(16).padStart(2, '0')).join('');
+                    const dataUrl = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = () => reject(new Error('Could not read image'));
+                        reader.readAsDataURL(file);
+                    });
+                    pendingEditorImages.set(token, { file, dataUrl });
+                    const altText = window.prompt('{{ __('Image description (alt text)') }}', '') ?? '';
+                    const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+                    quill.insertEmbed(range.index, 'image', dataUrl, 'user');
+                    quill.insertText(range.index + 1, '\n', 'silent');
+                    const insertedImage = [...editor.querySelectorAll('img')].find((image) => image.getAttribute('src') === dataUrl);
+                    if (insertedImage) insertedImage.setAttribute('alt', altText.trim());
+                    quill.setSelection(range.index + 2, 0, 'silent');
+                    syncFromEditor();
                 }, { once: true });
-
                 picker.click();
             });
         }
@@ -548,6 +536,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncFromSource();
             } else {
                 syncFromEditor();
+            }
+            // Replace embedded browser-only URLs with server-side placeholders;
+            // attach only images actually present in the submitted article.
+            const form = wrapper.closest('form');
+            for (const [token, { file, dataUrl }] of pendingEditorImages) {
+                if (!input.value.includes(dataUrl)) continue;
+                input.value = input.value.replaceAll(dataUrl, `/storage/blog-content/pending/${token}.webp`);
+                const upload = document.createElement('input');
+                upload.type = 'file';
+                upload.name = `article_uploads[${token}]`;
+                upload.hidden = true;
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                upload.files = transfer.files;
+                form.appendChild(upload);
             }
         });
     });

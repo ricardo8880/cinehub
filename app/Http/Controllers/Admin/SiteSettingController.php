@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SiteSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SiteSettingController extends Controller
@@ -50,9 +51,18 @@ class SiteSettingController extends Controller
 
         $data = $request->validate($rules);
 
-        foreach (self::keys() as $key) {
-            SiteSetting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? null]);
-        }
+        DB::transaction(function () use ($data): void {
+            foreach (self::keys() as $key) {
+                $value = $data[$key] ?? null;
+
+                if ($value === null || (is_string($value) && trim($value) === '')) {
+                    SiteSetting::query()->where('key', $key)->delete();
+                    continue;
+                }
+
+                SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
+            }
+        });
 
         return back()->with('success', __('Settings saved.'));
     }

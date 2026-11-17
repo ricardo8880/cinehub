@@ -6,16 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MediaRequest;
 use App\Models\Media;
 use App\Models\Post;
-use App\Support\OptimizedImageStorage;
+use App\Support\MediaFileChanges;
+use App\Support\HomeContentCache;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class MediaController extends Controller
 {
-    public function __construct(private readonly OptimizedImageStorage $imageStorage)
+    public function __construct(private readonly MediaFileChanges $fileChanges)
     {
     }
 
@@ -41,13 +40,15 @@ class MediaController extends Controller
         $data = $request->validated();
         $this->validateMediaRequirements($data, $request->hasFile('image'));
 
-        DB::transaction(function () use ($request, $post, $data): void {
+        $this->fileChanges->transaction(function () use ($request, $post, $data): void {
             if ($data['is_primary']) {
-                $post->media()->where('type', $data['type'])->update(['is_primary' => false]);
+                $post->media()->where('type', $data['type'])
+                    ->where('locale', $data['locale'] ?? null)
+                    ->update(['is_primary' => false]);
             }
 
-            $path = $request->file('image')
-                ? $this->imageStorage->store($request->file('image'), 'posts/'.$post->id, 1920, 1920, 82)
+            $path = $data['type'] === 'image' && $request->file('image')
+                ? $this->fileChanges->store($request->file('image'), 'posts/'.$post->id)
                 : null;
 
             $post->media()->create([
@@ -64,6 +65,8 @@ class MediaController extends Controller
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
         });
+
+        HomeContentCache::forget();
 
         return redirect()
             ->route('admin.posts.media.index', $post)
@@ -86,25 +89,27 @@ class MediaController extends Controller
         abort_unless($medium->post_id === $post->id, 404);
 
         $data = $request->validated();
-        $hasImage = $request->hasFile('image') || (bool) $medium->thumbnail_path;
+        $hasImage = $request->hasFile('image') || ($data['type'] === 'image' && (bool) $medium->thumbnail_path);
         $this->validateMediaRequirements($data, $hasImage);
 
-        DB::transaction(function () use ($request, $post, $medium, $data): void {
+        $this->fileChanges->transaction(function () use ($request, $post, $medium, $data): void {
             if ($data['is_primary']) {
                 $post->media()
                     ->where('type', $data['type'])
+                    ->where('locale', $data['locale'] ?? null)
                     ->whereKeyNot($medium->id)
                     ->update(['is_primary' => false]);
             }
 
-            $path = $medium->thumbnail_path;
+            $previousPath = $medium->thumbnail_path;
+            $path = $data['type'] === 'image' ? $previousPath : null;
 
-            if ($request->hasFile('image')) {
-                if ($path) {
-                    Storage::disk('public')->delete($path);
-                }
+            if ($data['type'] === 'image' && $request->hasFile('image')) {
+                $path = $this->fileChanges->store($request->file('image'), 'posts/'.$post->id);
+            }
 
-                $path = $this->imageStorage->store($request->file('image'), 'posts/'.$post->id, 1920, 1920, 82);
+            if ($previousPath && $path !== $previousPath) {
+                $this->fileChanges->retire($previousPath);
             }
 
             $medium->update([
@@ -122,6 +127,8 @@ class MediaController extends Controller
             ]);
         });
 
+        HomeContentCache::forget();
+
         return redirect()
             ->route('admin.posts.media.index', $post)
             ->with('success', __('Media updated successfully.'));
@@ -131,11 +138,12 @@ class MediaController extends Controller
     {
         abort_unless($medium->post_id === $post->id, 404);
 
-        if ($medium->thumbnail_path) {
-            Storage::disk('public')->delete($medium->thumbnail_path);
-        }
+        $this->fileChanges->transaction(function () use ($medium): void {
+            $this->fileChanges->retire($medium->thumbnail_path);
+            $medium->delete();
+        });
 
-        $medium->delete();
+        HomeContentCache::forget();
 
         return redirect()
             ->route('admin.posts.media.index', $post)

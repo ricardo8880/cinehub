@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\HomeContentCache;
 use App\Http\Requests\Admin\BlogCategoryRequest;
 use App\Models\BlogCategory;
+use App\Models\UserInterest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,6 +63,8 @@ class BlogCategoryController extends Controller
             return $category;
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.blog-categories.edit', $category)->with('success', __('Blog category created successfully.'));
     }
 
@@ -91,12 +95,26 @@ class BlogCategoryController extends Controller
             $this->syncLocalizations($blog_category, $data['localizations']);
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.blog-categories.edit', $blog_category)->with('success', __('Blog category updated successfully.'));
     }
 
     public function destroy(BlogCategory $blog_category): RedirectResponse
     {
-        $blog_category->delete();
+        if ($blog_category->posts()->exists()) {
+            return back()->withErrors(['delete' => __('Reassign or delete the linked posts before deleting this category.')]);
+        }
+
+        DB::transaction(function () use ($blog_category): void {
+            UserInterest::query()
+                ->where('kind', 'blog_category')
+                ->where('reference_id', $blog_category->id)
+                ->delete();
+            $blog_category->delete();
+        });
+
+        HomeContentCache::forget();
 
         return redirect()->route('admin.blog-categories.index')->with('success', __('Blog category deleted successfully.'));
     }
@@ -109,7 +127,7 @@ class BlogCategoryController extends Controller
             $existing = $category->localizations()->where('locale', $locale)->first();
 
             if ($name === '') {
-                $existing?->update(['is_active' => false]);
+                $existing?->delete();
                 continue;
             }
 

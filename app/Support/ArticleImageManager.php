@@ -8,6 +8,7 @@ use DOMElement;
 use DOMXPath;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class ArticleImageManager
 {
@@ -39,7 +40,7 @@ class ArticleImageManager
         $this->deletePathsIfUnused($this->pathsFromHtml($html));
     }
 
-    public function cleanupOrphansForUser(int $userId, int $olderThanHours = 24): void
+    public function cleanupOrphansForUser(int $userId, int $olderThanHours = 168): void
     {
         $disk = Storage::disk('public');
         $prefix = "blog-content/{$userId}";
@@ -56,8 +57,33 @@ class ArticleImageManager
             }
 
             if (! isset($referenced[$path])) {
-                $disk->delete($path);
+                $this->deleteFile($path);
             }
+        }
+    }
+
+    public function deleteFile(string $path): void
+    {
+        if (! str_starts_with($path, 'blog-content/')) {
+            return;
+        }
+        $disk = Storage::disk('public');
+        if ($disk->exists($path) && (! $disk->delete($path) || $disk->exists($path))) {
+            throw new RuntimeException('Could not remove article image: '.$path);
+        }
+        $folder = dirname($path);
+        while (str_starts_with($folder, 'blog-content/') && $folder !== 'blog-content') {
+            if (! $disk->directoryExists($folder)) {
+                $folder = dirname($folder);
+                continue;
+            }
+            if ($disk->allFiles($folder) !== [] || $disk->directories($folder) !== []) {
+                break;
+            }
+            if (! $disk->deleteDirectory($folder) || $disk->directoryExists($folder)) {
+                throw new RuntimeException('Could not remove empty article folder: '.$folder);
+            }
+            $folder = dirname($folder);
         }
     }
 
@@ -105,36 +131,30 @@ class ArticleImageManager
         }
 
         $disk = Storage::disk('public');
+        // Compare full normalized paths, not just filenames. A similarly named
+        // image in another article must not prevent cleanup.
+        $references = $this->allReferencedPaths();
 
         foreach (array_values(array_unique($paths)) as $path) {
-            if (! str_starts_with($path, 'blog-content/')) {
-                continue;
-            }
-
-            $needle = basename($path);
-            $stillReferenced = PostLocalization::query()
-                ->whereNotNull('article_body')
-                ->where('article_body', 'like', '%'.$needle.'%')
-                ->exists();
-
-            if (! $stillReferenced) {
-                $disk->delete($path);
+            if (str_starts_with($path, 'blog-content/') && ! isset($references[$path])) {
+                $this->deleteFile($path);
             }
         }
     }
 
-    private function allReferencedPaths(): array
+    public function allReferencedPaths(): array
     {
         $paths = [];
 
         PostLocalization::query()
-            ->whereNotNull('article_body')
-            ->select(['id', 'article_body'])
+            ->select(['id', 'article_body', 'excerpt', 'synopsis', 'review', 'spoilers'])
             ->orderBy('id')
             ->chunkById(200, function ($localizations) use (&$paths): void {
                 foreach ($localizations as $localization) {
-                    foreach ($this->pathsFromHtml($localization->article_body) as $path) {
-                        $paths[$path] = true;
+                    foreach (['article_body', 'excerpt', 'synopsis', 'review', 'spoilers'] as $field) {
+                        foreach ($this->pathsFromHtml($localization->{$field}) as $path) {
+                            $paths[$path] = true;
+                        }
                     }
                 }
             });
@@ -160,6 +180,6 @@ class ArticleImageManager
 
         $path = ltrim(substr($urlPath, $position + strlen($marker)), '/');
 
-        return str_starts_with($path, 'blog-content/') ? $path : null;
+        return preg_match('~^blog-content/[0-9]+/[a-z0-9-]+/[A-Za-z0-9_.-]+$~', $path) ? $path : null;
     }
 }

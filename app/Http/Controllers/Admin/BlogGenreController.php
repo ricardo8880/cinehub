@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\HomeContentCache;
 use App\Http\Requests\Admin\BlogGenreRequest;
 use App\Models\BlogCategory;
 use App\Models\BlogGenre;
+use App\Models\UserInterest;
 use App\Models\BlogGenreLocalization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -58,6 +60,8 @@ class BlogGenreController extends Controller
             return $genre;
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.blog-genres.edit', $genre)->with('success', __('Blog genre created successfully.'));
     }
 
@@ -96,12 +100,22 @@ class BlogGenreController extends Controller
             }
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.blog-genres.edit', $blog_genre)->with('success', __('Blog genre updated successfully.'));
     }
 
     public function destroy(BlogGenre $blog_genre): RedirectResponse
     {
-        $blog_genre->delete();
+        DB::transaction(function () use ($blog_genre): void {
+            UserInterest::query()
+                ->where('kind', 'blog_genre')
+                ->where('reference_id', $blog_genre->id)
+                ->delete();
+            $blog_genre->delete();
+        });
+
+        HomeContentCache::forget();
 
         return redirect()->route('admin.blog-genres.index')->with('success', __('Blog genre deleted successfully.'));
     }
@@ -124,7 +138,7 @@ class BlogGenreController extends Controller
             $existing = $genre->localizations()->where('locale', $locale)->first();
 
             if ($name === '') {
-                $existing?->update(['is_active' => false]);
+                $existing?->delete();
                 continue;
             }
 

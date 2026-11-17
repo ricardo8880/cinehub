@@ -236,5 +236,8 @@
     "Your comment contains abusive or prohibited language. Please edit it before sending.": "Dein Kommentar enthält beleidigende oder unzulässige Sprache. Bitte vor dem Senden bearbeiten.",
     "Your comment was posted.": "Dein Kommentar wurde veröffentlicht.",
     "Your reaction helps highlight popular content.": "Deine Reaktion hilft, beliebte Inhalte hervorzuheben.",
-    "Your reply contains abusive or prohibited language. Edit it to continue.": "Deine Antwort enthält beleidigende oder unzulässige Sprache. Bearbeite sie, um fortzufahren."
+    "Your reply contains abusive or prohibited language. Edit it to continue.": "Deine Antwort enthält beleidigende oder unzulässige Sprache. Bearbeite sie, um fortzufahren.",
+    "Optional CineHub page-view and engagement statistics are also recorded only after analytics consent. A random visitor identifier is stored in a cookie to distinguish repeat visits.": "Optionale CineHub-Statistiken zu Seitenaufrufen und Interaktionen werden erst nach deiner Einwilligung erfasst. Eine zufällige Besucherkennung wird in einem Cookie gespeichert, um wiederholte Besuche zu erkennen.",
+    "Returning visitors": "Wiederkehrende Besucher",
+    "Visitors returning after 30 minutes of inactivity (tracked from Phase 2 update)": "Besucher, die nach 30 Minuten Inaktivität zurückkehren (Erfassung seit Phase-2-Update)"
 }

@@ -8,14 +8,15 @@ use App\Models\BlogCategory;
 use App\Models\BlogGenre;
 use App\Models\Category;
 use App\Models\Genre;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostLocalization;
 use App\Support\ArticleImageManager;
-use App\Support\OptimizedImageStorage;
+use App\Support\HomeContentCache;
+use App\Support\MediaFileChanges;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,7 @@ class PostController extends Controller
 {
     public function __construct(
         private readonly ArticleImageManager $articleImages,
-        private readonly OptimizedImageStorage $imageStorage,
+        private readonly MediaFileChanges $fileChanges,
     ) {
     }
 
@@ -70,7 +71,7 @@ class PostController extends Controller
         $data = $request->validated();
         $publishedAt = $this->publishedAt($data['status'], $data['published_at'] ?? null);
 
-        $post = DB::transaction(function () use ($request, $data, $publishedAt): Post {
+        $post = $this->fileChanges->transaction(function () use ($request, $data, $publishedAt): Post {
             $post = Post::create([
                 'author_id' => $request->user()->id,
                 'status' => $data['status'],
@@ -84,14 +85,14 @@ class PostController extends Controller
             $post->categories()->sync($isBlog ? [] : ($data['categories'] ?? []));
             $post->genres()->sync($isBlog ? [] : ($data['genres'] ?? []));
             $post->blogGenres()->sync($isBlog ? ($data['blog_genres'] ?? []) : []);
-            $this->syncLocalizations($post, $data['localizations']);
+            $this->syncLocalizations($post, $this->resolveEditorImages($data['localizations'], $request));
             $this->syncCountryMedia($post, $data['localizations'], $data['media'] ?? [], $request);
 
             return $post;
         });
 
+        HomeContentCache::forget();
         $post->load('localizations');
-        $this->articleImages->cleanupOrphansForUser((int) $request->user()->id);
 
         return redirect()
             ->route('admin.posts.edit', $post)
@@ -119,9 +120,9 @@ class PostController extends Controller
     {
         $data = $request->validated();
         $publishedAt = $this->publishedAt($data['status'], $data['published_at'] ?? null, $post);
-        $oldArticleBodies = $post->localizations()->pluck('article_body', 'locale')->all();
+        $oldLocalizedContent = $post->localizations()->get()->keyBy('locale');
 
-        DB::transaction(function () use ($request, $post, $data, $publishedAt): void {
+        $this->fileChanges->transaction(function () use ($request, $post, $data, $publishedAt, $oldLocalizedContent): void {
             $post->update([
                 'status' => $data['status'],
                 'publication_type' => $data['publication_type'],
@@ -134,16 +135,23 @@ class PostController extends Controller
             $post->categories()->sync($isBlog ? [] : ($data['categories'] ?? []));
             $post->genres()->sync($isBlog ? [] : ($data['genres'] ?? []));
             $post->blogGenres()->sync($isBlog ? ($data['blog_genres'] ?? []) : []);
-            $this->syncLocalizations($post, $data['localizations']);
+            $this->syncLocalizations($post, $this->resolveEditorImages($data['localizations'], $request));
             $this->syncCountryMedia($post, $data['localizations'], $data['media'] ?? [], $request);
+            $newLocalizedContent = $post->localizations()->get()->keyBy('locale');
+            foreach ($oldLocalizedContent as $locale => $oldContent) {
+                $newContent = $newLocalizedContent->get($locale);
+                foreach (['article_body', 'excerpt', 'synopsis', 'review', 'spoilers'] as $field) {
+                    $oldPaths = $this->articleImages->pathsFromHtml($oldContent->{$field});
+                    $newPaths = $this->articleImages->pathsFromHtml($newContent?->{$field});
+                    foreach (array_diff($oldPaths, $newPaths) as $path) {
+                        $this->fileChanges->retire($path);
+                    }
+                }
+            }
         });
 
+        HomeContentCache::forget();
         $post->load('localizations');
-        foreach ($oldArticleBodies as $locale => $oldBody) {
-            $newBody = $post->localizations->firstWhere('locale', $locale)?->article_body;
-            $this->articleImages->deleteRemoved($oldBody, $newBody);
-        }
-        $this->articleImages->cleanupOrphansForUser((int) $request->user()->id);
 
         return redirect()
             ->route('admin.posts.edit', $post)
@@ -153,12 +161,34 @@ class PostController extends Controller
     public function destroy(Post $post): RedirectResponse
     {
         $isBlog = $post->publication_type === 'blog';
-        $articleBodies = $post->localizations()->pluck('article_body')->filter()->all();
-        $post->delete();
-
-        foreach ($articleBodies as $articleBody) {
-            $this->articleImages->deleteFromHtml($articleBody);
+        $postId = (int) $post->id;
+        $articleBodies = [];
+        foreach ($post->localizations()->get() as $localized) {
+            foreach (['article_body', 'excerpt', 'synopsis', 'review', 'spoilers'] as $field) {
+                if ($localized->{$field}) {
+                    $articleBodies[] = $localized->{$field};
+                }
+            }
         }
+
+        // Record every file before committing the deletion. If physical cleanup
+        // fails, a durable pending row remains available for a manual retry.
+        $this->fileChanges->transaction(function () use ($post, $postId, $articleBodies): void {
+            foreach ($post->media()->pluck('thumbnail_path')->filter() as $path) {
+                $this->fileChanges->retire($path);
+            }
+            foreach ($articleBodies as $body) {
+                foreach ($this->articleImages->pathsFromHtml($body) as $path) {
+                    $this->fileChanges->retire($path);
+                }
+            }
+            foreach (Storage::disk('public')->allFiles('posts/'.$postId) as $path) {
+                $this->fileChanges->retire($path);
+            }
+            $post->delete(); // hard deletion + FK cascades
+        });
+
+        HomeContentCache::forget();
 
         return redirect()
             ->route('admin.posts.index', ['publication_type' => $isBlog ? 'blog' : 'standard'])
@@ -201,6 +231,49 @@ class PostController extends Controller
             ->get();
     }
 
+    /** Persist editor uploads only as part of the post save transaction. */
+    private function resolveEditorImages(array $localizations, PostRequest $request): array
+    {
+        $stored = [];
+        foreach (array_keys(config('localization.locales')) as $locale) {
+            if ($request->input('publication_type') !== 'blog' ||
+                ($locale !== config('localization.default') && trim((string) ($localizations[$locale]['title'] ?? '')) === '')) {
+                continue;
+            }
+            $html = (string) ($localizations[$locale]['article_body'] ?? '');
+            if (! str_contains($html, '/storage/blog-content/pending/')) {
+                continue;
+            }
+
+            $files = (array) $request->file('article_uploads', []);
+            $html = preg_replace_callback(
+                '~(?<=\"|\')/storage/blog-content/pending/([a-f0-9]{32})\.webp(?=\"|\')~',
+                function (array $match) use ($request, $locale, $files, &$stored): string {
+                    if (isset($stored[$locale][$match[1]])) {
+                        return $stored[$locale][$match[1]];
+                    }
+                    $file = $files[$match[1]] ?? null;
+                    if (! $file instanceof \Illuminate\Http\UploadedFile || ! $file->isValid()) {
+                        throw ValidationException::withMessages([
+                            "localizations.$locale.article_body" => __('The editor image could not be uploaded. Please select it again.'),
+                        ]);
+                    }
+                    $path = $this->fileChanges->storeArticle($file, (int) $request->user()->id, $locale);
+                    return $stored[$locale][$match[1]] = Storage::disk('public')->url($path);
+                },
+                $html,
+            );
+            if (str_contains($html, '/storage/blog-content/pending/')) {
+                throw ValidationException::withMessages([
+                    "localizations.$locale.article_body" => __('An editor image is missing its upload.'),
+                ]);
+            }
+            $localizations[$locale]['article_body'] = $html;
+        }
+
+        return $localizations;
+    }
+
     private function syncLocalizations(Post $post, array $localizations): void
     {
         $defaultLocale = config('localization.default');
@@ -212,11 +285,7 @@ class PostController extends Controller
             $hasCountryVersion = $locale === $defaultLocale || $title !== '';
 
             if (! $hasCountryVersion) {
-                $existing?->update([
-                    'is_active' => false,
-                    'is_featured' => false,
-                    'article_body' => null,
-                ]);
+                $existing?->delete();
                 continue;
             }
             $slug = $this->uniqueSlug($title, $locale, $existing?->id);
@@ -259,16 +328,46 @@ class PostController extends Controller
         foreach (array_keys(config('localization.locales')) as $locale) {
             $title = trim((string) ($localizations[$locale]['title'] ?? ''));
             $hasCountryVersion = $locale === $defaultLocale || $title !== '';
-            $settings = (array) ($mediaData[$locale] ?? []);
-            $selectedType = trim((string) ($settings['type'] ?? ''));
-            $existing = $post->media()
-                ->where('locale', $locale)
-                ->orderByDesc('is_primary')
-                ->orderBy('id')
-                ->first();
 
-            if (! $hasCountryVersion || $selectedType === '') {
+            // Removing a language also removes its language-specific media. Other
+            // languages and media intended for all languages remain untouched.
+            if (! $hasCountryVersion) {
                 $this->deleteCountryMedia($post, $locale);
+                continue;
+            }
+
+            $settings = (array) ($mediaData[$locale] ?? []);
+            if (! array_key_exists('type', $settings)) {
+                // Media created in the dedicated manager must not be changed by
+                // a form that omitted the quick-media controls.
+                continue;
+            }
+
+            $selectedType = trim((string) ($settings['type'] ?? ''));
+            $mediumId = (int) ($settings['id'] ?? 0);
+            $existing = $mediumId > 0
+                ? $post->media()->where('locale', $locale)->whereKey($mediumId)->first()
+                : null;
+
+            if ($mediumId > 0 && ! $existing) {
+                throw ValidationException::withMessages([
+                    "media.$locale.id" => __('The selected media item is no longer available. Reload the page.'),
+                ]);
+            }
+
+            if ($selectedType === 'keep') {
+                // Vimeo (and other items managed in the media screen) must be
+                // preserved unless the administrator explicitly replaces it.
+                continue;
+            }
+
+            if ($selectedType === '') {
+                // "Remove selected media" only affects the specific quick-edit
+                // item, never the remaining images, YouTube or Vimeo entries.
+                if ($existing) {
+                    $this->fileChanges->retire($existing->thumbnail_path);
+                    $existing->delete();
+                }
                 continue;
             }
 
@@ -282,10 +381,7 @@ class PostController extends Controller
                     ]);
                 }
 
-                if ($existing?->thumbnail_path) {
-                    Storage::disk('public')->delete($existing->thumbnail_path);
-                }
-
+                $this->fileChanges->retire($existing?->thumbnail_path);
                 $medium = $existing ?: $post->media()->make(['locale' => $locale]);
                 $medium->fill([
                     'type' => 'trailer',
@@ -300,7 +396,7 @@ class PostController extends Controller
                     'sort_order' => 0,
                 ]);
                 $medium->save();
-                $this->deleteOtherCountryMedia($post, $locale, $medium->id);
+                $this->demoteOtherPrimaryMedia($post, $locale, 'trailer', (int) $medium->id);
                 continue;
             }
 
@@ -314,13 +410,9 @@ class PostController extends Controller
             }
 
             $path = $existingImagePath;
-
             if ($uploadedImage) {
-                if ($existing?->thumbnail_path) {
-                    Storage::disk('public')->delete($existing->thumbnail_path);
-                }
-
-                $path = $this->imageStorage->store($uploadedImage, 'posts/'.$post->id.'/'.$locale, 1920, 1920, 82);
+                $path = $this->fileChanges->store($uploadedImage, 'posts/'.$post->id.'/'.$locale);
+                $this->fileChanges->retire($existing?->thumbnail_path);
             }
 
             $medium = $existing ?: $post->media()->make(['locale' => $locale]);
@@ -337,34 +429,26 @@ class PostController extends Controller
                 'sort_order' => 0,
             ]);
             $medium->save();
-            $this->deleteOtherCountryMedia($post, $locale, $medium->id);
+            $this->demoteOtherPrimaryMedia($post, $locale, 'image', (int) $medium->id);
         }
     }
 
     private function deleteCountryMedia(Post $post, string $locale): void
     {
-        $post->media()->where('locale', $locale)->get()->each(function ($medium): void {
-            if ($medium->thumbnail_path) {
-                Storage::disk('public')->delete($medium->thumbnail_path);
-            }
-
+        $post->media()->where('locale', $locale)->get()->each(function (Media $medium): void {
+            $this->fileChanges->retire($medium->thumbnail_path);
             $medium->delete();
         });
     }
 
-    private function deleteOtherCountryMedia(Post $post, string $locale, int $keepId): void
+    private function demoteOtherPrimaryMedia(Post $post, string $locale, string $type, int $keepId): void
     {
         $post->media()
             ->where('locale', $locale)
-            ->where('id', '!=', $keepId)
-            ->get()
-            ->each(function ($medium): void {
-                if ($medium->thumbnail_path) {
-                    Storage::disk('public')->delete($medium->thumbnail_path);
-                }
-
-                $medium->delete();
-            });
+            ->where('type', $type)
+            ->whereKeyNot($keepId)
+            ->where('is_primary', true)
+            ->update(['is_primary' => false]);
     }
 
     private function youtubeVideoId(string $url): ?string

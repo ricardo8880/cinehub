@@ -293,6 +293,8 @@
     </main>
 </div>
 
+@include('components.cookie-consent-banner')
+
 <div class="offcanvas offcanvas-top mobile-search-panel" tabindex="-1" id="mobileSearchPanel" aria-labelledby="mobileSearchPanelLabel">
     <div class="offcanvas-header">
         <h2 class="offcanvas-title" id="mobileSearchPanelLabel">{{ __('Search') }}</h2>

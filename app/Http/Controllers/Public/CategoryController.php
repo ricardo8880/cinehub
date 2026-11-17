@@ -67,8 +67,8 @@ class CategoryController extends Controller
             ->withCount([
                 'reactions as likes_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
                 'comments as approved_comments_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
-                'views as views_count' => fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)),
             ])
+            ->withSum(['views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))], 'view_count')
             ->latest('published_at')->paginate(12)->withQueryString();
 
         abort_if($posts->currentPage() > max(1, $posts->lastPage()), 404);

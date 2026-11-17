@@ -9,16 +9,15 @@ use App\Models\Category;
 use App\Models\CategoryLocalization;
 use App\Models\Post;
 use App\Models\PostLocalization;
-use App\Models\PostView;
 use App\Support\PublicPostPresenter;
-use App\Support\VisitorIdentity;
+use App\Support\PostViewRecorder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PostController extends Controller
 {
-    public function __invoke(Request $request, string $locale, string $category, string $slug, PublicPostPresenter $presenter, VisitorIdentity $visitorIdentity): View
+    public function __invoke(Request $request, string $locale, string $category, string $slug, PublicPostPresenter $presenter, PostViewRecorder $viewRecorder): View
     {
         $categoryLocalization = CategoryLocalization::query()
             ->where('locale', $locale)
@@ -49,8 +48,8 @@ class PostController extends Controller
             ->withCount([
                 'reactions as likes_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
                 'comments as approved_comments_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
-                'views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)),
             ])
+            ->withSum(['views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))], 'view_count')
             ->firstOrFail();
 
         $primaryCategory = $post->categories->first(fn ($item) => $item->localization($locale));
@@ -59,20 +58,8 @@ class PostController extends Controller
         abort_unless($primaryCategoryLocalization, 404);
         abort_unless($categoryLocalization->category_id === $primaryCategory->id, 404);
 
-        $visitorKey = $visitorIdentity->key($request);
-
-        if (! $visitorIdentity->isBot($request)) {
-            $recentViewExists = PostView::query()
-                ->where('post_id', $post->id)
-                ->whereIn('locale', EnglishGroup::history($locale))
-                ->where('visitor_key', $visitorKey)
-                ->where('viewed_at', '>=', now()->subHours(6))
-                ->exists();
-
-            if (! $recentViewExists) {
-                $post->views()->create(['locale' => $locale, 'visitor_key' => $visitorKey, 'viewed_at' => now()]);
-                $post->views_count++;
-            }
+        if ($viewRecorder->record($request, $post, $locale)) {
+            $post->views_count = (int) $post->views_count + 1;
         }
 
         $viewerHasLiked = $request->user()
@@ -118,8 +105,8 @@ class PostController extends Controller
             ->withCount([
                 'reactions as likes_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like'),
                 'comments as approved_comments_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved'),
-                'views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)),
             ])
+            ->withSum(['views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))], 'view_count')
             ->latest('published_at')->limit(4)->get()
             ->map(fn (Post $relatedPost) => $presenter->card($relatedPost, $locale))->filter()->values();
 

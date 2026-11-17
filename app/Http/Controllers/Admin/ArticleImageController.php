@@ -18,7 +18,8 @@ class ArticleImageController extends Controller
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:6144', 'dimensions:max_width=6000,max_height=6000'],
         ]);
 
-        $images->cleanupOrphansForUser((int) $request->user()->id);
+        // Do not prune uploads while the administrator is actively editing.
+        // Abandoned files are handled by the scheduled grace-period cleanup.
         $stored = $images->store($validated['image'], (int) $request->user()->id, $validated['locale']);
 
         return response()->json([

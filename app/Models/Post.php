@@ -9,11 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Post extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'author_id',
@@ -60,13 +59,16 @@ class Post extends Model
     public function scopeTrending(Builder $query, string $locale, int $days = 2): Builder
     {
         $since = now()->subDays($days);
+        // Exact timing remains available for likes/comments. Aggregated views
+        // are counted by calendar day, so their window starts at midnight.
+        $viewSince = $since->copy()->startOfDay();
 
         return $query
             ->withCount([
-                'views as recent_views_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('viewed_at', '>=', $since),
                 'reactions as recent_likes_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('type', 'like')->where('created_at', '>=', $since),
                 'comments as recent_comments_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('status', 'approved')->where('created_at', '>=', $since),
             ])
-            ->orderByRaw('(recent_views_count + (recent_likes_count * 3) + (recent_comments_count * 5)) DESC');
+            ->withSum(['views as recent_views_count' => fn (Builder $q) => $q->whereIn('locale', EnglishGroup::history($locale))->where('viewed_at', '>=', $viewSince)], 'view_count')
+            ->orderByRaw('(COALESCE(recent_views_count, 0) + (recent_likes_count * 3) + (recent_comments_count * 5)) DESC');
     }
 }

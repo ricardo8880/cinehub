@@ -43,6 +43,31 @@
     </form>
 </div>
 
+<div class="card border-secondary-subtle mb-4"><div class="card-body">
+    <form method="GET" action="{{ route('admin.metrics') }}" class="row g-2 align-items-end mb-3">
+        <input type="hidden" name="period" value="{{ $period }}"><input type="hidden" name="locale" value="{{ $locale }}">
+        <div class="col-12 col-md-3"><label class="form-label small" for="site-range">{{ __('All public page views · Date range') }}</label>
+            <select class="form-select form-select-sm" name="site_range" id="site-range">
+                <option value="30" @selected($siteRange === '30')>{{ __('Last 30 days') }}</option>
+                <option value="365" @selected($siteRange === '365')>{{ __('Last 365 days') }}</option>
+                <option value="all" @selected($siteRange === 'all')>{{ __('All available history') }}</option>
+                <option value="custom" @selected($siteRange === 'custom')>{{ __('Custom dates') }}</option>
+            </select></div>
+        <div class="col-6 col-md-3"><label class="form-label small" for="site-from">{{ __('From') }}</label><input class="form-control form-control-sm" type="date" id="site-from" name="site_from" onchange="document.getElementById('site-range').value='custom'" value="{{ $siteFrom }}"></div>
+        <div class="col-6 col-md-3"><label class="form-label small" for="site-to">{{ __('To') }}</label><input class="form-control form-control-sm" type="date" id="site-to" name="site_to" onchange="document.getElementById('site-range').value='custom'" value="{{ $siteTo }}"></div>
+        <div class="col-12 col-md-3"><button class="btn btn-danger btn-sm w-100" type="submit">{{ __('Apply dates') }}</button></div>
+    </form>
+    <div class="fs-2 fw-bold">{{ number_format($siteViews) }}</div>
+    <div class="text-body-secondary small">{{ __('Every consented public page load, including home, listings, blog and posts; counted from this update onward.') }}</div>
+    <div class="d-flex flex-wrap gap-3 mt-2 small">@foreach($siteViewsByType as $type)<span>{{ ucfirst($type->page_type) }}: <strong>{{ number_format($type->total) }}</strong></span>@endforeach</div>
+</div></div>
+<div class="card border-secondary-subtle mb-4"><div class="card-body">
+    <h2 class="h6">{{ __('Reading depth · Blog and standard posts') }}</h2>
+    <div class="row g-3">@foreach([['Start', $readingDepth->started], ['Middle', $readingDepth->middle], ['End', $readingDepth->finished]] as [$stage, $total])
+        <div class="col-4"><div class="text-body-secondary small">{{ __($stage) }}</div><div class="fs-4 fw-semibold">{{ number_format($total) }}</div>
+        <div class="progress" style="height: 7px"><div class="progress-bar" style="width: {{ $readingDepth->started > 0 ? min(100, 100 * $total / $readingDepth->started) : 0 }}%"></div></div></div>
+    @endforeach</div><div class="text-body-secondary small mt-2">{{ __('Reached reading milestones, by measured visit; editorial period filter applies.') }}</div>
+</div></div>
 <div class="row g-3 mb-4">
     @foreach ([
         ['Average page time', number_format($pageTime['average_page_seconds'], 1).'s', 'bi-clock'],
@@ -87,9 +112,15 @@
                 <div class="text-body-secondary small">{{ __('Approx. unique visitors') }}</div>
                 <div class="fs-3 fw-bold">{{ number_format($uniqueVisitors) }}</div>
                 <div class="text-body-secondary small">{{ __('Distinct visitor identifiers in the period') }}</div>
+
             </div>
         </div>
     </div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="card h-100 border-secondary-subtle"><div class="card-body">
+        <div class="text-body-secondary small">{{ __('Returning visitors') }}</div>
+        <div class="fs-3 fw-bold">{{ number_format($returningVisitors) }}</div>
+        <div class="text-body-secondary small">{{ __('Distinct people who returned after 30 minutes of inactivity') }}</div>
+    </div></div></div>
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card h-100 border-secondary-subtle">
             <div class="card-body">

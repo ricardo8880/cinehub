@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\HomeContentCache;
 use App\Http\Requests\Admin\CategoryRequest;
 use App\Models\Category;
+use App\Models\UserInterest;
 use App\Models\CategoryLocalization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -62,6 +64,8 @@ class CategoryController extends Controller
             return $category;
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.categories.edit', $category)->with('success', __('Category created successfully.'));
     }
 
@@ -97,12 +101,26 @@ class CategoryController extends Controller
             $this->syncLocalizations($category, $data['localizations']);
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.categories.edit', $category)->with('success', __('Category updated successfully.'));
     }
 
     public function destroy(Category $category): RedirectResponse
     {
-        $category->delete();
+        if ($category->posts()->exists()) {
+            return back()->withErrors(['delete' => __('Reassign or delete the linked posts before deleting this category.')]);
+        }
+
+        DB::transaction(function () use ($category): void {
+            UserInterest::query()
+                ->where('kind', 'category')
+                ->where('reference_id', $category->id)
+                ->delete();
+            $category->delete();
+        });
+        HomeContentCache::forget();
+
         return redirect()->route('admin.categories.index')->with('success', __('Category deleted successfully.'));
     }
 
@@ -114,7 +132,7 @@ class CategoryController extends Controller
             $existing = $category->localizations()->where('locale', $locale)->first();
 
             if ($name === '') {
-                $existing?->update(['is_active' => false]);
+                $existing?->delete();
                 continue;
             }
 

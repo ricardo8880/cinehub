@@ -116,6 +116,8 @@
     </main>
 </div>
 
+@include('components.cookie-consent-banner')
+
 <div class="offcanvas offcanvas-top mobile-search-panel" tabindex="-1" id="mobileSearchPanel" aria-labelledby="mobileSearchPanelLabel">
     <div class="offcanvas-header">
         <h2 class="offcanvas-title" id="mobileSearchPanelLabel">{{ __('Search') }}</h2>
@@ -133,3 +135,17 @@
     </div>
 </div>
 @endsection
+@push('scripts')
+<script>
+(() => {
+    if (!@json(request()->cookie('cinehub_analytics_consent') === 'granted')) return;
+    const pageType = @json(request()->routeIs('home') ? 'home' : (request()->routeIs('categories.show') ? 'category' : (request()->routeIs('blog.index') ? 'blog' : (request()->routeIs('blog.show', 'posts.show') ? 'post' : (request()->routeIs('search') ? 'search' : (request()->routeIs('book') ? 'book' : 'other'))))));
+    fetch(@json(route('site-page-view.store', ['locale' => $currentLocale])), {
+        method: 'POST', credentials: 'same-origin', keepalive: true,
+        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token()), 'Accept': 'application/json'},
+        body: JSON.stringify({locale: @json($currentLocale === 'en' ? 'en-us' : $currentLocale), page_type: pageType})
+    }).catch(() => {});
+})();
+</script>
+@endpush
+

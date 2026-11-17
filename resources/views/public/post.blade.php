@@ -356,7 +356,7 @@
 @push('scripts')
 <script>
 (() => {
-    if (!window.crypto?.randomUUID) return;
+    if (!@json(request()->cookie('cinehub_analytics_consent') === 'granted') || !window.crypto?.randomUUID) return;
     const token = crypto.randomUUID();
     const url = @json(route('page-engagement.store', ['locale' => $localization->locale]));
     const csrf = @json(csrf_token());
@@ -364,21 +364,50 @@
     const locale = @json($localization->locale);
     const started = performance.now();
     let last = started, active = 0, interacted = false;
+    const readingSections = [...document.querySelectorAll('article.public-article .public-article__section')]
+        .filter((element) => element.id !== 'interactions' && !element.closest('#interactions'));
+    const readingStart = readingSections[0] || document.querySelector('article.public-article');
+    const readingEnd = readingSections[readingSections.length - 1] || readingStart;
+    let depth = 0;
+    const measureDepth = () => {
+        if (!readingStart || !readingEnd) return;
+        const top = readingStart.getBoundingClientRect().top + window.scrollY;
+        const bottom = readingEnd.getBoundingClientRect().bottom + window.scrollY;
+        const viewportBottom = window.scrollY + window.innerHeight;
+        if (viewportBottom >= top) depth = Math.max(depth, 1);
+        if (viewportBottom >= top + (bottom - top) * 0.5) depth = Math.max(depth, 2);
+        if (viewportBottom >= bottom) depth = Math.max(depth, 3);
+    };
+    measureDepth();
+    let wasActive = document.visibilityState === 'visible' && document.hasFocus();
     const update = () => {
         const now = performance.now();
-        if (document.visibilityState === 'visible' && document.hasFocus()) active += Math.min((now - last) / 1000, 30);
+        if (wasActive) active += Math.min((now - last) / 1000, 90);
         last = now;
+        wasActive = document.visibilityState === 'visible' && document.hasFocus();
     };
+    let lastConfirmedBody = null;
     const send = () => {
         update();
-        const body = JSON.stringify({token, post_id: postId, locale, duration: Math.min(14400, Math.floor((performance.now() - started) / 1000)), active: Math.min(14400, Math.floor(active)), interacted});
-        fetch(url, {method: 'POST', credentials: 'same-origin', keepalive: true, headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}, body}).catch(() => {});
+        measureDepth();
+        const body = JSON.stringify({depth, token, post_id: postId, locale, duration: Math.min(14400, Math.floor((performance.now() - started) / 1000)), active: Math.min(14400, Math.floor(active)), interacted});
+        // Do not resend an identical snapshot once the server has accepted it.
+        // Unconfirmed snapshots are retried on the next heartbeat/page exit.
+        if (body === lastConfirmedBody) return;
+        fetch(url, {method: 'POST', credentials: 'same-origin', keepalive: true, headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}, body})
+            .then((response) => { if (response.ok) lastConfirmedBody = body; })
+            .catch(() => {});
     };
-    for (const event of ['click', 'keydown', 'scroll']) window.addEventListener(event, () => { interacted = true; }, {passive: true});
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { update(); send(); } else last = performance.now(); });
+    for (const event of ['click', 'keydown', 'scroll']) window.addEventListener(event, () => { interacted = true; if (event === 'scroll') measureDepth(); }, {passive: true});
+    document.addEventListener('visibilitychange', () => { update(); if (document.hidden) send(); });
+    window.addEventListener('focus', update);
+    window.addEventListener('blur', update);
     window.addEventListener('pagehide', send);
     send();
-    setInterval(send, 15000);
+    // Heartbeats every minute instead of every 15 seconds; final readings
+    // still send immediately when the visitor hides or leaves the page.
+    // Hidden tabs must not generate needless database writes.
+    setInterval(() => { if (!document.hidden) send(); }, 60000);
 })();
 </script>
 @endpush

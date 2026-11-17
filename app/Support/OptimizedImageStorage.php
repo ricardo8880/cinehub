@@ -58,7 +58,9 @@ class OptimizedImageStorage
         }
 
         $path = trim($directory, '/').'/'.Str::uuid()->toString().'.webp';
-        Storage::disk('public')->put($path, $webp);
+        if (! Storage::disk('public')->put($path, $webp)) {
+            throw new \RuntimeException('Could not save the optimized image.');
+        }
 
         return $path;
     }

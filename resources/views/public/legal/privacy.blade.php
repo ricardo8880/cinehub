@@ -11,6 +11,7 @@
     <p>{{ __('Messages submitted through contact forms are stored so the administration can review and respond when appropriate.') }}</p>
     <h2 class="h4 mt-4">{{ __('Analytics') }}</h2>
     <p>{{ __('Analytics is loaded only when configured and when the visitor grants analytics consent.') }}</p>
+    <p>{{ __('Optional CineHub page-view and engagement statistics are also recorded only after analytics consent. A random visitor identifier is stored in a cookie to distinguish repeat visits.') }}</p>
     <p class="text-body-secondary small">{{ __('This page is a project template and should be legally reviewed before public launch.') }}</p>
 </article>
 @endsection

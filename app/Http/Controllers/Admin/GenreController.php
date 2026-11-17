@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\HomeContentCache;
 use App\Http\Requests\Admin\GenreRequest;
 use App\Models\Category;
 use App\Models\Genre;
+use App\Models\UserInterest;
 use App\Models\GenreLocalization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -62,6 +64,8 @@ class GenreController extends Controller
             return $genre;
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.genres.edit', $genre)->with('success', __('Genre created successfully.'));
     }
 
@@ -104,12 +108,22 @@ class GenreController extends Controller
             }
         });
 
+        HomeContentCache::forget();
+
         return redirect()->route('admin.genres.edit', $genre)->with('success', __('Genre updated successfully.'));
     }
 
     public function destroy(Genre $genre): RedirectResponse
     {
-        $genre->delete();
+        DB::transaction(function () use ($genre): void {
+            UserInterest::query()
+                ->where('kind', 'genre')
+                ->where('reference_id', $genre->id)
+                ->delete();
+            $genre->delete();
+        });
+
+        HomeContentCache::forget();
 
         return redirect()->route('admin.genres.index')->with('success', __('Genre deleted successfully.'));
     }
@@ -132,7 +146,7 @@ class GenreController extends Controller
             $existing = $genre->localizations()->where('locale', $locale)->first();
 
             if ($name === '') {
-                $existing?->update(['is_active' => false]);
+                $existing?->delete();
                 continue;
             }
 

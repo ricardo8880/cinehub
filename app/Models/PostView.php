@@ -17,12 +17,18 @@ class PostView extends Model
         'locale',
         'visitor_key',
         'viewed_at',
+        'view_date',
+        'view_count',
+        'first_viewed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'viewed_at' => 'datetime',
+            'first_viewed_at' => 'datetime',
+            'view_date' => 'date',
+            'view_count' => 'integer',
         ];
     }
 

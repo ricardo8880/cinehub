@@ -25,7 +25,46 @@ class MetricsController extends Controller
         $data = $this->metricsData($request);
         $titleLocale = $data['locale'] ?: $data['defaultLocale'];
 
-        $allPosts = $data['performancePosts']->map(function (array $row) use ($titleLocale, $data): array {
+        // Depth is stored per post, content locale and visitor/day. Group existing
+        // aggregates; no additional tracking writes or visitor identifiers enter
+        // the AI export. English regional history shares the public /en group.
+        $depthRows = DB::table('page_engagement_daily')
+            ->where('visit_date', '>=', $data['since']->toDateString())
+            ->when($data['locale'], fn ($query) => $query->whereIn('locale', EnglishGroup::history($data['locale'])))
+            ->when(! $data['locale'] && $data['locales'] !== [], fn ($query) => $query->whereIn('locale', EnglishGroup::expand(array_keys($data['locales']))))
+            ->select('post_id', 'locale')
+            ->selectRaw('SUM(visit_count) AS measured_visits, SUM(read_start) AS started, SUM(read_middle) AS middle, SUM(read_end) AS finished')
+            ->groupBy('post_id', 'locale')
+            ->get();
+
+        $depthFields = ['measured_visits', 'started', 'middle', 'finished'];
+        $emptyDepth = array_fill_keys($depthFields, 0);
+        $siteDepth = $emptyDepth;
+        $readingByPost = $depthRows->groupBy('post_id')->map(function ($rows) use ($depthFields, $emptyDepth, &$siteDepth): array {
+            $postTotals = $emptyDepth;
+            $languageTotals = [];
+            foreach ($rows as $row) {
+                $language = EnglishGroup::publicLocale($row->locale);
+                $languageTotals[$language] ??= $emptyDepth;
+                foreach ($depthFields as $field) {
+                    $value = (int) $row->{$field};
+                    $languageTotals[$language][$field] += $value;
+                    $postTotals[$field] += $value;
+                    $siteDepth[$field] += $value;
+                }
+            }
+
+            return [
+                'overall' => $this->readingDropoffStats($postTotals),
+                'by_language' => collect($languageTotals)
+                    ->map(fn (array $totals) => $this->readingDropoffStats($totals))
+                    ->all(),
+            ];
+        });
+        // Computing the collection is eager, so siteDepth is fully accumulated here.
+        $siteReadingDropoff = $this->readingDropoffStats($siteDepth);
+
+        $allPosts = $data['performancePosts']->map(function (array $row) use ($titleLocale, $data, $readingByPost): array {
             $post = $row['post'];
             $categories = $post->categories->map(function ($category) use ($titleLocale, $data): array {
                 $content = $category->localizations->firstWhere('locale', $titleLocale)
@@ -92,8 +131,23 @@ class MetricsController extends Controller
                 'growth_rate_percent' => $row['growth_rate'],
                 'new_activity' => $row['is_new_growth'],
                 'page_time' => $row['page_time'],
+                'reading_progress' => $readingByPost->get($post->id),
             ];
         })->sortByDesc('views')->values()->all();
+
+        // A compact, AI-friendly list identifies the specific pages where
+        // visitors appear to leave; all_posts_performance retains the same
+        // breakdown, including null for posts with no depth observations.
+        $readingDropoffByPage = collect($allPosts)
+            ->filter(fn (array $post) => $post['reading_progress'] !== null)
+            ->map(fn (array $post) => [
+                'post_id' => $post['post_id'],
+                'title' => $post['title'],
+                'publication_type' => $post['publication_type'],
+                'reading_progress' => $post['reading_progress'],
+            ])
+            ->sortByDesc(fn (array $post) => $post['reading_progress']['overall']['did_not_reach_end'])
+            ->values()->all();
 
         $compactPost = function (?array $row) use ($titleLocale, $data): ?array {
             if ($row === null) {
@@ -157,10 +211,12 @@ class MetricsController extends Controller
             'definitions' => [
                 'engagement_rate' => '(likes + approved comments) / views * 100',
                 'page_time' => 'Measured page visits: average_page_seconds is elapsed time, average_engaged_seconds is foreground active time, bounce_rate_percent is the share of visits without 10 active seconds or an interaction. These are independent of deduplicated views.',
+                'reading_dropoff' => 'Blog and standard posts only. Milestones measure whether a visit REACHED the content start, middle and end, not the exact exit location. did_not_reach_start, stopped_between_start_and_middle and stopped_between_middle_and_end are estimated non-progression counts, not confirmed exits; reached_end means the end milestone was seen. Each rate is relative to measured_visits except start_to_middle_percent and start_to_end_percent, which use reached_start. A null reading_progress means no post reading-depth observations; do not interpret it as 0% retention. The data starts when reading-depth tracking was introduced. Low sample sizes are not reliable evidence of a problem.',
                 'like_rate' => 'likes / views * 100',
                 'comment_rate' => 'approved comments / views * 100',
                 'growth_rate' => '(current period views - previous period views) / previous period views * 100',
                 'unique_visitors' => 'Approximation using distinct visitor identifiers stored by CineHub.',
+                'returning_visitors' => 'Among visitors with a counted view in the selected period, distinct visitors who started another visit after at least 30 minutes of inactivity. Returns may occur in any language. Session-based return tracking begins with the visitor activity migration; historical views are preserved but cannot reconstruct earlier sessions.',
                 'english_region' => 'The /en group is shared by the US, UK, Canada and Australia. French and German each share one language locale across multiple countries. Locale identifies content language, not visitor geography. Historical English regional activity is grouped without altering source records.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category assigned to the post, such as Games, Movies, Series or Curiosities.',
@@ -185,6 +241,9 @@ class MetricsController extends Controller
                     'Explain the connection between each successful content pattern and each recommended related title or subject.',
                     'For Blog articles, compare Blog genres and editorial angles to determine which themes deserve more long-form analysis.',
                     'Compare standard posts versus Blog articles and recommend the format that best fits each suggested subject when the data supports that distinction.',
+                    'Use reading_dropoff_by_page to identify precisely WHICH posts lose reading progress most often, at WHICH milestone (before start, start-to-middle, middle-to-end), and in WHICH content language.',
+                    'Compare start-to-middle and start-to-end conversion rates and measured visit counts; distinguish large absolute losses from high rates on tiny samples. Suggest improvements to the introduction, pacing, subheadings, content length and calls to action based on the weak stage.',
+                    'Treat drop-off as estimated milestone non-progression, not proof a visitor exited at that exact point. Do not infer a cause or assert abandonment for posts without measured data.',
                     'Compare language groups when data exists. If a language has little or zero activity, explicitly say there is not enough evidence for reliable recommendations. Never infer visitor country from content language.',
                     'Identify declining or weak content patterns that should receive less editorial effort, without treating one small sample as definitive.',
                 ],
@@ -196,6 +255,7 @@ class MetricsController extends Controller
                     'For each recommendation, state whether it should preferably be a standard post or a Blog article when the data supports that choice.',
                     'Briefly cite metrics such as views, engagement, growth, category, genre, Blog genre or language performance.',
                     'Separate recommendations into: publish more, test next and reduce/deprioritize.',
+                    'Add a section called Reading drop-off by page: name the posts, affected language, measured visits, percentages reaching the middle and end, and their main estimated stopping stage. Recommend concrete editorial fixes and qualify small samples.',
                     'When useful, include language-specific opportunities, but do not invent geographic conclusions or overinterpret sparse data.',
                     'Do not stop at summarizing the report. Turn the metrics into an editorial action plan.',
                 ],
@@ -204,6 +264,11 @@ class MetricsController extends Controller
                 'published_posts' => $data['publishedPosts'],
                 'views' => $data['views'],
                 'approx_unique_visitors' => $data['uniqueVisitors'],
+                'returning_visitors' => $data['returningVisitors'],
+                'all_public_page_views' => $data['siteViews'],
+                'page_views_by_type' => $data['siteViewsByType'],
+                'reading_depth' => $data['readingDepth'],
+                'reading_dropoff_estimates' => $siteReadingDropoff,
                 'likes' => $data['likes'],
                 'approved_comments' => $data['comments'],
                 'engagement_rate_percent' => $data['engagementRate'],
@@ -225,6 +290,7 @@ class MetricsController extends Controller
             'content_type_performance' => $data['contentTypeStats']->values()->all(),
             'genre_performance' => $data['genreStats']->values()->all(),
             'blog_genre_performance' => $data['blogGenreStats']->values()->all(),
+            'reading_dropoff_by_page' => $readingDropoffByPage,
             'rankings' => [
                 'top_by_views' => $data['topPosts']->map($compactPost)->values()->all(),
                 'top_by_engagement' => $data['topEngagementPosts']->map($compactPost)->values()->all(),
@@ -489,14 +555,50 @@ class MetricsController extends Controller
         );
     }
 
-    private function pageTimeStats($rows): array
+    private function readingDropoffStats(array $totals): array
     {
-        $count = $rows->count();
+        $visits = max(0, (int) ($totals['measured_visits'] ?? 0));
+        // A visit that reached the end also reached the middle and start.
+        // Clamp defensively to keep the funnel coherent if old aggregates
+        // contain inconsistent counters.
+        $start = min($visits, max(0, (int) ($totals['started'] ?? 0)));
+        $middle = min($start, max(0, (int) ($totals['middle'] ?? 0)));
+        $end = min($middle, max(0, (int) ($totals['finished'] ?? 0)));
+        $losses = [
+            'before_start' => $visits - $start,
+            'start_to_middle' => $start - $middle,
+            'middle_to_end' => $middle - $end,
+        ];
+        $largest = max($losses);
+
+        return [
+            'measured_visits' => $visits,
+            'reached_start' => $start,
+            'reached_middle' => $middle,
+            'reached_end' => $end,
+            'did_not_reach_start' => $losses['before_start'],
+            'stopped_between_start_and_middle' => $losses['start_to_middle'],
+            'stopped_between_middle_and_end' => $losses['middle_to_end'],
+            'did_not_reach_end' => $visits - $end,
+            'start_reach_percent' => $visits ? round($start / $visits * 100, 1) : null,
+            'middle_reach_percent' => $visits ? round($middle / $visits * 100, 1) : null,
+            'end_reach_percent' => $visits ? round($end / $visits * 100, 1) : null,
+            'start_to_middle_percent' => $start ? round($middle / $start * 100, 1) : null,
+            'start_to_end_percent' => $start ? round($end / $start * 100, 1) : null,
+            'largest_estimated_dropoff_stage' => $largest > 0 ? array_search($largest, $losses, true) : null,
+            'sample_size_warning' => $visits < 20,
+        ];
+    }
+
+    private function pageTimeStats(?object $totals): array
+    {
+        $count = (int) ($totals->measured_visits ?? 0);
+
         return [
             'measured_visits' => $count,
-            'average_page_seconds' => $count ? round($rows->avg('duration_seconds'), 1) : 0,
-            'average_engaged_seconds' => $count ? round($rows->avg('active_seconds'), 1) : 0,
-            'bounce_rate_percent' => $count ? round($rows->where('engaged', false)->count() / $count * 100, 1) : 0,
+            'average_page_seconds' => $count ? round((int) $totals->duration_sum / $count, 1) : 0,
+            'average_engaged_seconds' => $count ? round((int) $totals->active_sum / $count, 1) : 0,
+            'bounce_rate_percent' => $count ? round((int) $totals->bounced / $count * 100, 1) : 0,
         ];
     }
 
@@ -533,16 +635,82 @@ class MetricsController extends Controller
             ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales));
 
-        $engagementQuery = DB::table('page_engagements')
+        // Historical per-session rows remain available; new sessions use one
+        // daily row per visitor/post/locale. Merge aggregate results only.
+        $historicalEngagement = DB::table('page_engagements')
             ->where('started_at', '>=', $since)
             ->when($locale, fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)))
-            ->when(! $locale && $supportedLocales !== [], fn ($q) => $q->whereIn('locale', $supportedLocales));
-        $pageTime = $this->pageTimeStats((clone $engagementQuery)->get());
-        $pageTimeByPost = (clone $engagementQuery)->get()->groupBy('post_id')
-            ->map(fn ($rows) => $this->pageTimeStats($rows));
+            ->when(! $locale && $supportedLocales !== [], fn ($q) => $q->whereIn('locale', $supportedLocales))
+            ->select('post_id')->selectRaw('COUNT(*) AS measured_visits, COALESCE(SUM(duration_seconds), 0) AS duration_sum, COALESCE(SUM(active_seconds), 0) AS active_sum, COALESCE(SUM(CASE WHEN engaged = 0 THEN 1 ELSE 0 END), 0) AS bounced')
+            ->groupBy('post_id')->get();
+        $dailyEngagement = DB::table('page_engagement_daily')
+            ->where('visit_date', '>=', $since->toDateString())
+            ->when($locale, fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)))
+            ->when(! $locale && $supportedLocales !== [], fn ($q) => $q->whereIn('locale', $supportedLocales))
+            ->select('post_id')->selectRaw('SUM(visit_count) AS measured_visits, COALESCE(SUM(duration_sum), 0) AS duration_sum, COALESCE(SUM(active_sum), 0) AS active_sum, COALESCE(SUM(bounced), 0) AS bounced')
+            ->groupBy('post_id')->get();
 
-        $views = (clone $viewsQuery)->count();
+        $pageTimeTotals = ['measured_visits' => 0, 'duration_sum' => 0, 'active_sum' => 0, 'bounced' => 0];
+        $pageTimeRows = [];
+        foreach ($historicalEngagement->concat($dailyEngagement) as $row) {
+            $postId = (int) $row->post_id;
+            if (! isset($pageTimeRows[$postId])) {
+                $pageTimeRows[$postId] = $pageTimeTotals;
+            }
+            foreach ($pageTimeTotals as $field => $_) {
+                $pageTimeRows[$postId][$field] += (int) $row->{$field};
+                $pageTimeTotals[$field] += (int) $row->{$field};
+            }
+        }
+        $pageTime = $this->pageTimeStats((object) $pageTimeTotals);
+        $pageTimeByPost = collect($pageTimeRows)->map(fn (array $row) => $this->pageTimeStats((object) $row));
+
+        // Site-wide page loads are tracked independently of deduplicated post views.
+        // This date range is independent of the editorial period filter.
+        $siteRange = (string) $request->input('site_range', '30');
+        if (! in_array($siteRange, ['30', '365', 'custom', 'all'], true)) $siteRange = '30';
+        $siteFrom = $siteRange === '365' ? now()->subDays(364)->startOfDay()->toDateString()
+            : ($siteRange === '30' ? now()->subDays(29)->startOfDay()->toDateString() : null);
+        $siteTo = now()->toDateString();
+        if ($siteRange === 'custom') {
+            $fromInput = (string) $request->input('site_from', '');
+            $toInput = (string) $request->input('site_to', '');
+            $valid = static fn (string $date): bool => (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)
+                && \DateTimeImmutable::createFromFormat('!Y-m-d', $date)?->format('Y-m-d') === $date;
+            if ($valid($fromInput) && $valid($toInput) && $fromInput <= $toInput && $toInput <= now()->toDateString()) {
+                $siteFrom = $fromInput;
+                $siteTo = $toInput;
+            } else {
+                $siteRange = '30';
+                $siteFrom = now()->subDays(29)->toDateString();
+            }
+        }
+        $siteViewsQuery = DB::table('site_page_views_daily')
+            ->when($siteFrom, fn ($q) => $q->where('view_date', '>=', $siteFrom))
+            ->where('view_date', '<=', $siteTo)
+            ->when($locale, fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)));
+        $siteViews = (int) (clone $siteViewsQuery)->sum('views');
+        $siteViewsByType = (clone $siteViewsQuery)->select('page_type')->selectRaw('SUM(views) AS total')
+            ->groupBy('page_type')->orderByDesc('total')->get();
+        $readingDepth = DB::table('page_engagement_daily')
+            ->where('visit_date', '>=', $since->toDateString())
+            ->when($locale, fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale)))
+            ->selectRaw('COALESCE(SUM(read_start), 0) AS started, COALESCE(SUM(read_middle), 0) AS middle, COALESCE(SUM(read_end), 0) AS finished')
+            ->first();
+        $views = (int) (clone $viewsQuery)->sum('view_count');
         $uniqueVisitors = (clone $viewsQuery)->distinct()->count('visitor_key');
+
+        // A return means a NEW visit after 30 minutes of inactivity, not a
+        // second page view during one visit. Only activity recorded since this
+        // migration can be classified; historical views remain unchanged.
+        // The locale filter applies to counted visitors, while a return may
+        // happen through any language on the site.
+        $returningVisitors = DB::table('visitor_activity_daily')
+            ->where('first_returned_at', '>=', $since)
+            ->where('first_returned_at', '<=', now())
+            ->when($locale, fn ($q) => $q->whereIn('visitor_key', (clone $viewsQuery)->whereNotNull('visitor_key')->select('visitor_key')))
+            ->distinct()
+            ->count('visitor_key');
 
         $likes = Reaction::query()
             ->where('type', 'like')
@@ -576,10 +744,6 @@ class MetricsController extends Controller
                 ->whereIn('locale', EnglishGroup::history($locale))
                 ->where('is_active', true)))
             ->withCount([
-                'views as metrics_views_count' => fn ($query) => $query
-                    ->where('viewed_at', '>=', $since)
-                    ->when($locale, fn ($viewQuery) => $viewQuery->whereIn('locale', EnglishGroup::history($locale)))
-                    ->when(! $locale && $supportedLocales !== [], fn ($viewQuery) => $viewQuery->whereIn('locale', $supportedLocales)),
                 'reactions as metrics_likes_count' => fn ($query) => $query
                     ->where('type', 'like')
                     ->where('created_at', '>=', $since)
@@ -590,12 +754,18 @@ class MetricsController extends Controller
                     ->where('created_at', '>=', $since)
                     ->when($locale, fn ($commentQuery) => $commentQuery->whereIn('locale', EnglishGroup::history($locale)))
                     ->when(! $locale && $supportedLocales !== [], fn ($commentQuery) => $commentQuery->whereIn('locale', $supportedLocales)),
+            ])
+            ->withSum([
+                'views as metrics_views_count' => fn ($query) => $query
+                    ->where('viewed_at', '>=', $since)
+                    ->when($locale, fn ($viewQuery) => $viewQuery->whereIn('locale', EnglishGroup::history($locale)))
+                    ->when(! $locale && $supportedLocales !== [], fn ($viewQuery) => $viewQuery->whereIn('locale', $supportedLocales)),
                 'views as previous_views_count' => fn ($query) => $query
                     ->where('viewed_at', '>=', $previousSince)
                     ->where('viewed_at', '<', $previousUntil)
                     ->when($locale, fn ($viewQuery) => $viewQuery->whereIn('locale', EnglishGroup::history($locale)))
-                    ->when(! $locale && $supportedLocales !== [], fn ($viewQuery) => $viewQuery->whereIn('locale', $supportedLocales)),
-            ])
+                    ->when(! $locale && $supportedLocales !== [], fn ($viewQuery) => $viewQuery->whereIn('locale', $supportedLocales))
+            ], 'view_count')
             ->get()
             ->map(function (Post $post) use ($titleLocale, $defaultLocale, $pageTimeByPost): array {
                 $content = $post->localizations->firstWhere('locale', $titleLocale)
@@ -618,7 +788,7 @@ class MetricsController extends Controller
                     'content_type_label' => $contentType['label'],
                     'content_type_category_id' => $contentType['category_id'],
                     'views' => $postViews,
-                    'page_time' => $pageTimeByPost->get($post->id, $this->pageTimeStats(collect())),
+                    'page_time' => $pageTimeByPost->get($post->id, $this->pageTimeStats(null)),
                     'likes' => $postLikes,
                     'comments' => $postComments,
                     'engagement_rate' => $postViews > 0 ? round((($postLikes + $postComments) / $postViews) * 100, 1) : 0,
@@ -902,7 +1072,7 @@ class MetricsController extends Controller
 
         $viewsByLocale = PostView::query()
             ->select('locale')
-            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(view_count) as total')
             ->where('viewed_at', '>=', $since)
             ->when($supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
             ->groupBy('locale')
@@ -928,7 +1098,7 @@ class MetricsController extends Controller
 
         $topPostRows = PostView::query()
             ->select('post_id', 'locale')
-            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(view_count) as total')
             ->where('viewed_at', '>=', $since)
             ->when($supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
             ->groupBy('post_id', 'locale')
@@ -981,7 +1151,7 @@ class MetricsController extends Controller
         });
 
         $dailyRows = PostView::query()
-            ->selectRaw('DATE(viewed_at) as day, COUNT(*) as total')
+            ->selectRaw('DATE(viewed_at) as day, SUM(view_count) as total')
             ->where('viewed_at', '>=', $since)
             ->when($locale, fn ($query) => $query->whereIn('locale', EnglishGroup::history($locale)))
             ->when(! $locale && $supportedLocales !== [], fn ($query) => $query->whereIn('locale', $supportedLocales))
@@ -1010,6 +1180,13 @@ class MetricsController extends Controller
             'views' => $views,
             'pageTime' => $pageTime,
             'uniqueVisitors' => $uniqueVisitors,
+            'returningVisitors' => $returningVisitors,
+            'siteViews' => $siteViews,
+            'siteViewsByType' => $siteViewsByType,
+            'siteRange' => $siteRange,
+            'siteFrom' => $siteFrom,
+            'siteTo' => $siteTo,
+            'readingDepth' => $readingDepth,
             'likes' => $likes,
             'comments' => $comments,
             'publishedPosts' => $publishedPosts,
