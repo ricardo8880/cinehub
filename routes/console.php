@@ -9,5 +9,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 if (config('site.backup_enabled')) {
-    Schedule::command('cinehub:backup')->dailyAt('03:30')->withoutOverlapping();
+    Schedule::command('mrrcine:backup')->dailyAt('03:30')->withoutOverlapping();
 }

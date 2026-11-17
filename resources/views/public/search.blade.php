@@ -1,7 +1,7 @@
 @extends('layouts.public')
 
 @section('title', __('Search').' | '.config('site.name'))
-@section('meta_description', __('Search CineHub entertainment content.'))
+@section('meta_description', __('Search MrRCine entertainment content.'))
 @section('robots', 'noindex, follow')
 @section('canonical', route('search', ['locale' => request()->route('locale')]))
 

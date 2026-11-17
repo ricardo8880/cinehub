@@ -24,8 +24,8 @@ class Phase2ViewAggregationTest extends TestCase
     private function visitRequest(string $consent = 'granted', string $identifier = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'): Request
     {
         return Request::create('/en/blog/example', 'GET', [], [
-            'cinehub_analytics_consent' => $consent,
-            'cinehub_analytics_visitor' => $identifier,
+            'mrrcine_analytics_consent' => $consent,
+            'mrrcine_analytics_visitor' => $identifier,
         ], [], ['HTTP_USER_AGENT' => 'Mozilla/5.0']);
     }
 

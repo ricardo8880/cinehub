@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 @section('title', 'Dashboard')
 @section('content')
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4"><div><h1 class="h3 mb-1">{{ __('Dashboard') }}</h1><p class="text-body-secondary mb-0">{{ __('Manage CineHub content from one place.') }}</p></div><a class="btn btn-danger" href="{{ route('admin.posts.create') }}"><i class="bi bi-plus-lg me-1"></i>{{ __('New post') }}</a></div>
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4"><div><h1 class="h3 mb-1">{{ __('Dashboard') }}</h1><p class="text-body-secondary mb-0">{{ __('Manage MrRCine content from one place.') }}</p></div><a class="btn btn-danger" href="{{ route('admin.posts.create') }}"><i class="bi bi-plus-lg me-1"></i>{{ __('New post') }}</a></div>
 <div class="row g-3">
 @foreach([
     ['Posts',$postsCount,'bi-file-earmark-text',route('admin.posts.index')],

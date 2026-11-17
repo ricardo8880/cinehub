@@ -1,4 +1,4 @@
-@if (! in_array(request()->cookie('cinehub_analytics_consent'), ['granted', 'denied'], true) && request()->route('page') !== 'cookies')
+@if (! in_array(request()->cookie('mrrcine_analytics_consent'), ['granted', 'denied'], true) && request()->route('page') !== 'cookies')
     <div class="position-fixed bottom-0 start-0 end-0 mx-auto p-3" style="z-index: 1080; max-width: 850px;" role="region" aria-label="{{ __('Cookie Preferences') }}">
         <div class="rounded-3 shadow-lg border border-secondary bg-body p-3 d-flex flex-column flex-sm-row align-items-sm-center gap-3">
             <div class="flex-grow-1">

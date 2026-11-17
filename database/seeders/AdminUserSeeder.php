@@ -20,7 +20,7 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => $email],
             [
-                'name' => env('ADMIN_NAME', 'CineHub Admin'),
+                'name' => env('ADMIN_NAME', 'MrRCine Admin'),
                 'password' => Hash::make($password),
                 'is_admin' => true,
             ],

@@ -7,7 +7,7 @@
 <div class="row justify-content-center">
     <div class="col-12 col-lg-8 col-xl-7">
         <h1 class="h2 mb-2">{{ __('Suggest a topic') }}</h1>
-        <p class="text-body-secondary mb-4">{{ __('Send an idea for a future CineHub publication.') }}</p>
+        <p class="text-body-secondary mb-4">{{ __('Send an idea for a future MrRCine publication.') }}</p>
 
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>

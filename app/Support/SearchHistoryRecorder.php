@@ -18,7 +18,7 @@ final class SearchHistoryRecorder
 
         $normalized = Str::lower($term);
         $eventId = is_string($eventId) && preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $eventId) ? $eventId : null;
-        $seen = $request->session()->get('cinehub_search_seen', []);
+        $seen = $request->session()->get('mrrcine_search_seen', []);
         $seen = is_array($seen) ? $seen : [];
         $nowTimestamp = time();
         $seen = array_filter($seen, fn ($timestamp) => is_int($timestamp) && $timestamp >= $nowTimestamp - 3600);
@@ -29,7 +29,7 @@ final class SearchHistoryRecorder
 
         // URLs without a search event (bookmarks, links, no-JS forms) get a short
         // session cooldown so ordinary refreshes do not inflate the figures.
-        $last = $request->session()->get('cinehub_search_last_unmarked');
+        $last = $request->session()->get('mrrcine_search_last_unmarked');
         if ($eventId === null && is_array($last)
             && ($last['locale'] ?? null) === $locale
             && ($last['term'] ?? null) === $normalized
@@ -65,9 +65,9 @@ final class SearchHistoryRecorder
 
         if ($eventId !== null) {
             $seen[$eventId] = $nowTimestamp;
-            $request->session()->put('cinehub_search_seen', array_slice($seen, -50, null, true));
+            $request->session()->put('mrrcine_search_seen', array_slice($seen, -50, null, true));
         } else {
-            $request->session()->put('cinehub_search_last_unmarked', [
+            $request->session()->put('mrrcine_search_last_unmarked', [
                 'locale' => $locale, 'term' => $normalized, 'time' => $nowTimestamp,
             ]);
         }

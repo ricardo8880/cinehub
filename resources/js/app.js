@@ -3,7 +3,7 @@ import 'bootstrap';
 import { Offcanvas, Collapse } from 'bootstrap';
 
 const root = document.documentElement;
-const messages = window.cinehubMessages || {};
+const messages = window.mrrcineMessages || {};
 const message = (key, english) => messages[key] || english;
 const themeButton = document.querySelector('[data-theme-toggle]');
 const themeIcon = document.querySelector('[data-theme-icon]');

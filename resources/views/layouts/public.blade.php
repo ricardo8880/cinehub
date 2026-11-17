@@ -109,7 +109,7 @@
                     <a href="{{ $publicSiteLinks['saas_url'] }}" target="_blank" rel="noopener">{{ __('Our SaaS') }}</a>
                 @endif
                 @if (! empty($publicSiteLinks['donation_url'] ?? null))
-                    <a href="{{ $publicSiteLinks['donation_url'] }}" target="_blank" rel="nofollow noopener">{{ __('Support CineHub') }}</a>
+                    <a href="{{ $publicSiteLinks['donation_url'] }}" target="_blank" rel="nofollow noopener">{{ __('Support MrRCine') }}</a>
                 @endif
             </div>
         </footer>
@@ -138,7 +138,7 @@
 @push('scripts')
 <script>
 (() => {
-    if (!@json(request()->cookie('cinehub_analytics_consent') === 'granted')) return;
+    if (!@json(request()->cookie('mrrcine_analytics_consent') === 'granted')) return;
     const pageType = @json(request()->routeIs('home') ? 'home' : (request()->routeIs('categories.show') ? 'category' : (request()->routeIs('blog.index') ? 'blog' : (request()->routeIs('blog.show', 'posts.show') ? 'post' : (request()->routeIs('search') ? 'search' : (request()->routeIs('book') ? 'book' : 'other'))))));
     fetch(@json(route('site-page-view.store', ['locale' => $currentLocale])), {
         method: 'POST', credentials: 'same-origin', keepalive: true,

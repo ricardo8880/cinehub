@@ -3,7 +3,7 @@
 @php
     $genreLocalization = $selectedGenre?->localization(request()->route('locale'));
     $baseSeoTitle = $categoryLocalization->seo_title ?: $categoryLocalization->name;
-    $baseSeoDescription = \App\Support\SeoDescription::resolve($categoryLocalization->seo_description, $categoryLocalization->description, __('Explore :category content on CineHub.', ['category' => $categoryLocalization->name]));
+    $baseSeoDescription = \App\Support\SeoDescription::resolve($categoryLocalization->seo_description, $categoryLocalization->description, __('Explore :category content on MrRCine.', ['category' => $categoryLocalization->name]));
     $seoTitle = $genreLocalization ? $genreLocalization->name.' · '.$baseSeoTitle : $baseSeoTitle;
     $seoDescription = $genreLocalization ? $genreLocalization->name.' — '.$baseSeoDescription : $baseSeoDescription;
 

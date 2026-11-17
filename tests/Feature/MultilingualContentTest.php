@@ -93,11 +93,11 @@ class MultilingualContentTest extends TestCase
     public function test_french_and_german_interface_and_search_errors_do_not_fall_back_to_english(): void
     {
         $this->get('/fr')->assertOk()
-            ->assertSee('window.cinehubMessages', false)
+            ->assertSee('window.mrrcineMessages', false)
             ->assertSee('Dernières vidéos')
             ->assertDontSee('Trailers, synopses, reviews and entertainment discoveries.');
         $this->get('/de')->assertOk()
-            ->assertSee('window.cinehubMessages', false)
+            ->assertSee('window.mrrcineMessages', false)
             ->assertSee('Neueste Videos');
     }
 

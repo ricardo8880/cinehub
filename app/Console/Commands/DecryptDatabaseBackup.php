@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 class DecryptDatabaseBackup extends Command
 {
-    protected $signature = 'cinehub:backup:decrypt {source : Encrypted .chbk file} {destination : New .sql or .sqlite file}';
+    protected $signature = 'mrrcine:backup:decrypt {source : Encrypted .chbk file} {destination : New .sql or .sqlite file}';
     protected $description = 'Decrypt a database backup with the original APP_KEY; does not change the database.';
 
     public function handle(): int

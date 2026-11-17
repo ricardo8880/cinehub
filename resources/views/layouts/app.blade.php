@@ -20,7 +20,7 @@
 
         $canonicalUrl = trim($__env->yieldContent('canonical', url()->current()));
         $seoTitle = trim($__env->yieldContent('og_title', $__env->yieldContent('title', config('site.name'))));
-        $defaultDescription = __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.');
+        $defaultDescription = __('Discover trailers, reviews, movies, TV shows, games and entertainment on MrRCine.');
         $seoDescription = trim($__env->yieldContent('og_description', $__env->yieldContent('meta_description', $defaultDescription)));
         // Home has a public version for each published language. All other
         // pages must provide their actual equivalent URLs explicitly.
@@ -61,7 +61,7 @@
     @stack('seo')
 
     <script>
-        window.cinehubMessages = {{ \Illuminate\Support\Js::from([
+        window.mrrcineMessages = {{ \Illuminate\Support\Js::from([
             'noResultsFor' => __('No results for'),
             'content' => __('Content'),
             'seeAllResultsFor' => __('See all results for'),
@@ -76,7 +76,7 @@
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    @if (config('site.google_analytics_id') && request()->cookie('cinehub_analytics_consent') === 'granted')
+    @if (config('site.google_analytics_id') && request()->cookie('mrrcine_analytics_consent') === 'granted')
         <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('site.google_analytics_id') }}"></script>
         <script>
             window.dataLayer = window.dataLayer || [];

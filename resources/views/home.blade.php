@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', __('CineHub | Movies, TV Shows, Games & Reviews'))
-@section('meta_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'))
-@section('og_title', __('CineHub | Movies, TV Shows, Games & Reviews'))
-@section('og_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'))
+@section('title', __('MrRCine | Movies, TV Shows, Games & Reviews'))
+@section('meta_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on MrRCine.'))
+@section('og_title', __('MrRCine | Movies, TV Shows, Games & Reviews'))
+@section('og_description', __('Discover trailers, reviews, movies, TV shows, games and entertainment on MrRCine.'))
 @section('twitter_card', ! empty($featuredItem['image_url']) ? 'summary_large_image' : 'summary')
 
 @push('seo')
@@ -17,7 +17,7 @@
                 '@id' => $homeUrl.'#website',
                 'name' => config('site.name'),
                 'url' => $homeUrl,
-                'description' => __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'),
+                'description' => __('Discover trailers, reviews, movies, TV shows, games and entertainment on MrRCine.'),
                 'inLanguage' => \App\Support\Seo::language(request()->route('locale')),
             ],
             [

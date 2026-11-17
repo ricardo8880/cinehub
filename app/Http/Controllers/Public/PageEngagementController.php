@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class PageEngagementController extends Controller
 {
-    private const SESSION_KEY = 'cinehub_page_engagement_visits';
+    private const SESSION_KEY = 'mrrcine_page_engagement_visits';
 
     public function __construct(private readonly VisitorActivityRecorder $activity) {}
 

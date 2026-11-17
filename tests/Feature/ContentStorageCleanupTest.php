@@ -13,6 +13,9 @@ use App\Support\MediaFileChanges;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -121,10 +124,10 @@ class ContentStorageCleanupTest extends TestCase
 
         clearstatcache();
 
-        $this->artisan('cinehub:prune-media', ['--dry-run' => true])->assertExitCode(0);
+        $this->artisan('mrrcine:prune-media', ['--dry-run' => true])->assertExitCode(0);
         Storage::disk('public')->assertExists('posts/'.$post->id.'/orphan.webp');
 
-        $this->artisan('cinehub:prune-media')->assertExitCode(0);
+        $this->artisan('mrrcine:prune-media')->assertExitCode(0);
         Storage::disk('public')->assertExists('posts/'.$post->id.'/active.webp');
         Storage::disk('public')->assertMissing('posts/'.$post->id.'/orphan.webp');
     }
@@ -238,12 +241,12 @@ class ContentStorageCleanupTest extends TestCase
         clearstatcache();
 
         app(ArticleImageManager::class)->cleanupOrphansForUser($user->id);
-        $this->artisan('cinehub:prune-media')->assertExitCode(0);
+        $this->artisan('mrrcine:prune-media')->assertExitCode(0);
         Storage::disk('public')->assertExists($path);
 
         touch(Storage::disk('public')->path($path), time() - 8 * 86400);
         clearstatcache();
-        $this->artisan('cinehub:prune-media')->assertExitCode(0);
+        $this->artisan('mrrcine:prune-media')->assertExitCode(0);
         Storage::disk('public')->assertMissing($path);
     }
 
@@ -305,7 +308,7 @@ class ContentStorageCleanupTest extends TestCase
         $this->assertFalse(Storage::disk('public')->directoryExists('blog-content/42/en-us'));
     }
 
-    public function test_failed_post_commit_deletion_remains_pending_and_can_be_retried(): void
+    public function test_failed_file_deletion_rolls_back_the_database_change(): void
     {
         Storage::fake('public');
         $post = Post::create(['status' => 'draft', 'publication_type' => 'standard']);
@@ -325,18 +328,84 @@ class ContentStorageCleanupTest extends TestCase
                 $manager->retire($medium->thumbnail_path);
                 $medium->delete();
             });
-            $this->fail('The disk error must be reported.');
+            $this->fail('The disk error must abort the update.');
         } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('incomplete', $exception->getMessage());
+            $this->assertStringContainsString('Disk failure simulated', $exception->getMessage());
         }
 
-        $this->assertDatabaseMissing('media', ['id' => $medium->id]);
-        $this->assertDatabaseHas('pending_media_deletions', ['path' => $path]);
-        Storage::disk('public')->assertExists($path);
-
-        $this->artisan('cinehub:retry-media-deletions')->assertExitCode(0);
+        $this->assertDatabaseHas('media', ['id' => $medium->id, 'thumbnail_path' => $path]);
         $this->assertDatabaseCount('pending_media_deletions', 0);
+        Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_partial_file_deletion_restores_earlier_files_on_rollback(): void
+    {
+        Storage::fake('public');
+        $post = Post::create(['status' => 'draft', 'publication_type' => 'standard']);
+        $firstPath = 'posts/'.$post->id.'/first.webp';
+        $secondPath = 'posts/'.$post->id.'/second.webp';
+        $first = $post->media()->create(['type' => 'image', 'thumbnail_path' => $firstPath]);
+        $second = $post->media()->create(['type' => 'image', 'thumbnail_path' => $secondPath]);
+        Storage::disk('public')->put($firstPath, 'first-image');
+        Storage::disk('public')->put($secondPath, 'second-image');
+
+        $changes = new class(app(\App\Support\OptimizedImageStorage::class)) extends MediaFileChanges {
+            public function deleteFile(string $path): void
+            {
+                if (str_ends_with($path, '/second.webp')) {
+                    throw new RuntimeException('Second file could not be removed');
+                }
+                parent::deleteFile($path);
+            }
+        };
+
+        try {
+            $changes->transaction(function (MediaFileChanges $manager) use ($first, $second): void {
+                foreach ([$first, $second] as $medium) {
+                    $manager->retire($medium->thumbnail_path);
+                    $medium->delete();
+                }
+            });
+            $this->fail('The second deletion must abort the transaction.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('Second file could not be removed', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('media', ['id' => $first->id]);
+        $this->assertDatabaseHas('media', ['id' => $second->id]);
+        $this->assertSame('first-image', Storage::disk('public')->get($firstPath));
+        $this->assertSame('second-image', Storage::disk('public')->get($secondPath));
+        $this->assertDatabaseCount('pending_media_deletions', 0);
+    }
+
+    public function test_legacy_soft_deleted_post_is_purged_before_dropping_the_column(): void
+    {
+        Storage::fake('public');
+        Schema::table('posts', function (Blueprint $table): void {
+            $table->softDeletes();
+        });
+
+        $deleted = Post::create(['status' => 'draft', 'publication_type' => 'blog']);
+        $live = Post::create(['status' => 'draft', 'publication_type' => 'blog']);
+        $path = 'posts/'.$deleted->id.'/en-us/old.webp';
+        $articlePath = 'blog-content/42/en-us/old.webp';
+        $deleted->media()->create(['type' => 'image', 'thumbnail_path' => $path]);
+        $deleted->localizations()->create([
+            'locale' => 'en-us', 'slug' => 'deleted-legacy-article',
+            'title' => 'Deleted', 'article_body' => '<img src="/storage/'.$articlePath.'">',
+        ]);
+        Storage::disk('public')->put($path, 'post image');
+        Storage::disk('public')->put($articlePath, 'article image');
+        DB::table('posts')->where('id', $deleted->id)->update(['deleted_at' => now()]);
+
+        $migration = require database_path('migrations/2026_11_16_000100_remove_soft_deletes_from_posts.php');
+        $migration->up();
+
+        $this->assertDatabaseMissing('posts', ['id' => $deleted->id]);
+        $this->assertDatabaseHas('posts', ['id' => $live->id]);
         Storage::disk('public')->assertMissing($path);
+        Storage::disk('public')->assertMissing($articlePath);
+        $this->assertFalse(Schema::hasColumn('posts', 'deleted_at'));
     }
 
     public function test_failed_rollback_cleanup_is_recorded_for_retry(): void
@@ -360,13 +429,13 @@ class ContentStorageCleanupTest extends TestCase
             });
             $this->fail('The transaction should fail.');
         } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('still require cleanup', $exception->getMessage());
+            $this->assertStringContainsString('files needing attention', $exception->getMessage());
         }
 
         $this->assertNotNull($storedPath);
         $this->assertDatabaseHas('pending_media_deletions', ['path' => $storedPath]);
         Storage::disk('public')->assertExists($storedPath);
-        $this->artisan('cinehub:retry-media-deletions')->assertExitCode(0);
+        $this->artisan('mrrcine:retry-media-deletions')->assertExitCode(0);
         $this->assertDatabaseCount('pending_media_deletions', 0);
         Storage::disk('public')->assertMissing($storedPath);
     }
@@ -419,9 +488,9 @@ class ContentStorageCleanupTest extends TestCase
         $path = 'posts/999/en-us/legacy.webp';
         Storage::disk('public')->put($path, 'orphan');
 
-        $this->artisan('cinehub:prune-media', ['--hours' => 0, '--dry-run' => true])->assertExitCode(0);
+        $this->artisan('mrrcine:prune-media', ['--hours' => 0, '--dry-run' => true])->assertExitCode(0);
         Storage::disk('public')->assertExists($path);
-        $this->artisan('cinehub:prune-media', ['--hours' => 0])->assertExitCode(0);
+        $this->artisan('mrrcine:prune-media', ['--hours' => 0])->assertExitCode(0);
         Storage::disk('public')->assertMissing($path);
     }
 

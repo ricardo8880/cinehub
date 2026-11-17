@@ -161,32 +161,7 @@ class PostController extends Controller
     public function destroy(Post $post): RedirectResponse
     {
         $isBlog = $post->publication_type === 'blog';
-        $postId = (int) $post->id;
-        $articleBodies = [];
-        foreach ($post->localizations()->get() as $localized) {
-            foreach (['article_body', 'excerpt', 'synopsis', 'review', 'spoilers'] as $field) {
-                if ($localized->{$field}) {
-                    $articleBodies[] = $localized->{$field};
-                }
-            }
-        }
-
-        // Record every file before committing the deletion. If physical cleanup
-        // fails, a durable pending row remains available for a manual retry.
-        $this->fileChanges->transaction(function () use ($post, $postId, $articleBodies): void {
-            foreach ($post->media()->pluck('thumbnail_path')->filter() as $path) {
-                $this->fileChanges->retire($path);
-            }
-            foreach ($articleBodies as $body) {
-                foreach ($this->articleImages->pathsFromHtml($body) as $path) {
-                    $this->fileChanges->retire($path);
-                }
-            }
-            foreach (Storage::disk('public')->allFiles('posts/'.$postId) as $path) {
-                $this->fileChanges->retire($path);
-            }
-            $post->delete(); // hard deletion + FK cascades
-        });
+        $this->fileChanges->deletePost($post);
 
         HomeContentCache::forget();
 

@@ -4,7 +4,7 @@
     $isBlog = $isBlog ?? ($post->publication_type === 'blog');
     $pageTitle = $localization->seo_title ?: $localization->title;
     $descriptionSource = \App\Support\RichTextHtml::plainText($localization->excerpt ?: $localization->synopsis ?: $localization->article_body);
-    $pageDescription = \App\Support\SeoDescription::resolve($localization->seo_description, $descriptionSource, __('Discover trailers, reviews, movies, TV shows, games and entertainment on CineHub.'));
+    $pageDescription = \App\Support\SeoDescription::resolve($localization->seo_description, $descriptionSource, __('Discover trailers, reviews, movies, TV shows, games and entertainment on MrRCine.'));
     $canonicalUrl = $isBlog
         ? route('blog.show', [
             'locale' => $localization->locale,
@@ -356,7 +356,7 @@
 @push('scripts')
 <script>
 (() => {
-    if (!@json(request()->cookie('cinehub_analytics_consent') === 'granted') || !window.crypto?.randomUUID) return;
+    if (!@json(request()->cookie('mrrcine_analytics_consent') === 'granted') || !window.crypto?.randomUUID) return;
     const token = crypto.randomUUID();
     const url = @json(route('page-engagement.store', ['locale' => $localization->locale]));
     const csrf = @json(csrf_token());

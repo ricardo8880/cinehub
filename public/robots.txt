@@ -3,5 +3,5 @@ Allow: /
 Disallow: /admin
 
 # After setting APP_URL to your public HTTPS domain, run:
-# php artisan cinehub:publish-robots
+# php artisan mrrcine:publish-robots
 # This will add the absolute URL of /sitemap.xml automatically.

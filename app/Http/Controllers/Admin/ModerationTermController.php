@@ -53,7 +53,7 @@ class ModerationTermController extends Controller
     private function clearCache(): void
     {
         foreach (array_keys(config('localization.locales')) as $locale) {
-            Cache::forget('cinehub:moderation:'.$locale);
+            Cache::forget('mrrcine:moderation:'.$locale);
         }
     }
 }

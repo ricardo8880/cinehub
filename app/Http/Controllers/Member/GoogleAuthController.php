@@ -15,12 +15,12 @@ class GoogleAuthController extends Controller
 {
     public function redirect(Request $request, string $locale): RedirectResponse
     {
-        abort_unless(config('cinehub_auth.google_client_id') && config('cinehub_auth.google_client_secret'), 503);
+        abort_unless(config('mrrcine_auth.google_client_id') && config('mrrcine_auth.google_client_secret'), 503);
         $state = Str::random(48);
         $request->session()->put('google_oauth_state', $state);
         $request->session()->put('google_oauth_locale', $locale);
         $query = http_build_query([
-            'client_id' => config('cinehub_auth.google_client_id'),
+            'client_id' => config('mrrcine_auth.google_client_id'),
             'redirect_uri' => route('member.google.callback', ['locale' => $locale]),
             'response_type' => 'code',
             'scope' => 'openid email profile',
@@ -39,8 +39,8 @@ class GoogleAuthController extends Controller
 
         $tokenResponse = Http::asForm()->timeout(10)->post('https://oauth2.googleapis.com/token', [
             'code' => $request->query('code'),
-            'client_id' => config('cinehub_auth.google_client_id'),
-            'client_secret' => config('cinehub_auth.google_client_secret'),
+            'client_id' => config('mrrcine_auth.google_client_id'),
+            'client_secret' => config('mrrcine_auth.google_client_secret'),
             'redirect_uri' => route('member.google.callback', ['locale' => $locale]),
             'grant_type' => 'authorization_code',
         ]);

@@ -61,7 +61,7 @@ class HomeController extends Controller
             ->map(fn (Post $post) => $presenter->card($post, $locale))
             ->filter()->values();
 
-        $popularItems = Cache::remember("cinehub:home:{$locale}:popular", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
+        $popularItems = Cache::remember("mrrcine:home:{$locale}:popular", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
             return $baseQuery()
                 ->trending($locale, 7)
                 ->limit(5)
@@ -71,7 +71,7 @@ class HomeController extends Controller
                 ->values();
         });
 
-        $trendingItems = Cache::remember("cinehub:home:{$locale}:trending", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
+        $trendingItems = Cache::remember("mrrcine:home:{$locale}:trending", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
             return $baseQuery()
                 ->trending($locale, 2)
                 ->limit(5)

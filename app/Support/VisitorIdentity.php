@@ -18,7 +18,7 @@ class VisitorIdentity
 
     public function analyticsAllowed(Request $request): bool
     {
-        return $request->cookie('cinehub_analytics_consent') === 'granted';
+        return $request->cookie('mrrcine_analytics_consent') === 'granted';
     }
 
     public function analyticsKey(Request $request): string
@@ -31,10 +31,10 @@ class VisitorIdentity
 
         // An analytics identifier is issued only after explicit consent.
         // No IP or raw visitor agent is persisted in the analytics tables.
-        $id = (string) $request->cookie('cinehub_analytics_visitor');
+        $id = (string) $request->cookie('mrrcine_analytics_visitor');
         if (! preg_match('/\A[a-f0-9]{32}\z/D', $id)) {
             $id = bin2hex(random_bytes(16));
-            Cookie::queue(cookie('cinehub_analytics_visitor', $id, 60 * 24 * 180, '/', null, $request->isSecure(), true, false, 'Lax'));
+            Cookie::queue(cookie('mrrcine_analytics_visitor', $id, 60 * 24 * 180, '/', null, $request->isSecure(), true, false, 'Lax'));
         }
 
         return hash_hmac('sha256', 'guest:'.$id, $secret);

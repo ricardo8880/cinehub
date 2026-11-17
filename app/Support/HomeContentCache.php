@@ -10,8 +10,8 @@ class HomeContentCache
     public static function forget(): void
     {
         foreach (array_keys(config('localization.locales')) as $locale) {
-            Cache::forget("cinehub:home:{$locale}:popular");
-            Cache::forget("cinehub:home:{$locale}:trending");
+            Cache::forget("mrrcine:home:{$locale}:popular");
+            Cache::forget("mrrcine:home:{$locale}:trending");
         }
     }
 }

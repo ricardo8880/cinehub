@@ -2,7 +2,7 @@
 
 @php
     $baseSeoTitle = __('Blog');
-    $baseSeoDescription = __('Guides, rankings, recommendations and editorial articles from CineHub.');
+    $baseSeoDescription = __('Guides, rankings, recommendations and editorial articles from MrRCine.');
     $seoTitle = $selectedGenreLocalization ? $selectedGenreLocalization->name.' · '.$baseSeoTitle : $baseSeoTitle;
     $seoDescription = $selectedGenreLocalization ? $selectedGenreLocalization->name.' — '.$baseSeoDescription : $baseSeoDescription;
 

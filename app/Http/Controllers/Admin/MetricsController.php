@@ -191,7 +191,7 @@ class MetricsController extends Controller
 
         $report = [
             'report' => [
-                'name' => 'CineHub editorial metrics',
+                'name' => 'MrRCine editorial metrics',
                 'generated_at' => now()->toIso8601String(),
                 'period_days' => $data['period'],
                 'current_period' => [
@@ -215,7 +215,7 @@ class MetricsController extends Controller
                 'like_rate' => 'likes / views * 100',
                 'comment_rate' => 'approved comments / views * 100',
                 'growth_rate' => '(current period views - previous period views) / previous period views * 100',
-                'unique_visitors' => 'Approximation using distinct visitor identifiers stored by CineHub.',
+                'unique_visitors' => 'Approximation using distinct visitor identifiers stored by MrRCine.',
                 'returning_visitors' => 'Among visitors with a counted view in the selected period, distinct visitors who started another visit after at least 30 minutes of inactivity. Returns may occur in any language. Session-based return tracking begins with the visitor activity migration; historical views are preserved but cannot reconstruct earlier sessions.',
                 'english_region' => 'The /en group is shared by the US, UK, Canada and Australia. French and German each share one language locale across multiple countries. Locale identifies content language, not visitor geography. Historical English regional activity is grouped without altering source records.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
@@ -227,7 +227,7 @@ class MetricsController extends Controller
                 'editorial_score' => 'Weighted score combining reach, engagement, growth and number of posts while reducing the influence of very small samples.',
             ],
             'ai_analysis_instructions' => [
-                'goal' => 'Use these metrics to decide what CineHub should publish next. The main priority is actionable editorial recommendations, supported by a short diagnosis of what is working and what is losing audience.',
+                'goal' => 'Use these metrics to decide what MrRCine should publish next. The main priority is actionable editorial recommendations, supported by a short diagnosis of what is working and what is losing audience.',
                 'analysis_strategy' => [
                     'Start with a concise diagnosis of what is growing, declining and generating the strongest reach, engagement and audience response.',
                     'Identify the strongest and weakest content types, genres, Blog genres, publication formats and language groups.',
@@ -306,7 +306,7 @@ class MetricsController extends Controller
         );
 
         $scope = $data['locale'] ? EnglishGroup::publicLocale($data['locale']) : 'all-countries';
-        $filename = 'cinehub-metrics-'.$scope.'-'.$data['period'].'d-'.now()->format('Y-m-d-His').'.json';
+        $filename = 'mrrcine-metrics-'.$scope.'-'.$data['period'].'d-'.now()->format('Y-m-d-His').'.json';
 
         return response()->streamDownload(
             static function () use ($json): void {
@@ -480,7 +480,7 @@ class MetricsController extends Controller
 
         $report = [
             'report' => [
-                'name' => 'CineHub audience comments',
+                'name' => 'MrRCine audience comments',
                 'generated_at' => now()->toIso8601String(),
                 'period_days' => $period,
                 'current_period' => [
@@ -511,7 +511,7 @@ class MetricsController extends Controller
                 'is_reply' => 'Whether the comment is a reply to another comment.',
             ],
             'ai_analysis_instructions' => [
-                'goal' => 'Use the actual comment text and its post context to explain what the CineHub audience likes, dislikes, asks for and wants to see next. The main priority is actionable editorial recommendations grounded in recurring audience opinion.',
+                'goal' => 'Use the actual comment text and its post context to explain what the MrRCine audience likes, dislikes, asks for and wants to see next. The main priority is actionable editorial recommendations grounded in recurring audience opinion.',
                 'analysis_strategy' => [
                     'Read each comment together with the title, publication format, content type, categories, genres, Blog genres and locale of the post where it was written.',
                     'Identify recurring praise, criticism, questions, requests, expectations, frustrations and topics that generate discussion.',
@@ -521,7 +521,7 @@ class MetricsController extends Controller
                     'When the audience reacts positively to a title or theme, infer adjacent content opportunities from the same audience pattern and recommend specific related games, movies, series or subjects when the connection is reasonable.',
                     'Example: if comments on Middle-earth: Shadow of Mordor praise fantasy, medieval atmosphere, combat and exploration, consider related opportunities such as The Witcher 3, Skyrim, Elden Ring, Dragon Age or similar subjects.',
                     'Compare language groups only when there are enough comments to support a meaningful pattern; the country of the visitor is unknown.',
-                    'Consider negative feedback as an editorial signal: distinguish criticism of the work itself from criticism of the CineHub article, presentation or coverage.',
+                    'Consider negative feedback as an editorial signal: distinguish criticism of the work itself from criticism of the MrRCine article, presentation or coverage.',
                     'Treat sarcasm, jokes and ambiguous comments cautiously and state uncertainty when sentiment is unclear.',
                 ],
                 'required_output' => [
@@ -532,7 +532,7 @@ class MetricsController extends Controller
                     'Highlight explicit audience requests for games, movies, series, franchises, comparisons, reviews or follow-up articles.',
                     'When useful, separate opportunities by language locale, not by inferred visitor country, and avoid conclusions from small samples.',
                     'Separate the final action plan into: publish more, test next, investigate/answer audience questions, and reduce or fix.',
-                    'Do not only summarize comments. Convert them into a practical editorial plan for CineHub.',
+                    'Do not only summarize comments. Convert them into a practical editorial plan for MrRCine.',
                 ],
             ],
             'comments' => $rows->all(),
@@ -544,7 +544,7 @@ class MetricsController extends Controller
         );
 
         $scope = $locale ? EnglishGroup::publicLocale($locale) : 'all-countries';
-        $filename = 'cinehub-comments-'.$scope.'-'.$period.'d-'.now()->format('Y-m-d-His').'.json';
+        $filename = 'mrrcine-comments-'.$scope.'-'.$period.'d-'.now()->format('Y-m-d-His').'.json';
 
         return response()->streamDownload(
             static function () use ($json): void {

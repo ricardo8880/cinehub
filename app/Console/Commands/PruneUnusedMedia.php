@@ -12,7 +12,7 @@ use Throwable;
 
 class PruneUnusedMedia extends Command
 {
-    protected $signature = 'cinehub:prune-media {--dry-run : Show what would be removed without deleting files} {--hours=168 : Minimum file age before deleting abandoned uploads}';
+    protected $signature = 'mrrcine:prune-media {--dry-run : Show what would be removed without deleting files} {--hours=168 : Minimum file age before deleting abandoned uploads}';
 
     protected $description = 'Remove abandoned post images and article uploads that are no longer referenced in the database';
 

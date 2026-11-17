@@ -20,15 +20,15 @@ class SeoTest extends TestCase
         $this->assertSame('/de', parse_url(route('home', ['locale' => 'de']), PHP_URL_PATH));
 
         $this->assertSame([
-            'en' => 'https://cinehub.example/en',
-            'fr' => 'https://cinehub.example/fr',
-            'de' => 'https://cinehub.example/de',
+            'en' => 'https://mrrcine.example/en',
+            'fr' => 'https://mrrcine.example/fr',
+            'de' => 'https://mrrcine.example/de',
         ], Seo::alternateLinks([
-            'en-us' => 'https://cinehub.example/en',
-            'en-gb' => 'https://cinehub.example/en', // Historic: no separate English canonical.
-            'fr' => 'https://cinehub.example/fr',
-            'de' => 'https://cinehub.example/de',
-            'ja-jp' => 'https://cinehub.example/ja-jp', // Retired locale is not indexable.
+            'en-us' => 'https://mrrcine.example/en',
+            'en-gb' => 'https://mrrcine.example/en', // Historic: no separate English canonical.
+            'fr' => 'https://mrrcine.example/fr',
+            'de' => 'https://mrrcine.example/de',
+            'ja-jp' => 'https://mrrcine.example/ja-jp', // Retired locale is not indexable.
         ]));
     }
 

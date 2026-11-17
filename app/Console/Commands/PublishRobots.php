@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\File;
 
 class PublishRobots extends Command
 {
-    protected $signature = 'cinehub:publish-robots';
+    protected $signature = 'mrrcine:publish-robots';
 
     protected $description = 'Write production robots.txt with the canonical sitemap URL from APP_URL.';
 

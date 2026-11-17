@@ -11,7 +11,7 @@ use Symfony\Component\Process\Process;
 
 class BackupDatabase extends Command
 {
-    protected $signature = 'cinehub:backup';
+    protected $signature = 'mrrcine:backup';
     protected $description = 'Back up SQLite or MySQL/MariaDB to encrypted storage outside the public directory.';
 
     public function handle(): int
@@ -75,13 +75,13 @@ class BackupDatabase extends Command
             EncryptedBackup::encrypt($temporary, $destination);
             $this->removeExpiredBackups($directory);
             $this->info('Encrypted backup created: '.$destination);
-            Log::info('CineHub database backup created.', ['file' => basename($destination)]);
+            Log::info('MrRCine database backup created.', ['file' => basename($destination)]);
 
             return self::SUCCESS;
         } catch (\Throwable $exception) {
             @unlink($destination);
             $this->error('Backup failed: '.$exception->getMessage());
-            Log::error('CineHub database backup failed.', [
+            Log::error('MrRCine database backup failed.', [
                 'driver' => $driver, 'error' => $exception->getMessage(),
             ]);
 

@@ -11,7 +11,7 @@ class EncryptedBackupTest extends TestCase
 {
     public function test_encrypted_backup_restores_binary_data_without_exposing_plaintext(): void
     {
-        $directory = sys_get_temp_dir().'/cinehub-security-'.bin2hex(random_bytes(5));
+        $directory = sys_get_temp_dir().'/mrrcine-security-'.bin2hex(random_bytes(5));
         mkdir($directory, 0700);
         $source = $directory.'/input';
         $encrypted = $directory.'/backup.chbk';
@@ -31,7 +31,7 @@ class EncryptedBackupTest extends TestCase
 
     public function test_corrupt_backup_fails_authenticated_decryption(): void
     {
-        $directory = sys_get_temp_dir().'/cinehub-security-'.bin2hex(random_bytes(5));
+        $directory = sys_get_temp_dir().'/mrrcine-security-'.bin2hex(random_bytes(5));
         mkdir($directory, 0700);
         $source = $directory.'/input';
         $encrypted = $directory.'/backup.chbk';

@@ -11,7 +11,7 @@
 <label for="password" class="form-label">{{ __('Password (at least 10 characters)') }}</label><input id="password" name="password" type="password" class="form-control mb-3" required minlength="10" autocomplete="new-password">
 <label for="password_confirmation" class="form-label">{{ __('Confirm password') }}</label><input id="password_confirmation" name="password_confirmation" type="password" class="form-control mb-3" required minlength="10" autocomplete="new-password">
 <button class="btn btn-danger w-100" type="submit">{{ __('Create an account') }}</button></form>
-@if (config('cinehub_auth.google_client_id') && config('cinehub_auth.google_client_secret'))
+@if (config('mrrcine_auth.google_client_id') && config('mrrcine_auth.google_client_secret'))
 <a class="btn btn-outline-light w-100 mt-3" href="{{ route('member.google') }}"><i class="bi bi-google me-2"></i>{{ __('Continue with Google') }}</a>
 @endif
 <p class="small mt-3 mb-0"><a href="{{ route('member.login') }}">{{ __('Already have an account? Sign in') }}</a></p>

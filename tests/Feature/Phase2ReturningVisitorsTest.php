@@ -31,8 +31,8 @@ class Phase2ReturningVisitorsTest extends TestCase
     private function requestFor(string $id = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', string $consent = 'granted'): Request
     {
         return Request::create('/en/blog/example', 'GET', [], [
-            'cinehub_analytics_consent' => $consent,
-            'cinehub_analytics_visitor' => $id,
+            'mrrcine_analytics_consent' => $consent,
+            'mrrcine_analytics_visitor' => $id,
         ], [], ['HTTP_USER_AGENT' => 'Mozilla/5.0']);
     }
 
@@ -156,8 +156,8 @@ class Phase2ReturningVisitorsTest extends TestCase
             'post_id' => $post->id, 'locale' => 'en-us',
             'duration' => 1200, 'active' => 1200, 'interacted' => false,
         ], [
-            'cinehub_analytics_consent' => 'granted',
-            'cinehub_analytics_visitor' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            'mrrcine_analytics_consent' => 'granted',
+            'mrrcine_analytics_visitor' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         ], [], ['HTTP_USER_AGENT' => 'Mozilla/5.0']);
         $ping->setLaravelSession($session);
         $ping->setUserResolver(fn () => null);

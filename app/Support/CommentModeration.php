@@ -32,7 +32,7 @@ class CommentModeration
         }
 
         if (isset(config('localization.locales')[$locale])) {
-            $custom = Cache::remember('cinehub:moderation:'.$locale, now()->addMinutes(5),
+            $custom = Cache::remember('mrrcine:moderation:'.$locale, now()->addMinutes(5),
                 fn () => ModerationTerm::query()->where('is_active', true)->whereIn('locale', array_merge(['*'], EnglishGroup::history($locale)))->get(['phrase', 'classification']));
             $review = false;
             foreach ($custom as $term) {

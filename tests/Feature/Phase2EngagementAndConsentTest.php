@@ -59,8 +59,8 @@ class Phase2EngagementAndConsentTest extends TestCase
             'active' => $active,
             'interacted' => $interacted,
         ], [
-            'cinehub_analytics_consent' => $consent,
-            'cinehub_analytics_visitor' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            'mrrcine_analytics_consent' => $consent,
+            'mrrcine_analytics_visitor' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         ], [], ['HTTP_USER_AGENT' => 'Mozilla/5.0']);
         $request->setLaravelSession($session);
         $request->setUserResolver(fn () => null);
@@ -141,22 +141,22 @@ class Phase2EngagementAndConsentTest extends TestCase
         // Keep EncryptCookies enabled: Laravel's withCookie() already encrypts the
         // outgoing test cookie, exactly as the browser receives it from the app.
         $this->from('/en')->post('/en/privacy/consent', ['analytics' => 'denied'])
-            ->assertRedirect()->assertCookie('cinehub_analytics_consent', 'denied');
+            ->assertRedirect()->assertCookie('mrrcine_analytics_consent', 'denied');
 
-        $this->withCookie('cinehub_analytics_consent', 'denied')
+        $this->withCookie('mrrcine_analytics_consent', 'denied')
             ->get('/en')->assertOk()->assertDontSee('Cookie Preferences');
-        $this->withCookie('cinehub_analytics_consent', 'denied')
+        $this->withCookie('mrrcine_analytics_consent', 'denied')
             ->get('/en/blog')->assertOk()->assertDontSee('Cookie Preferences');
     }
 
     public function test_cookie_choice_is_hidden_after_acceptance(): void
     {
         $this->from('/en')->post('/en/privacy/consent', ['analytics' => 'granted'])
-            ->assertRedirect()->assertCookie('cinehub_analytics_consent', 'granted');
+            ->assertRedirect()->assertCookie('mrrcine_analytics_consent', 'granted');
 
-        $this->withCookie('cinehub_analytics_consent', 'granted')
+        $this->withCookie('mrrcine_analytics_consent', 'granted')
             ->get('/en')->assertOk()->assertDontSee('Cookie Preferences');
-        $this->withCookie('cinehub_analytics_consent', 'granted')
+        $this->withCookie('mrrcine_analytics_consent', 'granted')
             ->get('/en/blog')->assertOk()->assertDontSee('Cookie Preferences');
     }
 }

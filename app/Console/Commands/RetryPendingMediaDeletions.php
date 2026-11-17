@@ -8,7 +8,7 @@ use Throwable;
 
 class RetryPendingMediaDeletions extends Command
 {
-    protected $signature = 'cinehub:retry-media-deletions';
+    protected $signature = 'mrrcine:retry-media-deletions';
 
     protected $description = 'Retry failed media deletions without an automatic scheduler';
 

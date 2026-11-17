@@ -1,4 +1,9 @@
-# CineHub
+# MrRCine
+
+**Marca:** MrRCine  
+**Dominio publico:** https://mrrcine.com
+
+O ambiente local pode manter `APP_URL=http://localhost:8000`. Na publicacao, configure `APP_URL=https://mrrcine.com` no `.env` do servidor, execute `php artisan optimize:clear` e depois `php artisan mrrcine:publish-robots` para atualizar o sitemap no `robots.txt`. O identificador tecnico de backups criptografados e nomes de migrations antigas sao mantidos para preservar a compatibilidade.
 
 Portal internacional de entretenimento com foco em descoberta de filmes, séries, games, curiosidades, histórias reais e reviews.
 
@@ -6,7 +11,7 @@ Este arquivo é a referência central do projeto. Toda alteração futura deve r
 
 ## 1. Objetivo do projeto
 
-O CineHub combina, em uma mesma publicação:
+O MrRCine combina, em uma mesma publicação:
 
 - trailer ou vídeo oficial;
 - sinopse;
@@ -334,7 +339,7 @@ BACKUP_ENABLED=false
 Backup manual em SQLite ou MySQL/MariaDB:
 
 ```bash
-php artisan cinehub:backup
+php artisan mrrcine:backup
 ```
 
 Nunca versionar senha real, chaves ou segredos.
@@ -461,7 +466,7 @@ Antes de alterar o projeto:
 
 ## 26. Publicidade direta para anunciantes — planejamento futuro
 
-Além do Google AdSense, o CineHub poderá vender espaços publicitários diretamente para empresas e anunciantes.
+Além do Google AdSense, o MrRCine poderá vender espaços publicitários diretamente para empresas e anunciantes.
 
 Direção planejada:
 
@@ -483,7 +488,7 @@ Esta funcionalidade não faz parte da etapa atual e deverá ser detalhada e melh
 
 ## 27. Análise editorial assistida pelas métricas
 
-O download JSON do painel de métricas deve ser suficiente para orientar uma IA sobre o que o CineHub deve publicar em seguida, sem depender de explicações adicionais fora do arquivo.
+O download JSON do painel de métricas deve ser suficiente para orientar uma IA sobre o que o MrRCine deve publicar em seguida, sem depender de explicações adicionais fora do arquivo.
 
 O painel e o JSON incluem, além de visualizações editoriais, visitantes únicos aproximados, curtidas e comentários aprovados:
 
@@ -532,7 +537,7 @@ Regras:
 - a IA deve identificar elogios, críticas, dúvidas, pedidos, temas recorrentes e assuntos que geram discussão;
 - opiniões isoladas não devem ser tratadas como consenso sem repetição suficiente;
 - quando um conteúdo receber reação positiva, a análise deve procurar oportunidades adjacentes e sugerir títulos/temas semelhantes capazes de interessar ao mesmo público;
-- a análise deve diferenciar crítica à obra analisada de crítica ao próprio conteúdo/apresentação do CineHub;
+- a análise deve diferenciar crítica à obra analisada de crítica ao próprio conteúdo/apresentação do MrRCine;
 - quando houver amostra suficiente, padrões podem ser separados por idioma/grupo; o grupo `en` não permite distinguir geograficamente os quatro países apenas pela URL.
 
 O objetivo desse segundo relatório é complementar as métricas quantitativas com a **opinião textual do público**, permitindo que uma IA responda não apenas ao que está performando, mas também **por que o público gostou ou não gostou e o que ele demonstra querer consumir em seguida**.
@@ -611,7 +616,7 @@ envio de códigos por e-mail.
 
 ### Backups criptografados
 
-O comando `php artisan cinehub:backup` agora suporta SQLite (snapshot
+O comando `php artisan mrrcine:backup` agora suporta SQLite (snapshot
 consistente) e MySQL/MariaDB (requer `mysqldump` no PATH). Os arquivos
 criptografados `.chbk` são criados em `storage/app/private/backups` (fora de
 `public`), com permissões restritas. O prazo padrão de retenção local é de
@@ -630,7 +635,7 @@ servidor execute o cron `php artisan schedule:run` a cada minuto. Para
 restauração manual (sem sobrescrever o banco automaticamente):
 
 ```bash
-php artisan cinehub:backup:decrypt CAMINHO/database.sql.chbk CAMINHO/restore.sql
+php artisan mrrcine:backup:decrypt CAMINHO/database.sql.chbk CAMINHO/restore.sql
 ```
 
 Use um caminho de saída novo e seguro. O SQL restaurado fica **sem criptografia**:
@@ -648,7 +653,7 @@ e monitore falhas do agendamento. Nunca exponha o diretório de backups na web.
 - **Sitemap:** `/sitemap.xml` contém somente URLs canônicas de idiomas indexáveis e publicações ativas, respeitando categorias e localizações válidas. Arquivos antigos `/en-us` não aparecem. O sitemap usa `lastmod` para publicações quando há data de atualização confiável, sem `priority` e `changefreq` ignorados pelo Google.
 - **Páginas vazias e privadas:** arquivos sem postagens, pesquisas e páginas de conta recebem `noindex`; os artigos publicados mantêm dados estruturados `Article`/`BlogPosting` e breadcrumbs. Páginas administrativas continuam protegidas e fora da indexação.
 - **Lançamento gradual:** as rotas `/fr` e `/de` funcionam inicialmente com `noindex, follow` e ficam fora do sitemap e do `hreflang` até que **o conteúdo real, metadados, mídias, categorias e textos legais estejam revisados**. Então configure `SEO_INDEX_FRENCH=true` e/ou `SEO_INDEX_GERMAN=true` no `.env` e execute `php artisan optimize:clear`. Essa liberação é independente para cada idioma. O antigo `/ja-jp` não é suportado.
-- **robots.txt:** em produção, configure `APP_URL=https://seu-dominio-real` e execute `php artisan cinehub:publish-robots`. O comando inclui automaticamente a linha `Sitemap: https://seu-dominio-real/sitemap.xml` em `public/robots.txt` e recusa domínios locais. Repita se trocar o domínio. Bloqueio de robôs não substitui autenticação nem `noindex`.
+- **robots.txt:** em produção, configure `APP_URL=https://mrrcine.com` e execute `php artisan mrrcine:publish-robots`. O comando inclui automaticamente a linha `Sitemap: https://mrrcine.com/sitemap.xml` em `public/robots.txt` e recusa domínios locais. Repita se trocar o domínio. Bloqueio de robôs não substitui autenticação nem `noindex`.
 - **Dependências externas:** confirmar domínio e HTTPS, enviar `/sitemap.xml` ao Google Search Console e configurar Google Analytics são atividades de implantação, não funcionalidades automáticas do código.
 - **Desempenho:** foram adicionados atributos de carregamento/decodificação de imagens sem alterar o layout. Aferição real de Core Web Vitals deve ocorrer depois de publicar o site.
 - **Capacidade do sitemap:** caso o site ultrapasse 50.000 URLs ou 50 MB de XML, deve-se dividir o sitemap em vários arquivos/índice antes de alcançar o limite.
@@ -659,7 +664,7 @@ e monitore falhas do agendamento. Nunca exponha o diretório de backups na web.
 - Idiomas públicos: **inglês `/en`** (armazenado como `en-us`), **francês `/fr`** (`fr`) e **alemão `/de`** (`de`). Não criar duplicações por países que compartilham o mesmo idioma.
 - Os arquivos `lang/en_US.json`, `lang/fr_FR.json` e `lang/de_DE.json` traduzem **a interface**. As versões localizadas de posts, categorias, gêneros, tópicos de Blog, SEO e mídia devem ser editadas manualmente no admin. Não publicar versões com texto/slug inglês disfarçado de tradução.
 - Formulários do admin têm abas por idioma, sem novos CRUDs e sem mudanças de layout. Inglês permanece obrigatório, francês e alemão são opcionais. Cada idioma exige título, slug e dados editoriais próprios; conteúdo incompleto fica invisível em outros idiomas.
-- As moedas dos mercados são indicativas, não um preço do conteúdo nem garantia de RPM ou receita: o país e o lance do anunciante/afiliado determinam a monetização real. O CineHub não detecta automaticamente o país do visitante.
+- As moedas dos mercados são indicativas, não um preço do conteúdo nem garantia de RPM ou receita: o país e o lance do anunciante/afiliado determinam a monetização real. O MrRCine não detecta automaticamente o país do visitante.
 - As tags de idioma no HTML e SEO são **`en`, `fr`, `de`**, nunca `en-US`, `fr-FR` ou `de-DE` para as páginas compartilhadas. Sitemap e `hreflang` só listam idiomas liberados para indexação e páginas correspondentes publicadas. URLs `/en-us`, `/en-gb`, `/en-ca` e `/en-au` seguem com redirecionamento permanente para `/en`.
 - **Primeira publicação:** cadastrar localizações das categorias e gêneros usados, versões de post e mídias em francês/alemão; revisar home, blog, navegação, busca, autenticação e páginas legais; confirmar que os textos não são fallback do inglês. Depois ativar `SEO_INDEX_FRENCH` e `SEO_INDEX_GERMAN` separadamente, limpar cache, verificar `/sitemap.xml`, canonical e `hreflang`, e enviar sitemap ao Search Console.
 - **Área do livro independente por idioma:** o painel de configurações possui abas EN, FR e DE. Os campos antigos `book_*` continuam sendo exclusivamente do inglês. Francês (`book_*_fr`) e alemão (`book_*_de`) só aparecem quando seus próprios títulos forem cadastrados manualmente; sem título, a URL `/fr/book` ou `/de/book` devolve 404 e não aparece no rodapé nem no sitemap. O `hreflang` de livros só conecta as edições realmente publicadas e indexáveis.
@@ -716,7 +721,7 @@ As funcionalidades abaixo complementam a Fase 2 de otimização, sem modificar o
 - **Visitantes únicos aproximados:** identificadores técnicos distintos observados nas visualizações editoriais do período; cookies, dispositivos e alterações de identidade podem afetar a precisão.
 - **Visitantes recorrentes:** identificadores distintos com ao menos um retorno registrado no período, caracterizado por **30 minutos ou mais sem atividade rastreada**. Navegar entre páginas ou idiomas durante a mesma visita não aumenta essa métrica. O registro é agregado por visitante/dia em `visitor_activity_daily`, com atualização controlada da última atividade.
 - Os indicadores são **separados e não aditivos**: recorrentes podem estar incluídos nos únicos. Não chamar essa contagem de total de visitas ou de número exato de pessoas físicas.
-- A coleta exige consentimento `cinehub_analytics_consent=granted`; bots conhecidos são ignorados e não se armazena IP puro nessas métricas. Revogar o consentimento impede a continuidade da coleta. Os retornos anteriores à criação do rastreamento não podem ser reconstruídos de modo confiável.
+- A coleta exige consentimento `mrrcine_analytics_consent=granted`; bots conhecidos são ignorados e não se armazena IP puro nessas métricas. Revogar o consentimento impede a continuidade da coleta. Os retornos anteriores à criação do rastreamento não podem ser reconstruídos de modo confiável.
 
 ### Download AI report
 
@@ -731,3 +736,13 @@ As funcionalidades abaixo complementam a Fase 2 de otimização, sem modificar o
 - As estruturas novas foram introduzidas pelas migrations `2026_11_16_000300_aggregate_repeat_post_views.php`, `2026_11_16_000400_create_page_engagement_daily_table.php`, `2026_11_16_000600_create_visitor_activity_daily_table.php` e `2026_11_16_000700_site_views_and_reading_depth.php`, além dos demais ajustes de suporte da Fase 2.
 - Após aplicar **os arquivos de código correspondentes** em uma instalação ainda não atualizada, realizar backup do banco e executar `php artisan migrate`, `php artisan optimize:clear` e os testes pertinentes à Fase 2 e às métricas complementares. Somente atualizar este README **não** exige migration, build ou alteração do banco.
 - Migrations de analytics que já contenham dados possuem proteção contra rollback destrutivo. Não apagar tabelas históricas para simplificar os relatórios.
+
+
+## 35. Exclusão definitiva de conteúdo e mídia (novembro de 2026)
+
+- Ao editar, substituir ou excluir uma publicação ou mídia, o MrRCine apaga **na mesma operação** os arquivos antigos que não possuem mais referências. Arquivos usados por outras postagens, idiomas ou configurações são preservados. Não há dependência de agendamento ou rotina periódica.
+- A remoção física ocorre **antes de confirmar** a transação no banco. Enquanto a operação ocorre, uma cópia temporária do arquivo antigo fica fora da pasta pública, para restauração caso a exclusão física ou a transação falhe. Quando a operação termina corretamente, essa cópia temporária é descartada.
+- Se o armazenamento impedir a exclusão, a alteração do banco é revertida e o erro é informado; não deve ser exibida mensagem de sucesso. Em uma falha grave de disco também pode falhar a restauração, situação que exige intervenção de infraestrutura. O comando manual `php artisan mrrcine:retry-media-deletions` permanece apenas para entradas residuais já registradas anteriormente ou falhas extremas em uploads revertidos.
+- A migration `2026_11_16_000100_remove_soft_deletes_from_posts.php` foi corrigida para apagar de fato as postagens com `deleted_at` preenchido, bem como seus registros vinculados e arquivos, **antes de remover a coluna**, desde que a migration ainda não tenha sido executada.
+- **Instalações em que essa migration já foi executada:** alterar o arquivo não executa novamente a migration. Sem a coluna `deleted_at`, não é possível distinguir automaticamente postagens antigas excluídas das legítimas. Para recuperar essa informação, consultar backup do banco anterior à migração; **não excluir postagens existentes por suposição**.
+- Antes de aplicar a atualização, fazer backup do banco e dos uploads. Após substituir os arquivos, executar `php artisan migrate --force` e `php artisan optimize:clear`. Nenhum `npm run build` é necessário exclusivamente por essas alterações PHP.
