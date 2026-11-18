@@ -1,7 +1,9 @@
 @php
     $context = $context ?? 'default';
     $adsenseOnly = (bool) ($adsenseOnly ?? false);
-    $deferAdsenseUntilVisible = (bool) ($deferAdsenseUntilVisible ?? $adsenseOnly);
+    $rail = $adsenseOnly ? 'left' : 'right';
+    $placementCount = $adsenseOnly ? 5 : 3;
+    $googleSlots = array_slice(array_pad((array) config("sidebar_ads.{$rail}_slots", []), $placementCount, ''), 0, $placementCount);
     $locale = (string) request()->route('locale', config('localization.default'));
     $campaigns = collect(config('sidebar_ads.campaigns', []))
         ->filter(fn ($ad) => in_array($context, $ad['contexts'] ?? ['default'], true))
@@ -18,113 +20,114 @@
         })
         ->filter(fn ($ad) => $ad && filled($ad['title']) && filled($ad['url']))
         ->values();
-    $client = config('sidebar_ads.adsense_client');
-    $slot = config('sidebar_ads.adsense_slot');
-    $hasAdsense = filled($client) && filled($slot);
+    $client = (string) config('sidebar_ads.adsense_client', '');
+    // While developing locally (or testing), ALWAYS render placeholders.
+    // Real AdSense units require both a publisher ID and an ad-unit slot ID.
+    $allowLiveGoogle = ! app()->environment('local', 'testing') && preg_match('/^ca-pub-\d+$/', $client);
+    $hasLiveGoogle = $allowLiveGoogle && collect($googleSlots)->contains(fn ($id) => preg_match('/^\d+$/', (string) $id));
     $seconds = max(8, (int) config('sidebar_ads.rotation_seconds', 12));
     $showDemoAds = (bool) config('sidebar_demo_ads.enabled', false);
     $adLanguage = $locale === 'fr' ? 'fr' : ($locale === 'de' ? 'de' : 'en');
     $demoCopy = $showDemoAds ? config("sidebar_demo_ads.localizations.{$adLanguage}", []) : [];
     $demoCards = $demoCopy['campaigns'] ?? [];
 @endphp
-<div class="sidebar-ad-stack" aria-label="{{ __('Advertisements') }}">
-    <section class="sidebar-ad-unit" aria-label="{{ $hasAdsense ? 'Google AdSense' : ($showDemoAds ? ($demoCopy['preview_label'] ?? 'Demo') : __('Advertisements')) }}">
-        <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ $hasAdsense ? 'Google' : ($showDemoAds ? ($demoCopy['preview_label'] ?? 'Demo') : 'Google') }}</div>
-        @if ($hasAdsense)
-            <ins class="adsbygoogle" style="display:block" data-ad-client="{{ $client }}" data-ad-slot="{{ $slot }}" data-ad-format="auto" data-full-width-responsive="true"></ins>
-            @once
-                @push('scripts')
-                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ $client }}" crossorigin="anonymous"></script>
-                @endpush
-            @endonce
-            @if ($deferAdsenseUntilVisible)
-                {{-- Never initialize hidden left-rail AdSense placements on mobile. --}}
-                <script>
-                    (() => {
-                        const ad = document.currentScript.previousElementSibling;
-                        let initialized = false;
-                        const showAd = () => {
-                            if (initialized || !ad || !ad.getClientRects().length || ad.offsetWidth === 0) return;
-                            initialized = true;
-                            (window.adsbygoogle = window.adsbygoogle || []).push({});
-                            window.removeEventListener('resize', showAd);
-                        };
-                        window.addEventListener('resize', showAd, { passive: true });
-                        if (document.readyState === 'loading') {
-                            document.addEventListener('DOMContentLoaded', showAd, { once: true });
-                        } else {
-                            showAd();
-                        }
-                    })();
-                </script>
+<div class="sidebar-ad-stack sidebar-ad-stack--{{ $rail }}" aria-label="{{ __('Advertisements') }}">
+    {{-- Five Google placements on the desktop-only left rail; three on the right. --}}
+    @foreach ($googleSlots as $index => $slot)
+        @php($showLiveUnit = ($allowLiveGoogle && preg_match('/^\d+$/', (string) $slot)))
+        <section class="sidebar-ad-unit sidebar-ad-unit--google" style="order: {{ $adsenseOnly ? $index : $index * 2 }}" aria-label="Google AdSense {{ $index + 1 }}">
+            <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · Google {{ $index + 1 }}</div>
+            @if ($showLiveUnit)
+                <ins class="adsbygoogle" style="display:block" data-sidebar-google data-ad-client="{{ $client }}" data-ad-slot="{{ $slot }}" data-ad-format="auto" data-full-width-responsive="true"></ins>
             @else
-                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+                <div class="sidebar-ad-placeholder sidebar-ad-placeholder--google">{{ __('Google AdSense space') }} {{ $index + 1 }}</div>
             @endif
-        @elseif ($showDemoAds && ! empty($demoCopy['top']))
-            @php($ad = $demoCopy['top'])
-            <div class="sidebar-ad-demo sidebar-ad-demo--{{ $ad['tone'] }} sidebar-ad-demo--display" aria-label="{{ $demoCopy['preview_label'] }}">
-                <div class="sidebar-ad-demo__brand"><span class="sidebar-ad-demo__brand-mark"></span>{{ $ad['brand'] }}</div>
-                <div class="sidebar-ad-demo__art" aria-hidden="true"><i class="bi {{ $ad['icon'] }}"></i></div>
-                <div class="sidebar-ad-demo__eyebrow">{{ $ad['eyebrow'] }}</div>
-                <strong class="sidebar-ad-demo__title">{{ $ad['title'] }}</strong>
-                <p class="sidebar-ad-demo__description">{{ $ad['description'] }}</p>
-                <span class="sidebar-ad-demo__cta">{{ $ad['cta'] }} <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
-            </div>
-            <small class="sidebar-ad-demo__note">{{ $demoCopy['preview_note'] }}</small>
-        @else
-            <div class="sidebar-ad-placeholder">{{ __('Google AdSense space') }}</div>
-        @endif
-    </section>
-
-    @unless ($adsenseOnly)
-    @for ($column = 0; $column < 2; $column++)
-        <section class="sidebar-ad-unit" data-sidebar-rotation="{{ $column }}" data-interval="{{ $seconds * 1000 }}" aria-label="{{ __('Promotions') }}">
-            <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ $showDemoAds && $campaigns->isEmpty() ? ($demoCopy['preview_label'] ?? 'Demo') : __('Partner / Our projects') }}</div>
-            <div class="sidebar-ad-viewport" data-sidebar-ad-viewport>
-            @if ($campaigns->isEmpty() && $showDemoAds && count($demoCards) > 0)
-                @foreach ($demoCards as $index => $ad)
-                    <div class="sidebar-ad-campaign sidebar-ad-demo sidebar-ad-demo--{{ $ad['tone'] }}" @if ($index !== $column) hidden @endif aria-label="{{ $demoCopy['preview_label'] }}">
-                        <div class="sidebar-ad-demo__brand"><span class="sidebar-ad-demo__brand-mark"></span>{{ $ad['brand'] }}</div>
-                        <div class="sidebar-ad-demo__art" aria-hidden="true"><i class="bi {{ $ad['icon'] }}"></i></div>
-                        <div class="sidebar-ad-demo__eyebrow">{{ $ad['eyebrow'] }}</div>
-                        <strong class="sidebar-ad-demo__title">{{ $ad['title'] }}</strong>
-                        <p class="sidebar-ad-demo__description">{{ $ad['description'] }}</p>
-                        <span class="sidebar-ad-demo__cta">{{ $ad['cta'] }} <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
-                        <small class="sidebar-ad-demo__note">{{ $demoCopy['preview_note'] }}</small>
-                    </div>
-                @endforeach
-            @elseif ($campaigns->isEmpty())
-                @foreach ([
-                    ['title' => __('Affiliate products'), 'description' => __('Products related to this page')],
-                    ['title' => __('Our projects'), 'description' => __('Discover our other websites')],
-                    ['title' => __('Recommended products'), 'description' => __('Useful picks for visitors')],
-                    ['title' => __('Our books'), 'description' => __('Explore upcoming releases')],
-                ] as $index => $demo)
-                    <div class="sidebar-ad-campaign sidebar-ad-placeholder" @if ($index !== $column) hidden @endif>
-                        <strong>{{ $demo['title'] }}</strong>
-                        <span>{{ $demo['description'] }}</span>
-                        <small>{{ __('Demo') }} · {{ $index + 1 }}/4</small>
-                    </div>
-                @endforeach
-            @else
-                @foreach ($campaigns as $index => $ad)
-                    <a class="sidebar-ad-campaign" href="{{ $ad['url'] }}" target="_blank" rel="{{ ($ad['kind'] ?? '') === 'affiliate' ? 'sponsored nofollow noopener' : 'noopener' }}" @if ($index !== $column % $campaigns->count()) hidden @endif>
-                        @if (! empty($ad['image']))
-                            <img src="{{ $ad['image'] }}" alt="" loading="lazy">
-                        @endif
-                        <strong>{{ $ad['title'] }}</strong>
-                        @if (! empty($ad['description']))<span>{{ $ad['description'] }}</span>@endif
-                    </a>
-                @endforeach
-            @endif
-            </div>
         </section>
-    @endfor
-    @if ($campaigns->contains(fn ($ad) => ($ad['kind'] ?? '') === 'affiliate'))
-        <small class="sidebar-ad-disclosure">{{ __('As an Amazon Associate, we earn from qualifying purchases.') }}</small>
-    @endif
+    @endforeach
+
+    {{-- Preserve precisely two independently rotating own/partner campaign slots. --}}
+    @unless ($adsenseOnly)
+        @for ($column = 0; $column < 2; $column++)
+            <section class="sidebar-ad-unit" style="order: {{ $column * 2 + 1 }}" data-sidebar-rotation="{{ $column }}" data-interval="{{ $seconds * 1000 }}" aria-label="{{ __('Promotions') }}">
+                <div class="sidebar-ad-unit__label">{{ __('Advertisement') }} · {{ $showDemoAds && $campaigns->isEmpty() ? ($demoCopy['preview_label'] ?? 'Demo') : __('Partner / Our projects') }}</div>
+                <div class="sidebar-ad-viewport" data-sidebar-ad-viewport>
+                @if ($campaigns->isEmpty() && $showDemoAds && count($demoCards) > 0)
+                    @foreach ($demoCards as $index => $ad)
+                        <div class="sidebar-ad-campaign sidebar-ad-demo sidebar-ad-demo--{{ $ad['tone'] }}" @if ($index !== $column) hidden @endif aria-label="{{ $demoCopy['preview_label'] }}">
+                            <div class="sidebar-ad-demo__brand"><span class="sidebar-ad-demo__brand-mark"></span>{{ $ad['brand'] }}</div>
+                            <div class="sidebar-ad-demo__art" aria-hidden="true"><i class="bi {{ $ad['icon'] }}"></i></div>
+                            <div class="sidebar-ad-demo__eyebrow">{{ $ad['eyebrow'] }}</div>
+                            <strong class="sidebar-ad-demo__title">{{ $ad['title'] }}</strong>
+                            <p class="sidebar-ad-demo__description">{{ $ad['description'] }}</p>
+                            <span class="sidebar-ad-demo__cta">{{ $ad['cta'] }} <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                            <small class="sidebar-ad-demo__note">{{ $demoCopy['preview_note'] }}</small>
+                        </div>
+                    @endforeach
+                @elseif ($campaigns->isEmpty())
+                    @foreach ([
+                        ['title' => __('Affiliate products'), 'description' => __('Products related to this page')],
+                        ['title' => __('Our projects'), 'description' => __('Discover our other websites')],
+                        ['title' => __('Recommended products'), 'description' => __('Useful picks for visitors')],
+                        ['title' => __('Our books'), 'description' => __('Explore upcoming releases')],
+                    ] as $index => $demo)
+                        <div class="sidebar-ad-campaign sidebar-ad-placeholder" @if ($index !== $column) hidden @endif>
+                            <strong>{{ $demo['title'] }}</strong>
+                            <span>{{ $demo['description'] }}</span>
+                            <small>{{ __('Demo') }} · {{ $index + 1 }}/4</small>
+                        </div>
+                    @endforeach
+                @else
+                    @foreach ($campaigns as $index => $ad)
+                        <a class="sidebar-ad-campaign" href="{{ $ad['url'] }}" target="_blank" rel="{{ ($ad['kind'] ?? '') === 'affiliate' ? 'sponsored nofollow noopener' : 'noopener' }}" @if ($index !== $column % $campaigns->count()) hidden @endif>
+                            @if (! empty($ad['image']))
+                                <img src="{{ $ad['image'] }}" alt="" loading="lazy">
+                            @endif
+                            <strong>{{ $ad['title'] }}</strong>
+                            @if (! empty($ad['description']))<span>{{ $ad['description'] }}</span>@endif
+                        </a>
+                    @endforeach
+                @endif
+                </div>
+            </section>
+        @endfor
+        @if ($campaigns->contains(fn ($ad) => ($ad['kind'] ?? '') === 'affiliate'))
+            <small class="sidebar-ad-disclosure" style="order: 6">{{ __('As an Amazon Associate, we earn from qualifying purchases.') }}</small>
+        @endif
     @endunless
 </div>
+
+{{-- Load AdSense only after publishing/configuring real IDs. Observe each visible slot
+     individually: never initialize the hidden desktop-only left rail on mobile. --}}
+@if ($hasLiveGoogle)
+    @once('cinehub-sidebar-google-loader')
+        @push('scripts')
+            <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ $client }}" crossorigin="anonymous"></script>
+            <script>
+                (() => {
+                    const units = document.querySelectorAll('ins.adsbygoogle[data-sidebar-google]');
+                    const initialize = (unit) => {
+                        if (unit.dataset.googleInitialized || !unit.getClientRects().length || unit.offsetWidth === 0) return;
+                        unit.dataset.googleInitialized = '1';
+                        (window.adsbygoogle = window.adsbygoogle || []).push({});
+                    };
+                    if (!('IntersectionObserver' in window)) {
+                        units.forEach(initialize);
+                        return;
+                    }
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach((entry) => {
+                            if (!entry.isIntersecting || !entry.target.getClientRects().length) return;
+                            initialize(entry.target);
+                            observer.unobserve(entry.target);
+                        });
+                    }, { rootMargin: '400px 0px' });
+                    units.forEach((unit) => observer.observe(unit));
+                })();
+            </script>
+        @endpush
+    @endonce
+@endif
+
 @once
     <style>
         /* Each promotional slot clips the cards while they scroll upward. */
@@ -154,6 +157,13 @@
                 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
                 let index = Number(panel.dataset.sidebarRotation) % items.length;
                 let animating = false;
+                let visible = !('IntersectionObserver' in window);
+                if ('IntersectionObserver' in window) {
+                    const visibilityObserver = new IntersectionObserver((entries) => {
+                        visible = entries.some((entry) => entry.isIntersecting);
+                    }, { threshold: 0.05 });
+                    visibilityObserver.observe(panel);
+                }
 
                 items.forEach((item, position) => {
                     item.hidden = position !== index;
@@ -182,7 +192,7 @@
                 window.addEventListener('resize', measureHeight, { passive: true });
 
                 const rotate = () => {
-                    if (animating || document.hidden || panel.matches(':hover') || panel.contains(document.activeElement)) return;
+                    if (animating || !visible || reducedMotion.matches || document.hidden || panel.matches(':hover') || panel.contains(document.activeElement)) return;
 
                     const outgoing = items[index];
                     const nextIndex = (index + 1) % items.length;

@@ -2230,7 +2230,15 @@ input {
 }
 
 /* Reusable sidebar advertisements: Google stays static; campaigns rotate independently. */
-.sidebar-ad-stack{display:flex;flex-direction:column;gap:12px;min-width:0}
+/* Distribute placements along long pages, without sticky/fixed ads. */
+.sidebar-ad-stack{display:flex;flex-direction:column;gap:clamp(48px, 10vh, 115px);min-width:0}
+.sidebar-ad-stack--right{gap:clamp(36px, 7vh, 85px)}
+.sidebar-ad-unit--google{min-height:282px}
+.sidebar-ad-unit--google .adsbygoogle{min-height:250px}
+.sidebar-ad-placeholder--google{min-height:250px}
+@media (max-width:1199.98px){
+    .sidebar-ad-stack--right{gap:32px}
+}
 .sidebar-ad-unit{min-width:0;overflow:hidden;border:1px solid var(--site-border);border-radius:10px;background:var(--site-surface);padding:12px}
 .sidebar-ad-unit__label{margin-bottom:10px;color:var(--site-muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase}
 .sidebar-ad-placeholder{display:flex;align-items:center;justify-content:center;min-height:130px;border:1px dashed var(--site-border);border-radius:7px;color:var(--site-muted);font-size:12px;text-align:center;padding:12px}

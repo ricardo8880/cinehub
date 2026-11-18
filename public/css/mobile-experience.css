@@ -1,0 +1,69 @@
+/* Mobile/tablet reading experience; desktop sidebars keep their layout. */
+@media (max-width: 1199.98px) {
+    .public-column-layout--mobile-flow > .public-ad-rail--right,
+    .public-column-layout--no-mobile-ads > .public-ad-rail--right,
+    .home-mobile-flow .right-rail > .sidebar-ad-stack--right {
+        display: none;
+    }
+    .mobile-flow-ad-source {
+        width: min(100%, 330px);
+        margin: 32px auto;
+    }
+    .mobile-inline-ad {
+        width: min(100%, 330px);
+        max-width: 100%;
+        margin: 32px auto;
+        clear: both;
+    }
+    .mobile-inline-ad--grid {
+        width: 100%;
+        margin: 22px 0;
+    }
+    .mobile-inline-ad--grid > .sidebar-ad-unit {
+        max-width: 330px;
+        margin-inline: auto;
+    }
+    .mobile-inline-ad .sidebar-ad-unit,
+    .mobile-flow-ad-source .sidebar-ad-unit { width: 100%; }
+    .mobile-inline-ad .sidebar-ad-unit--google { min-height: 282px; }
+}
+@media (min-width: 1200px) {
+    .mobile-flow-ad-source, .mobile-inline-ad { display: none !important; }
+}
+@media (max-width: 575.98px) {
+    .public-article__section .card-body { padding: 17px !important; }
+    .public-article__text { overflow-wrap: break-word; }
+    .mobile-inline-ad { margin-block: 26px; }
+}
+/* Load the homepage featured video iframe only when the visitor presses play. */
+.featured-card__video-preview {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: #02060b;
+    cursor: pointer;
+}
+.featured-card__video-preview img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.featured-card__video-preview .featured-card__play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: clamp(44px, 7vw, 70px);
+    text-shadow: 0 2px 14px rgba(0,0,0,.7);
+}
+.featured-card__video-preview:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: -4px;
+}

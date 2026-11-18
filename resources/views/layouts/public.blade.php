@@ -11,11 +11,17 @@
     $isCategoryListing = request()->routeIs('categories.show');
     $showLeftAdRail = $isPostPage || $isCategoryListing || request()->routeIs('blog.index');
     $sidebarAdContext = $isPostPage ? 'post' : (request()->routeIs('blog.*') ? 'blog' : (request()->routeIs('categories.*') ? 'category' : (request()->routeIs('search*') ? 'search' : (request()->routeIs('book') ? 'book' : 'default'))));
+    $hasMobileAdFlow = $isPostPage || $isCategoryListing || request()->routeIs('blog.index');
+    $mobileAdKind = request()->routeIs('blog.show') ? 'blog-post' : ($isPostPage ? 'post' : (request()->routeIs('blog.index') ? 'blog-index' : 'category'));
 @endphp
 
 <div class="public-shell">
     <header class="topbar navbar fixed-top" aria-label="{{ __('Primary navigation') }}">
         <div class="container-fluid h-100 px-3">
+            <button class="btn icon-button d-xl-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#publicMobileMenu" aria-controls="publicMobileMenu" aria-label="{{ __('Open menu') }}">
+                <i class="bi bi-list" aria-hidden="true"></i>
+            </button>
+
             <a class="brand" href="{{ route('home', ['locale' => $currentLocale]) }}" aria-label="{{ config('site.name') }}">
                 <span class="brand__mark"><i class="bi bi-play-fill" aria-hidden="true"></i></span>
                 <span class="brand__name"><span>{{ config('site.brand_primary') }}</span><strong>{{ config('site.brand_accent') }}</strong></span>
@@ -90,14 +96,19 @@
 
     <main class="public-main">
         <div class="public-layout-container py-4">
-            <div class="public-column-layout {{ $showLeftAdRail ? 'public-column-layout--three-rails' : '' }} {{ $isCategoryListing ? 'public-column-layout--category' : '' }}">
+            <div class="public-column-layout {{ $showLeftAdRail ? 'public-column-layout--three-rails' : '' }} {{ $isCategoryListing ? 'public-column-layout--category' : '' }} {{ $hasMobileAdFlow ? 'public-column-layout--mobile-flow' : 'public-column-layout--no-mobile-ads' }}">
                 @if ($showLeftAdRail)
-                    {{-- Same advertising component as the right, hidden below desktop widths. --}}
+                    {{-- Left rail: Google AdSense only; hidden below desktop widths. --}}
                     <aside class="public-ad-rail public-ad-rail--left" aria-label="{{ __('Advertisements') }}">
-                        @include('components.sidebar-ads', ['context' => $sidebarAdContext, 'deferAdsenseUntilVisible' => true])
+                        @include('components.sidebar-ads', ['context' => $sidebarAdContext, 'adsenseOnly' => true, 'deferAdsenseUntilVisible' => true])
                     </aside>
                 @endif
-                <div class="public-column-layout__content">@yield('public-content')</div>
+                <div class="public-column-layout__content">
+                    @yield('public-content')
+                    @if ($hasMobileAdFlow)
+                        @include('components.mobile-ad-flow', ['context' => $sidebarAdContext, 'kind' => $mobileAdKind])
+                    @endif
+                </div>
                 <aside class="public-ad-rail public-ad-rail--right" aria-label="{{ __('Advertisements') }}">
                     @include('components.sidebar-ads', ['context' => $sidebarAdContext])
                 </aside>
@@ -127,6 +138,35 @@
 </div>
 
 @include('components.cookie-consent-banner')
+
+<div class="offcanvas offcanvas-start sidebar d-xl-none" tabindex="-1" id="publicMobileMenu" aria-labelledby="publicMobileMenuLabel">
+    <div class="offcanvas-header">
+        <span class="offcanvas-title fw-semibold" id="publicMobileMenuLabel">{{ __('Navigation') }}</span>
+        <button class="btn-close btn-close-white" type="button" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+    </div>
+    <div class="offcanvas-body sidebar__body">
+        <nav class="sidebar-nav" aria-label="{{ __('Primary navigation') }}">
+            <a class="sidebar-link" href="{{ route('home', ['locale' => $currentLocale]) }}"><i class="bi bi-house-fill" aria-hidden="true"></i><span>{{ __('Home') }}</span></a>
+            <a class="sidebar-link {{ request()->routeIs('blog.*') ? 'is-current' : '' }}" href="{{ route('blog.index', ['locale' => $currentLocale]) }}"><i class="bi bi-journal-richtext" aria-hidden="true"></i><span>{{ __('Blog') }}</span></a>
+        </nav>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-label">{{ __('Categories') }}</div>
+        <nav class="sidebar-nav sidebar-nav--compact" aria-label="{{ __('Categories') }}">
+            @foreach ($navigationCategories as $navCategory)
+                @php($navLocalization = $navCategory->localization($currentLocale))
+                @if ($navLocalization)
+                    <a class="sidebar-link {{ isset($category) && $category->id === $navCategory->id ? 'is-current' : '' }}" href="{{ route('categories.show', ['locale' => $currentLocale, 'category' => $navLocalization->slug]) }}">
+                        <i class="bi {{ $navCategory->icon ?: 'bi-grid' }}" aria-hidden="true"></i><span>{{ $navLocalization->name }}</span>
+                    </a>
+                @endif
+            @endforeach
+        </nav>
+        <div class="sidebar-divider"></div>
+        <nav class="sidebar-nav sidebar-nav--compact" aria-label="{{ __('Other pages') }}">
+            <a class="sidebar-link" href="{{ route('contact', ['locale' => $currentLocale]) }}"><i class="bi bi-envelope" aria-hidden="true"></i><span>{{ __('Contact') }}</span></a>
+        </nav>
+    </div>
+</div>
 
 <div class="offcanvas offcanvas-top mobile-search-panel" tabindex="-1" id="mobileSearchPanel" aria-labelledby="mobileSearchPanelLabel">
     <div class="offcanvas-header">

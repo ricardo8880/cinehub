@@ -75,6 +75,7 @@
         ]) }};
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="stylesheet" href="{{ asset('css/mobile-experience.css') }}">
 
     @if (config('site.google_analytics_id') && request()->cookie('mrrcine_analytics_consent') === 'granted')
         <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('site.google_analytics_id') }}"></script>

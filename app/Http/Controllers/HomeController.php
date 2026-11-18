@@ -18,7 +18,7 @@ class HomeController extends Controller
     public function __invoke(Request $request, PublicPostPresenter $presenter): View
     {
         $locale = (string) $request->route('locale');
-        $categories = $this->categories($locale);
+        $categories = Cache::remember("mrrcine:home:{$locale}:categories", now()->addMinutes(2), fn () => $this->categories($locale));
         $activeCategory = null;
 
         $baseQuery = fn (): Builder => Post::query()
@@ -38,28 +38,33 @@ class HomeController extends Controller
             ])
             ->withSum(['views as views_count' => fn ($q) => $q->whereIn('locale', EnglishGroup::history($locale))], 'view_count');
 
-        $featuredPost = $baseQuery()
-            ->whereHas('localizations', fn (Builder $q) => $q->where('locale', $locale)->where('is_active', true)->where('is_featured', true))
-            ->latest('published_at')
-            ->first();
+        $featuredItem = Cache::remember("mrrcine:home:{$locale}:featured", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): array {
+            $post = $baseQuery()
+                ->whereHas('localizations', fn (Builder $q) => $q->where('locale', $locale)->where('is_active', true)->where('is_featured', true))
+                ->latest('published_at')
+                ->first();
+            $item = $post ? $presenter->card($post, $locale) : null;
+            if ($item) {
+                $item['subtype_label'] = match ($item['content_kind'] ?? 'trailers') {
+                    'reviews' => __('Review'),
+                    'curiosities' => __('Curiosity'),
+                    'real-stories' => __('Real Story'),
+                    default => $item['video_embed_url'] ? __('Trailer') : __('Image'),
+                };
+            }
+            return $item ?? []; // Cache empty results too; null is treated as a cache miss.
+        });
+        $featuredItem = $featuredItem ?: null;
 
-        $featuredItem = $featuredPost ? $presenter->card($featuredPost, $locale) : null;
-        if ($featuredItem) {
-            $featuredItem['subtype_label'] = match ($featuredItem['content_kind'] ?? 'trailers') {
-                'reviews' => __('Review'),
-                'curiosities' => __('Curiosity'),
-                'real-stories' => __('Real Story'),
-                default => $featuredItem['video_embed_url'] ? __('Trailer') : __('Image'),
-            };
-        }
-
-        $latestItems = $baseQuery()
-            ->whereHas('media', fn (Builder $q) => $q->where('locale', $locale)->where('type', 'trailer')->where('provider', 'youtube'))
-            ->latest('published_at')
-            ->limit(4)
-            ->get()
-            ->map(fn (Post $post) => $presenter->card($post, $locale))
-            ->filter()->values();
+        $latestItems = Cache::remember("mrrcine:home:{$locale}:latest", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
+            return $baseQuery()
+                ->whereHas('media', fn (Builder $q) => $q->where('locale', $locale)->where('type', 'trailer')->where('provider', 'youtube'))
+                ->latest('published_at')
+                ->limit(4)
+                ->get()
+                ->map(fn (Post $post) => $presenter->card($post, $locale))
+                ->filter()->values();
+        });
 
         $popularItems = Cache::remember("mrrcine:home:{$locale}:popular", now()->addMinutes(2), function () use ($baseQuery, $locale, $presenter): Collection {
             return $baseQuery()

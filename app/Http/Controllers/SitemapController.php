@@ -9,12 +9,21 @@ use App\Models\PostLocalization;
 use App\Models\SiteSetting;
 use App\Support\Seo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 
 class SitemapController extends Controller
 {
     public function __invoke(): Response
+    {
+        $xml = Cache::remember('mrrcine:sitemap:xml', now()->addMinutes(10),
+            fn (): string => $this->generateXml());
+
+        return response($xml, 200)->header('Content-Type', 'application/xml; charset=UTF-8');
+    }
+
+    private function generateXml(): string
     {
         $locales = Seo::indexableLocales();
         $pages = collect();
@@ -162,6 +171,7 @@ class SitemapController extends Controller
                     ->orderBy('sort_order')
                     ->orderBy('id'),
                 'post.blogCategory.localizations',
+                'post.media',
             ])
             ->get();
 
@@ -208,8 +218,6 @@ class SitemapController extends Controller
             $addFamily($versions);
         }
 
-        return response()
-            ->view('sitemap', ['urls' => $pages->unique('loc')->values()])
-            ->header('Content-Type', 'application/xml; charset=UTF-8');
+        return view('sitemap', ['urls' => $pages->unique('loc')->values()])->render();
     }
 }

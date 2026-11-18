@@ -47,9 +47,8 @@ class AppServiceProvider extends ServiceProvider
         ) ?? $path);
 
         View::composer('layouts.public', function ($view): void {
-            $view->with('publicSiteLinks', SiteSetting::query()
-                ->whereIn('key', ['saas_url', 'donation_url'])
-                ->pluck('value', 'key'));
+            $settings = SiteSetting::publicValues();
+            $view->with('publicSiteLinks', collect($settings)->only(['saas_url', 'donation_url']));
         });
     }
 }

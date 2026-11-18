@@ -48,7 +48,7 @@
     $supportedLocales = config('localization.locales');
 @endphp
 
-<div class="site-shell" id="top">
+<div class="site-shell home-mobile-flow" id="top">
     <header class="topbar navbar fixed-top" aria-label="{{ __('Primary navigation') }}">
         <div class="container-fluid h-100 px-3">
             <button class="btn icon-button d-xl-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#siteSidebar" aria-controls="siteSidebar" aria-label="{{ __('Open menu') }}">
@@ -172,13 +172,10 @@
                     <article class="featured-card">
                         <div class="featured-card__media">
                             @if (! empty($featuredItem['video_embed_url']))
-                                <iframe
-                                    src="{{ $featuredItem['video_embed_url'] }}"
-                                    title="{{ $featuredItem['title'] }}"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    referrerpolicy="strict-origin-when-cross-origin"
-                                    allowfullscreen
-                                ></iframe>
+                                <button class="featured-card__video-preview" type="button" data-bs-toggle="modal" data-bs-target="#videoModal" data-video-url="{{ $featuredItem['video_embed_url'] }}" data-video-title="{{ $featuredItem['title'] }}" aria-label="{{ __('Video') }}: {{ $featuredItem['title'] }}">
+                                    <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" loading="eager" fetchpriority="high" decoding="async">
+                                    <i class="bi bi-play-circle-fill featured-card__play" aria-hidden="true"></i>
+                                </button>
                             @else
                                 <img src="{{ $featuredItem['image_url'] }}" alt="{{ $featuredItem['image_alt'] }}" class="w-100 h-100 object-fit-cover" fetchpriority="high" decoding="async" loading="eager">
                             @endif
@@ -259,6 +256,8 @@
                         @endforeach
                     </div>
                 </section>
+
+                @include('components.mobile-ad-flow', ['context' => 'home', 'kind' => 'home'])
             </div>
 
             <aside class="right-rail" aria-label="{{ __('Secondary content') }}">

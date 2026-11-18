@@ -64,6 +64,9 @@ class SiteSettingController extends Controller
             }
         });
 
+        SiteSetting::forgetPublicCache();
+        \App\Support\HomeContentCache::forget(); // The sitemap includes the book pages.
+
         return back()->with('success', __('Settings saved.'));
     }
 }
