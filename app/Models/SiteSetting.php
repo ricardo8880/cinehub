@@ -34,6 +34,7 @@ class SiteSetting extends Model
             'en', 'en-us' => '',
             'fr' => '_fr',
             'de' => '_de',
+            'pt-br' => '_pt_br',
             default => throw new \InvalidArgumentException('Unsupported book locale.'),
         });
     }

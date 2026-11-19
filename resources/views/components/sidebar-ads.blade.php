@@ -3,8 +3,9 @@
     $adsenseOnly = (bool) ($adsenseOnly ?? false);
     $rail = $adsenseOnly ? 'left' : 'right';
     $placementCount = $adsenseOnly ? 5 : 3;
-    $googleSlots = array_slice(array_pad((array) config("sidebar_ads.{$rail}_slots", []), $placementCount, ''), 0, $placementCount);
     $locale = (string) request()->route('locale', config('localization.default'));
+    // Brazilian monetization is affiliate-first: no AdSense placements.
+    $googleSlots = $locale === 'pt-br' ? [] : array_slice(array_pad((array) config("sidebar_ads.{$rail}_slots", []), $placementCount, ''), 0, $placementCount);
     $campaigns = collect(config('sidebar_ads.campaigns', []))
         ->filter(fn ($ad) => in_array($context, $ad['contexts'] ?? ['default'], true))
         ->map(function ($ad) use ($locale) {
@@ -23,11 +24,11 @@
     $client = (string) config('sidebar_ads.adsense_client', '');
     // While developing locally (or testing), ALWAYS render placeholders.
     // Real AdSense units require both a publisher ID and an ad-unit slot ID.
-    $allowLiveGoogle = ! app()->environment('local', 'testing') && preg_match('/^ca-pub-\d+$/', $client);
+    $allowLiveGoogle = $locale !== 'pt-br' && ! app()->environment('local', 'testing') && preg_match('/^ca-pub-\d+$/', $client);
     $hasLiveGoogle = $allowLiveGoogle && collect($googleSlots)->contains(fn ($id) => preg_match('/^\d+$/', (string) $id));
     $seconds = max(8, (int) config('sidebar_ads.rotation_seconds', 12));
     $showDemoAds = (bool) config('sidebar_demo_ads.enabled', false);
-    $adLanguage = $locale === 'fr' ? 'fr' : ($locale === 'de' ? 'de' : 'en');
+    $adLanguage = in_array($locale, ['fr', 'de', 'pt-br'], true) ? $locale : 'en';
     $demoCopy = $showDemoAds ? config("sidebar_demo_ads.localizations.{$adLanguage}", []) : [];
     $demoCards = $demoCopy['campaigns'] ?? [];
 @endphp

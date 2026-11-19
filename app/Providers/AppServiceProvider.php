@@ -16,6 +16,17 @@ class AppServiceProvider extends ServiceProvider
         // the admin and in regional menus. Other languages are untouched.
         $locales = config('localization.locales', []);
 
+        // Additional Brazilian content language. The ZIP provided for this
+        // update does not include config/localization.php; registering here
+        // preserves all existing project configuration and default locales.
+        $locales['pt-br'] = [
+            'locale' => 'pt_BR',
+            'language' => 'pt',
+            'region' => 'BR',
+            'country' => 'Brasil',
+            'label' => 'Português (Brasil)',
+        ];
+
         if (isset($locales['en-us'])) {
             foreach (['en-gb', 'en-ca', 'en-au'] as $regionalEnglish) {
                 unset($locales[$regionalEnglish]);
@@ -24,8 +35,9 @@ class AppServiceProvider extends ServiceProvider
             $locales['en-us']['region'] = 'EN';
             $locales['en-us']['country'] = 'English (US, UK, CA, AU)';
             $locales['en-us']['label'] = 'English';
-            config()->set('localization.locales', $locales);
         }
+
+        config()->set('localization.locales', $locales);
     }
 
     public function boot(): void

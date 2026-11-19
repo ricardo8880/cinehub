@@ -15,7 +15,7 @@ class SearchTermController extends Controller
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
-            'locale' => ['nullable', 'in:en-us,fr,de'],
+            'locale' => ['nullable', 'string', \Illuminate\Validation\Rule::in(array_keys(config('localization.locales', [])))],
             'status' => ['nullable', 'in:missing'],
         ]);
         $term = trim((string) ($filters['q'] ?? ''));

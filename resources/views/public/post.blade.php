@@ -22,6 +22,7 @@
     $signatureName = match ($seoLanguage) {
         'fr' => 'Cher M. R.',
         'de' => 'Werter Herr R.',
+        'pt-BR' => 'Meu caro leitor',
         default => 'Dear Mr. R.',
     };
     $hasSeoImage = ($image && $image->thumbnail_path) || ($trailer && $trailer->provider === 'youtube' && $trailer->provider_id);

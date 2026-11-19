@@ -21,7 +21,7 @@
 <hr class="my-4">
 <div class="mb-3">
     <h2 class="h5 mb-1">{{ __('Names by language') }}</h2>
-    <p class="small text-body-secondary mb-0">{{ __('English is required. French and German are optional. The Blog category is shared across all languages.') }}</p>
+    <p class="small text-body-secondary mb-0">{{ __('English is required. French, German and Brazilian Portuguese are optional. The Blog category is shared across all languages.') }}</p>
 </div>
 
 <ul class="nav nav-tabs" role="tablist">

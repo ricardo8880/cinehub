@@ -137,7 +137,7 @@
 <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
     <div>
         <h2 class="h5 mb-1">{{ __('Language content and SEO') }}</h2>
-        <p class="small text-body-secondary mb-0">{{ __('English is required. French and German are optional. Fill in a language to publish its version.') }}</p>
+        <p class="small text-body-secondary mb-0">{{ __('English is required. French, German and Brazilian Portuguese are optional. Fill in a language to publish its version.') }}</p>
     </div>
 </div>
 

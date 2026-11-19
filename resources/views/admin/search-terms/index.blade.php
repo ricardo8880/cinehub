@@ -17,9 +17,9 @@
         <label for="searchLocaleFilter" class="visually-hidden">Language</label>
         <select id="searchLocaleFilter" class="form-select" name="locale">
             <option value="">All languages</option>
-            <option value="en-us" @selected($locale === 'en-us')>English (EN)</option>
-            <option value="fr" @selected($locale === 'fr')>French (FR)</option>
-            <option value="de" @selected($locale === 'de')>German (DE)</option>
+            @foreach (config('localization.locales', []) as $languageCode => $language)
+                <option value="{{ $languageCode }}" @selected($locale === $languageCode)>{{ $language['label'] ?? $language['country'] ?? strtoupper($languageCode) }} ({{ strtoupper($languageCode) }})</option>
+            @endforeach
         </select>
     </div>
     <div class="col-8 col-md-3 col-lg-2">
@@ -53,7 +53,7 @@
                             {{ $searchTerm->term }}
                             <div class="small text-body-secondary fw-normal">First: {{ $searchTerm->first_searched_at?->format('d/m/Y H:i') }}</div>
                         </td>
-                        <td>{{ ['en-us' => 'EN', 'fr' => 'FR', 'de' => 'DE'][$searchTerm->locale] ?? $searchTerm->locale }}</td>
+                        <td>{{ ['en-us' => 'EN', 'fr' => 'FR', 'de' => 'DE', 'pt-br' => 'PT-BR'][$searchTerm->locale] ?? $searchTerm->locale }}</td>
                         <td class="text-end fw-semibold">{{ number_format($searchTerm->search_count, 0, ',', '.') }}</td>
                         <td>
                             @if ($currentResults[$searchTerm->id] ?? false)

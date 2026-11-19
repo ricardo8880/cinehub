@@ -9,7 +9,7 @@
     $searchValue = $query ?? request()->query('q', '');
     $isPostPage = request()->routeIs('posts.show', 'blog.show');
     $isCategoryListing = request()->routeIs('categories.show');
-    $showLeftAdRail = $isPostPage || $isCategoryListing || request()->routeIs('blog.index');
+    $showLeftAdRail = $currentLocale !== 'pt-br' && ($isPostPage || $isCategoryListing || request()->routeIs('blog.index'));
     $sidebarAdContext = $isPostPage ? 'post' : (request()->routeIs('blog.*') ? 'blog' : (request()->routeIs('categories.*') ? 'category' : (request()->routeIs('search*') ? 'search' : (request()->routeIs('book') ? 'book' : 'default'))));
     $hasMobileAdFlow = $isPostPage || $isCategoryListing || request()->routeIs('blog.index');
     $mobileAdKind = request()->routeIs('blog.show') ? 'blog-post' : ($isPostPage ? 'post' : (request()->routeIs('blog.index') ? 'blog-index' : 'category'));

@@ -156,11 +156,13 @@
                 <button class="btn support-card__button" type="button"><i class="bi bi-heart-fill"></i> {{ __('Make a Donation') }}</button>
             </section>
 
-            {{-- Single Google AdSense placement in the left rail (desktop only). --}}
-            <div class="sidebar-divider d-none d-xl-block"></div>
-            <div class="d-none d-xl-block" aria-label="{{ __('Advertisements') }}">
-                @include('components.sidebar-ads', ['context' => 'home', 'adsenseOnly' => true])
-            </div>
+            @if ($currentLocale !== 'pt-br')
+                {{-- Desktop-only AdSense placements outside the Brazilian edition. --}}
+                <div class="sidebar-divider d-none d-xl-block"></div>
+                <div class="d-none d-xl-block" aria-label="{{ __('Advertisements') }}">
+                    @include('components.sidebar-ads', ['context' => 'home', 'adsenseOnly' => true])
+                </div>
+            @endif
         </div>
     </aside>
 

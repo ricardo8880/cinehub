@@ -20,6 +20,8 @@ final class Seo
         return match ($storageLocale) {
             'fr' => (bool) config('seo.index_french', false),
             'de' => (bool) config('seo.index_german', false),
+            // Avoid indexing empty PT-BR articles before translations exist.
+            'pt-br' => (bool) config('cinehub_ptbr.index', false),
             default => true,
         };
     }
@@ -44,7 +46,12 @@ final class Seo
 
         $language = strtolower((string) $config['language']);
 
-        // International content targets the language, not one country.
+        // International content targets one language, whereas the Brazilian
+        // edition targets Brazilian Portuguese specifically.
+        if ($storageLocale === 'pt-br') {
+            return 'pt-BR';
+        }
+
         return in_array($language, ['en', 'fr', 'de'], true)
             ? $language
             : $language.'-'.strtoupper((string) $config['region']);

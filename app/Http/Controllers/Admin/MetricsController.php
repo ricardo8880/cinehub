@@ -217,7 +217,7 @@ class MetricsController extends Controller
                 'growth_rate' => '(current period views - previous period views) / previous period views * 100',
                 'unique_visitors' => 'Approximation using distinct visitor identifiers stored by MrRCine.',
                 'returning_visitors' => 'Among visitors with a counted view in the selected period, distinct visitors who started another visit after at least 30 minutes of inactivity. Returns may occur in any language. Session-based return tracking begins with the visitor activity migration; historical views are preserved but cannot reconstruct earlier sessions.',
-                'english_region' => 'The /en group is shared by the US, UK, Canada and Australia. French and German each share one language locale across multiple countries. Locale identifies content language, not visitor geography. Historical English regional activity is grouped without altering source records.',
+                'english_region' => 'The /en group is shared by the US, UK, Canada and Australia. French and German each share one language locale across multiple countries, and pt-br identifies Brazilian Portuguese content. Locale identifies content language, not visitor geography. Historical English regional activity is grouped without altering source records.',
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category assigned to the post, such as Games, Movies, Series or Curiosities.',
                 'genres' => 'Genres explicitly assigned to each post and restricted by its selected categories.',
@@ -507,7 +507,7 @@ class MetricsController extends Controller
                 'publication_type' => 'Publication format: standard content or Blog article.',
                 'content_type' => 'The main editorial category associated with the post, such as Games, Movies or TV & Series.',
                 'genres' => 'Genres associated with the post and useful for identifying recurring audience interests.',
-                'locale' => 'Public content language group; en-us, en-gb, en-ca and en-au map to en. fr and de each represent a language across multiple countries. Original locale is available in source_locale.',
+                'locale' => 'Public content language group; en-us, en-gb, en-ca and en-au map to en. fr and de each represent a language across multiple countries; pt-br is the Brazilian Portuguese edition. Original locale is available in source_locale.',
                 'is_reply' => 'Whether the comment is a reply to another comment.',
             ],
             'ai_analysis_instructions' => [

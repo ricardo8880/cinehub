@@ -1,13 +1,7 @@
 @extends('layouts.public')
-@php
-    // Book metadata is global English copy. Do not present it as a translated edition.
-    if (request()->route('locale') !== 'en-us') {
-        $book = ['title' => null, 'synopsis' => null, 'cover_url' => null, 'sample_url' => null, 'purchase_url' => null];
-    }
-@endphp
 @section('title', ($book['title'] ?: __('Book')).' · '.config('site.name'))
 @section('meta_description', $book['synopsis'] ?: config('site.description'))
-@section('robots', $book['title'] && request()->route('locale') === 'en-us' ? 'index, follow' : 'noindex, follow')
+@section('robots', $book['title'] && \App\Support\Seo::indexable(request()->route('locale')) ? 'index, follow' : 'noindex, follow')
 @section('twitter_card', $book['cover_url'] ? 'summary_large_image' : 'summary')
 
 @if ($book['title'])
